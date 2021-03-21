@@ -11,19 +11,30 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
+type TargetRef struct {
+	ApiVersion string `json:"apiVersion"`
+	Kind       string `json:"kind"`
+}
+
 // SleepInfoSpec defines the desired state of SleepInfo
 type SleepInfoSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
+	TargetRef TargetRef `json:"targetRef"`
+	SleepAt   string    `json:"sleepAt"`
+	RestoreAt string    `json:"restoreAt"`
+}
 
-	// Foo is an example field of SleepInfo. Edit sleepinfo_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+type DeploymentStatuses struct {
+	Name     string `json:"name"`
+	Replicas int64  `json:"replicas"`
 }
 
 // SleepInfoStatus defines the observed state of SleepInfo
 type SleepInfoStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
+	DeploymentStatuses []DeploymentStatuses `json:"deploymentStatuses"`
 }
 
 //+kubebuilder:object:root=true
