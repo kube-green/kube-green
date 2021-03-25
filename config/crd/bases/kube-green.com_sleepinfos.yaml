@@ -36,48 +36,14 @@ spec:
           spec:
             description: SleepInfoSpec defines the desired state of SleepInfo
             properties:
-              restoreAt:
+              sleepSchedule:
+                description: TargetRef     TargetRef `json:"targetRef"`
                 type: string
-              sleepAt:
-                type: string
-              targetRef:
-                description: 'INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-                  Important: Run "make" to regenerate code after modifying this file'
-                properties:
-                  apiVersion:
-                    type: string
-                  kind:
-                    type: string
-                required:
-                - apiVersion
-                - kind
-                type: object
             required:
-            - restoreAt
-            - sleepAt
-            - targetRef
+            - sleepSchedule
             type: object
           status:
             description: SleepInfoStatus defines the observed state of SleepInfo
-            properties:
-              deploymentStatuses:
-                description: 'INSERT ADDITIONAL STATUS FIELD - define observed state
-                  of cluster Important: Run "make" to regenerate code after modifying
-                  this file'
-                items:
-                  properties:
-                    name:
-                      type: string
-                    replicas:
-                      format: int64
-                      type: integer
-                  required:
-                  - name
-                  - replicas
-                  type: object
-                type: array
-            required:
-            - deploymentStatuses
             type: object
         type: object
     served: true

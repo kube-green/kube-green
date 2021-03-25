@@ -5,6 +5,8 @@ Copyright 2021.
 package v1alpha1
 
 import (
+	"time"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -18,23 +20,22 @@ type TargetRef struct {
 
 // SleepInfoSpec defines the desired state of SleepInfo
 type SleepInfoSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-	TargetRef TargetRef `json:"targetRef"`
-	SleepAt   string    `json:"sleepAt"`
-	RestoreAt string    `json:"restoreAt"`
+	// TargetRef     TargetRef `json:"targetRef"`
+	SleepSchedule string `json:"sleepSchedule"`
+	// RestoreAt               string    `json:"restoreAt"`
+	// StartingDeadlineSeconds int64 `json:"startingDeadlineSeconds"`
 }
 
-type DeploymentStatuses struct {
+type DeploymentRestoreInfo struct {
 	Name     string `json:"name"`
 	Replicas int64  `json:"replicas"`
 }
 
 // SleepInfoStatus defines the observed state of SleepInfo
 type SleepInfoStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-	DeploymentStatuses []DeploymentStatuses `json:"deploymentStatuses"`
+	// LastScheduleTime      metav1.Time             `json:"lastScheduleTime"`
+	NextScheduleTime metav1.Time `json:"nextScheduledTime"`
+	// DeploymentRestoreInfo []DeploymentRestoreInfo `json:"deploymentRestoreInfo"`
 }
 
 //+kubebuilder:object:root=true
@@ -61,4 +62,8 @@ type SleepInfoList struct {
 
 func init() {
 	SchemeBuilder.Register(&SleepInfo{}, &SleepInfoList{})
+}
+
+func getParsedDate(date string) (time.Time, error) {
+	return time.Parse(time.RFC3339, date)
 }

@@ -1,4 +1,4 @@
-api: kube-green.com/v1alpha1
+apiVersion: kube-green.com/v1alpha1
 kind: SleepInfo
 metadata:
   name: my-name
@@ -6,11 +6,14 @@ spec:
   targetRef:
     apiVersion: "apps/v1"
     kind: Deployment
-  sleepAt: "2021-03-21T16:33:37.384Z"
-  restoreAt: "2021-03-21T16:33:37.384Z"
+  sleepSchedule: "* * * * *"
+  restoreSchedule: "* * * * *"
+  startingDeadlineSeconds: 60
 
 ---
 status:
-  deploymentStatuses:
-    - name: api-gateway
-      replicas: 1
+  lastScheduledTime: ""
+  nextScheduledTime: ""
+  deploymentRestoreInfo:
+  - name: api-gateway
+    replicas: 1
