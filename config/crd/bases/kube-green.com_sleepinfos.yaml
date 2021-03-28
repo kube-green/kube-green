@@ -44,6 +44,12 @@ spec:
             type: object
           status:
             description: SleepInfoStatus defines the observed state of SleepInfo
+            properties:
+              lastScheduleTime:
+                description: Information when was the last time the run was successfully
+                  scheduled.
+                format: date-time
+                type: string
             type: object
         type: object
     served: true

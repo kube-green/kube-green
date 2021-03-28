@@ -33,8 +33,10 @@ type DeploymentRestoreInfo struct {
 
 // SleepInfoStatus defines the observed state of SleepInfo
 type SleepInfoStatus struct {
-	// LastScheduleTime      metav1.Time             `json:"lastScheduleTime"`
-	NextScheduleTime metav1.Time `json:"nextScheduledTime"`
+	// Information when was the last time the run was successfully scheduled.
+	// +optional
+	LastScheduleTime metav1.Time `json:"lastScheduleTime,omitempty"`
+	// LastScheduleTime metav1.Time `json:"nextScheduledTime"`
 	// DeploymentRestoreInfo []DeploymentRestoreInfo `json:"deploymentRestoreInfo"`
 }
 

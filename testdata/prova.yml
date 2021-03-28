@@ -3,7 +3,7 @@ kind: SleepInfo
 metadata:
   name: prova
 spec:
-  targetRef:
-    apiVersion: "apps/v1"
-    kind: Deployment
+  # targetRef:
+  #   apiVersion: "apps/v1"
+  #   kind: Deployment
   sleepSchedule: "* * * * *"

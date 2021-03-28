@@ -85,7 +85,7 @@ var _ = Describe("SleepInfo Controller", func() {
 		result, err := sleepInfoReconciler.Reconcile(ctx, req)
 		Expect(err).NotTo(HaveOccurred())
 
-		By("is requeue correctly")
+		By("is requeued correctly")
 		Expect(result).Should(Equal(ctrl.Result{
 			// 39445 is the difference between mocked now and next minute
 			// (the next scheduled time), in milliseconds
@@ -134,6 +134,20 @@ var _ = Describe("SleepInfo Controller", func() {
 		Expect(result).Should(Equal(ctrl.Result{}))
 	})
 
+	It("reconcile - not existent namespace", func() {
+		req := reconcile.Request{
+			NamespacedName: types.NamespacedName{
+				Name:      sleepInfoName,
+				Namespace: "not-exists",
+			},
+		}
+		result, err := sleepInfoReconciler.Reconcile(ctx, req)
+		Expect(err).NotTo(HaveOccurred())
+
+		By("is requeue correctly")
+		Expect(result).Should(Equal(ctrl.Result{}))
+	})
+
 	It("reconcile - with deployments", func() {
 		By("create deployments")
 		Expect(createDeployments(ctx, sleepInfoNamespace)).NotTo(HaveOccurred())
@@ -172,6 +186,7 @@ func createNamespace(ctx context.Context, name string) error {
 func createDeployments(ctx context.Context, namespace string) error {
 	var threeReplicas int32 = 3
 	var oneReplica int32 = 1
+	var zeroReplicas int32 = 0
 	deployments := []appsv1.Deployment{
 		{
 			TypeMeta: metav1.TypeMeta{
@@ -239,12 +254,80 @@ func createDeployments(ctx context.Context, namespace string) error {
 				},
 			},
 		},
+		{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "Deployment",
+				APIVersion: "apps/v1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "zero-replicas",
+				Namespace: namespace,
+			},
+			Spec: appsv1.DeploymentSpec{
+				Replicas: &zeroReplicas,
+				Selector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{
+						"app": "zero-replicas",
+					},
+				},
+				Template: core.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{
+							"app": "zero-replicas",
+						},
+					},
+					Spec: core.PodSpec{
+						Containers: []core.Container{
+							{
+								Name:  "zero",
+								Image: "davidebianchi/echo-service",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "Deployment",
+				APIVersion: "apps/v1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "zero-replicas-annotation",
+				Namespace: namespace,
+				Annotations: map[string]string{
+					lastScheduledAnnotation: "2021-03-23T00:00:00.000Z",
+				},
+			},
+			Spec: appsv1.DeploymentSpec{
+				Replicas: &zeroReplicas,
+				Selector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{
+						"app": "zero-replicas-annotation",
+					},
+				},
+				Template: core.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{
+							"app": "zero-replicas-annotation",
+						},
+					},
+					Spec: core.PodSpec{
+						Containers: []core.Container{
+							{
+								Name:  "zero",
+								Image: "davidebianchi/echo-service",
+							},
+						},
+					},
+				},
+			},
+		},
 	}
-	if err := k8sClient.Create(ctx, &deployments[0]); err != nil {
-		return fmt.Errorf("error %s creating deployment 1", err)
-	}
-	if err := k8sClient.Create(ctx, &deployments[1]); err != nil {
-		return fmt.Errorf("error %s creating deployment 2", err)
+	for _, deployment := range deployments {
+		if err := k8sClient.Create(ctx, &deployment); err != nil {
+			return fmt.Errorf("error %s creating deployment 1", err)
+		}
 	}
 	return nil
 }
