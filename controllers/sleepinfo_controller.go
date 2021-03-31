@@ -91,12 +91,19 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 
 	now := r.Clock.Now()
-	nextSchedule, requeueAfter, err := r.getNextSchedule(sleepInfo, now)
+	isToExecute, nextSchedule, requeueAfter, err := r.getNextSchedule(sleepInfo, now)
 	if err != nil {
 		log.Error(err, "unable to update deployment with 0 replicas")
 		return ctrl.Result{}, err
 	}
 	log = log.WithValues("now", r.Now(), "next run", nextSchedule, "requeue", requeueAfter)
+
+	if !isToExecute {
+		log.Info("skip execution")
+		return ctrl.Result{
+			RequeueAfter: requeueAfter,
+		}, nil
+	}
 
 	if len(deploymentList) == 0 {
 		log.Info("deployment not present in namespace")
@@ -105,6 +112,7 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		}, nil
 	}
 
+	log.Info("update deployments")
 	err = r.updateDeploymentsWithZeroReplicas(ctx, deploymentList, now)
 	if err != nil {
 		log.Error(err, "fails to update deployments")
@@ -131,10 +139,10 @@ func (r *SleepInfoReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func (r *SleepInfoReconciler) getNextSchedule(sleepInfo *kubegreenv1alpha1.SleepInfo, now time.Time) (time.Time, time.Duration, error) {
+func (r *SleepInfoReconciler) getNextSchedule(sleepInfo *kubegreenv1alpha1.SleepInfo, now time.Time) (bool, time.Time, time.Duration, error) {
 	sched, err := cron.ParseStandard(sleepInfo.Spec.SleepSchedule)
 	if err != nil {
-		return time.Time{}, 0, fmt.Errorf("sleep schedule not valid: %s", err)
+		return false, time.Time{}, 0, fmt.Errorf("sleep schedule not valid: %s", err)
 	}
 
 	var earliestTime time.Time
@@ -144,14 +152,21 @@ func (r *SleepInfoReconciler) getNextSchedule(sleepInfo *kubegreenv1alpha1.Sleep
 		earliestTime = now
 	}
 	nextSchedule := sched.Next(earliestTime)
+
 	if nextSchedule.Before(now) {
 		nextSchedule = sched.Next(now)
 	}
-	requeueAfter := nextSchedule.Sub(now) + 1*time.Second
+	isToExecute := isTimeInDelta(now, nextSchedule, 1*time.Second)
 
-	// The 1 second added is due to avoid the operator to requeue twice spaced by some milliseconds.
+	var requeueAfter time.Duration
+	if isToExecute {
+		nextSchedule = sched.Next(now.Add(1 * time.Second))
+	}
+	requeueAfter = nextSchedule.Sub(now)
+	r.Log.Info("is time to execute", "execute", isToExecute, "next", nextSchedule)
+
 	// TODO: add a better algorithm to correctly set requeue.
-	return nextSchedule, requeueAfter, nil
+	return isToExecute, nextSchedule, requeueAfter, nil
 }
 
 func (r *SleepInfoReconciler) getDeploymentsByNamespace(ctx context.Context, namespace string) ([]appsv1.Deployment, error) {
@@ -197,8 +212,6 @@ func (r *SleepInfoReconciler) updateDeploymentsWithZeroReplicas(ctx context.Cont
 		annotations[lastScheduledAnnotation] = now.Format(time.RFC3339)
 		d.SetAnnotations(annotations)
 		if err := r.Client.Update(ctx, d); err != nil {
-			// multiple update to a deployment could cause conflict. We ignore them.
-			// || errors.IsConflict(err)
 			if client.IgnoreNotFound(err) == nil {
 				return nil
 			}
@@ -206,4 +219,14 @@ func (r *SleepInfoReconciler) updateDeploymentsWithZeroReplicas(ctx context.Cont
 		}
 	}
 	return nil
+}
+
+func isTimeInDelta(t1, t2 time.Time, delta time.Duration) bool {
+	var diffInMs int64
+	if t1.Before(t2) {
+		diffInMs = t2.Sub(t1).Milliseconds()
+	} else {
+		diffInMs = t1.Sub(t2).Milliseconds()
+	}
+	return diffInMs <= delta.Milliseconds()
 }

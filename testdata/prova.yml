@@ -6,4 +6,4 @@ spec:
   # targetRef:
   #   apiVersion: "apps/v1"
   #   kind: Deployment
-  sleepSchedule: "* * * * *"
+  sleepSchedule: "5 * * * *"

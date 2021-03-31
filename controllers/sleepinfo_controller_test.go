@@ -3,16 +3,19 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"testing"
 	"time"
 
 	kubegreenv1alpha1 "github.com/davidebianchi/kube-green/api/v1alpha1"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	core "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -89,7 +92,36 @@ var _ = Describe("SleepInfo Controller", func() {
 		Expect(result).Should(Equal(ctrl.Result{
 			// 39445 is the difference between mocked now and next minute
 			// (the next scheduled time), in milliseconds
-			RequeueAfter: (39445 + 1000) * time.Millisecond,
+			RequeueAfter: 39445 * time.Millisecond,
+		}))
+
+		By("when requeued correctly - in delta of 30s")
+		sleepInfoReconciler = SleepInfoReconciler{
+			Clock: mockClock{
+				now: "2021-03-23T20:05:59.000Z",
+			},
+			Client: k8sClient,
+			Log:    testLogger,
+		}
+		result, err = sleepInfoReconciler.Reconcile(ctx, req)
+		Expect(err).NotTo(HaveOccurred())
+
+		By("replicas are set to 0")
+		deployments, err := listDeployments(ctx, sleepInfoNamespace)
+		Expect(err).NotTo(HaveOccurred())
+		allReplicas := []int32{}
+		for _, deployment := range deployments {
+			allReplicas = append(allReplicas, *deployment.Spec.Replicas)
+		}
+		for _, replicas := range allReplicas {
+			Expect(replicas).To(Equal(int32(0)))
+		}
+
+		By("is requeued correctly - 2")
+		Expect(result).Should(Equal(ctrl.Result{
+			// 61000 is the difference between mocked now and next minute
+			// (the next scheduled time), in milliseconds
+			RequeueAfter: 61000 * time.Millisecond,
 		}))
 	})
 
@@ -161,14 +193,107 @@ var _ = Describe("SleepInfo Controller", func() {
 		result, err := sleepInfoReconciler.Reconcile(ctx, req)
 		Expect(err).NotTo(HaveOccurred())
 
-		By("is requeue correctly")
+		By("is requeue correctly - 1")
 		Expect(result).Should(Equal(ctrl.Result{
 			// 39445 is the difference between mocked now and next minute
 			// (the next scheduled time), in milliseconds
-			RequeueAfter: (39445 + 1000) * time.Millisecond,
+			RequeueAfter: 39445 * time.Millisecond,
+		}))
+
+		By("replicas not changed")
+		deploymentsNotChanged, err := listDeployments(ctx, sleepInfoNamespace)
+		Expect(err).NotTo(HaveOccurred())
+		for _, deployment := range deploymentsNotChanged {
+			if deployment.Name == "zero-replicas" || deployment.Name == "zero-replicas-annotation" {
+				Expect(*deployment.Spec.Replicas).To(Equal(int32(0)))
+			} else {
+				Expect(*deployment.Spec.Replicas).NotTo(Equal(int32(0)))
+			}
+		}
+
+		By("when requeued correctly - in delta of 30s")
+		sleepInfoReconciler = SleepInfoReconciler{
+			Clock: mockClock{
+				now: "2021-03-23T20:05:59.000Z",
+			},
+			Client: k8sClient,
+			Log:    testLogger,
+		}
+		result, err = sleepInfoReconciler.Reconcile(ctx, req)
+		Expect(err).NotTo(HaveOccurred())
+
+		By("replicas are set to 0")
+		deployments, err := listDeployments(ctx, sleepInfoNamespace)
+		Expect(err).NotTo(HaveOccurred())
+		allReplicas := []int32{}
+		for _, deployment := range deployments {
+			allReplicas = append(allReplicas, *deployment.Spec.Replicas)
+		}
+		for _, replicas := range allReplicas {
+			Expect(replicas).To(Equal(int32(0)))
+		}
+
+		By("is requeued correctly - 2")
+		Expect(result).Should(Equal(ctrl.Result{
+			// 61000 is the difference between mocked now and next minute
+			// (the next scheduled time), in milliseconds
+			RequeueAfter: 61000 * time.Millisecond,
 		}))
 	})
 })
+
+func TestIsTimeInDeltaMs(t *testing.T) {
+	now := time.Now()
+	tests := []struct {
+		name     string
+		t1       time.Time
+		t2       time.Time
+		expected bool
+		delta    time.Duration
+	}{
+		{
+			name:     "t1 > t2 30s - delta 60s",
+			t1:       now,
+			t2:       now.Add(60 * time.Second),
+			delta:    time.Second * 60,
+			expected: true,
+		},
+		{
+			name:     "t1 > t2 1ms - delta 1ms",
+			t1:       now,
+			t2:       now.Add(1 * time.Millisecond),
+			delta:    time.Millisecond * 1,
+			expected: true,
+		},
+		{
+			name:     "t1 > t2 31s - delta 30s",
+			t1:       now,
+			t2:       now.Add(31 * time.Second),
+			delta:    time.Second * 30,
+			expected: false,
+		},
+		{
+			name:     "t1 > t2 30s - delta 60s",
+			t1:       now.Add(60 * time.Second),
+			t2:       now,
+			delta:    time.Second * 60,
+			expected: true,
+		},
+		{
+			name:     "t1 < t2 31s - delta 30s",
+			t1:       now.Add(31 * time.Second),
+			t2:       now,
+			delta:    time.Second * 30,
+			expected: false,
+		},
+	}
+	for _, test := range tests {
+		t.Run(fmt.Sprintf("name, %s", test.name), func(t *testing.T) {
+			output := isTimeInDelta(test.t1, test.t2, test.delta)
+			require.Equal(t, test.expected, output)
+		})
+	}
+}
 
 func createNamespace(ctx context.Context, name string) error {
 	namespace := &core.Namespace{
@@ -330,6 +455,17 @@ func createDeployments(ctx context.Context, namespace string) error {
 		}
 	}
 	return nil
+}
+
+func listDeployments(ctx context.Context, namespace string) ([]appsv1.Deployment, error) {
+	deployments := appsv1.DeploymentList{}
+	err := k8sClient.List(ctx, &deployments, &client.ListOptions{
+		Namespace: namespace,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return deployments.Items, nil
 }
 
 type mockClock struct {
