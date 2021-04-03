@@ -8,4 +8,4 @@ webhook:
   port: 9443
 leaderElection:
   leaderElect: true
-  resourceName: 2bd226ed.kubegreen.com
+  resourceName: 2bd226ed.kube-green.com

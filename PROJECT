@@ -1,8 +1,18 @@
-domain: kubegreen.com
+domain: kube-green.com
 layout: go.kubebuilder.io/v3
-projectName: kube-green
-repo: github.com/davidebianchi/kube-green
-version: "3"
 plugins:
   manifests.sdk.operatorframework.io/v2: {}
   scorecard.sdk.operatorframework.io/v2: {}
+projectName: kube-green
+repo: github.com/davidebianchi/kube-green
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: kube-green.com
+  kind: SleepInfo
+  path: github.com/davidebianchi/kube-green/api/v1alpha1
+  plural: sleepinfos
+  version: v1alpha1
+version: "3"
