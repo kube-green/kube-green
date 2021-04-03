@@ -24,4 +24,4 @@ jobs:
        - name: Vet and Build
          run: make manager
        - name: Run tests
-         run: echo "$SHELL" && make test
+         run: make test
