@@ -24,6 +24,8 @@ jobs:
        - name: Go get dependencies
          run: |
            go get -v -t -d ./...
+       - name: Vet and Build
+         run: make manager
        - name: Run tests
          run: make test
        - name: Build
