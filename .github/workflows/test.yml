@@ -3,7 +3,6 @@ on:
   pull_request:
     types: [opened]
   push:
-    '*'
 jobs:
   tests:
      name: Test on go ${{ matrix.go_version }}
