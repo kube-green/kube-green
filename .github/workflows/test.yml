@@ -5,7 +5,7 @@ on:
   push:
 jobs:
   tests:
-     name: Test on go ${{ matrix.go_version }}
+     name: Test on go ${{ matrix.go_version }} on os ${{matrix.os}}
      runs-on: ${{ matrix.os }}
      strategy:
        matrix:
@@ -28,3 +28,4 @@ jobs:
          run: make manager
        - name: Run tests
          run: make test
+         shell: bash
