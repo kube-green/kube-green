@@ -1,0 +1,31 @@
+name: Test and build
+on:
+  pull_request:
+    types: [opened]
+  push:
+    '*'
+jobs:
+  tests:
+     name: Test on go ${{ matrix.go_version }}
+     runs-on: ${{ matrix.os }}
+     strategy:
+       matrix:
+         go_version: [1.16]
+         os: [macos-latest, ubuntu-latest]
+     steps:
+       - uses: actions/checkout@v1
+       - name: Use golang ${{ matrix.go_version }}
+         uses: actions/setup-go@v1
+         with:
+           go-version: ${{ matrix.go_version }}
+
+       - name: Go version
+         run: |
+           go version
+       - name: Go get dependencies
+         run: |
+           go get -v -t -d ./...
+       - name: Run tests
+         run: make test
+       - name: Build
+         run: make
