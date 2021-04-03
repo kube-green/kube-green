@@ -28,5 +28,3 @@ jobs:
          run: make manager
        - name: Run tests
          run: make test
-       - name: Build
-         run: make
