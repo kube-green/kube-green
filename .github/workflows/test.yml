@@ -10,7 +10,7 @@ jobs:
      strategy:
        matrix:
          go_version: [1.16]
-         os: [ubuntu-latest] # [macos-latest, ubuntu-latest]
+         os: [macos-latest, ubuntu-latest]
      steps:
        - uses: actions/checkout@v2
        - name: Use golang ${{ matrix.go_version }}
@@ -21,7 +21,7 @@ jobs:
          run: go version
        - name: Go get dependencies
          run: go get -v -t -d ./...
-      #  - name: Vet and Build
-      #    run: make manager
        - name: Run tests
          run: make test
+       - name: Vet and Build
+         run: make manager
