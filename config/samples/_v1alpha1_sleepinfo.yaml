@@ -4,4 +4,4 @@ metadata:
   name: sleepinfo-sample
 spec:
   # Add fields here
-  foo: bar
+  sleepSchedule: "*/10 * * * *"
