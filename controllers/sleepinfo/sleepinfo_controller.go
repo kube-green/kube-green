@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	"github.com/robfig/cron/v3"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -48,6 +47,7 @@ type Clock interface {
 //+kubebuilder:rbac:groups=kube-green.com,resources=sleepinfos/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=kube-green.com,resources=sleepinfos/finalizers,verbs=update
 //+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=core,resources=namespace,verbs=get;update
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -139,36 +139,6 @@ func (r *SleepInfoReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func (r *SleepInfoReconciler) getNextSchedule(sleepInfo *kubegreenv1alpha1.SleepInfo, now time.Time) (bool, time.Time, time.Duration, error) {
-	sched, err := cron.ParseStandard(sleepInfo.Spec.SleepSchedule)
-	if err != nil {
-		return false, time.Time{}, 0, fmt.Errorf("sleep schedule not valid: %s", err)
-	}
-
-	var earliestTime time.Time
-	if !sleepInfo.Status.LastScheduleTime.IsZero() {
-		earliestTime = sleepInfo.Status.LastScheduleTime.Time
-	} else {
-		earliestTime = now
-	}
-	nextSchedule := sched.Next(earliestTime)
-
-	if nextSchedule.Before(now) {
-		nextSchedule = sched.Next(now)
-	}
-	isToExecute := isTimeInDelta(now, nextSchedule, 1*time.Second)
-
-	var requeueAfter time.Duration
-	if isToExecute {
-		nextSchedule = sched.Next(now.Add(1 * time.Second))
-	}
-	requeueAfter = nextSchedule.Sub(now)
-	r.Log.Info("is time to execute", "execute", isToExecute, "next", nextSchedule)
-
-	// TODO: add a better algorithm to correctly set requeue.
-	return isToExecute, nextSchedule, requeueAfter, nil
-}
-
 func (r *SleepInfoReconciler) getDeploymentsByNamespace(ctx context.Context, namespace string) ([]appsv1.Deployment, error) {
 	listOptions := &client.ListOptions{
 		Namespace: namespace,
@@ -196,37 +166,4 @@ func (r *SleepInfoReconciler) getLastScheduledAnnotation(deployments []appsv1.De
 		}
 	}
 	return mostRecentTime, nil
-}
-
-func (r *SleepInfoReconciler) updateDeploymentsWithZeroReplicas(ctx context.Context, deployments []appsv1.Deployment, now time.Time) error {
-	for _, deployment := range deployments {
-		if *deployment.Spec.Replicas == 0 {
-			continue
-		}
-		d := deployment.DeepCopy()
-		*d.Spec.Replicas = 0
-		annotations := d.GetAnnotations()
-		if annotations == nil {
-			annotations = map[string]string{}
-		}
-		annotations[lastScheduledAnnotation] = now.Format(time.RFC3339)
-		d.SetAnnotations(annotations)
-		if err := r.Client.Update(ctx, d); err != nil {
-			if client.IgnoreNotFound(err) == nil {
-				return nil
-			}
-			return err
-		}
-	}
-	return nil
-}
-
-func isTimeInDelta(t1, t2 time.Time, delta time.Duration) bool {
-	var diffInMs int64
-	if t1.Before(t2) {
-		diffInMs = t2.Sub(t1).Milliseconds()
-	} else {
-		diffInMs = t1.Sub(t2).Milliseconds()
-	}
-	return diffInMs <= delta.Milliseconds()
 }

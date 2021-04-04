@@ -19,6 +19,13 @@ rules:
   - update
   - watch
 - apiGroups:
+  - ""
+  resources:
+  - namespace
+  verbs:
+  - get
+  - update
+- apiGroups:
   - kube-green.com
   resources:
   - sleepinfos
