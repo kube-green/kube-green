@@ -20,7 +20,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	kubegreencomv1alpha1 "github.com/davidebianchi/kube-green/api/v1alpha1"
-	"github.com/davidebianchi/kube-green/controllers"
+	sleepinfocontroller "github.com/davidebianchi/kube-green/controllers/sleepinfo"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -66,7 +66,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controllers.SleepInfoReconciler{
+	if err = (&sleepinfocontroller.SleepInfoReconciler{
 		Client: mgr.GetClient(),
 		Log:    ctrl.Log.WithName("controllers").WithName("SleepInfo"),
 		Scheme: mgr.GetScheme(),
