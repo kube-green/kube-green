@@ -2,25 +2,37 @@ package controllers
 
 import (
 	"context"
-	"time"
+	"strconv"
 
+	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func (r *SleepInfoReconciler) updateDeploymentsWithZeroReplicas(ctx context.Context, deployments []appsv1.Deployment, now time.Time) error {
+// TODO: handle double subsequent sleep --> replicas annotation must not be set to 0
+func (r *SleepInfoReconciler) handleSleep(logger logr.Logger, ctx context.Context, deploymentList []appsv1.Deployment) error {
+	logger.Info("update deployments")
+	err := r.updateDeploymentsWithZeroReplicas(ctx, deploymentList)
+	if err != nil {
+		logger.Error(err, "fails to update deployments")
+		return err
+	}
+
+	return nil
+}
+
+func (r *SleepInfoReconciler) updateDeploymentsWithZeroReplicas(ctx context.Context, deployments []appsv1.Deployment) error {
 	for _, deployment := range deployments {
-		if *deployment.Spec.Replicas == 0 {
-			continue
-		}
+		currentDeploymentReplicas := strconv.Itoa(int(*deployment.Spec.Replicas))
 		d := deployment.DeepCopy()
-		*d.Spec.Replicas = 0
 		annotations := d.GetAnnotations()
 		if annotations == nil {
 			annotations = map[string]string{}
 		}
-		annotations[lastScheduledAnnotation] = now.Format(time.RFC3339)
+		annotations[replicasBeforeSleepAnnotation] = currentDeploymentReplicas
 		d.SetAnnotations(annotations)
+
+		*d.Spec.Replicas = 0
 		if err := r.Client.Update(ctx, d); err != nil {
 			if client.IgnoreNotFound(err) == nil {
 				return nil

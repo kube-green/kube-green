@@ -6,4 +6,18 @@ spec:
   # targetRef:
   #   apiVersion: "apps/v1"
   #   kind: Deployment
-  sleepSchedule: "*/10 * * * *"
+  sleepSchedule: "0 20 1-5 * *"
+  restoreSchedule: "0 8 1-5 * *"
+
+  sleep:
+    weekday: "lun-ven"
+    hour: "20"
+    minute: "00"
+  restore:
+    weekday: "lun-ven"
+    hour: "8"
+    minute: "00"
+
+  dayInterval: "lun-ven"
+  sleepTime: "20:00"
+  wakeTime: "08:00"

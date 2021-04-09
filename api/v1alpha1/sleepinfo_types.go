@@ -13,31 +13,27 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-type TargetRef struct {
-	ApiVersion string `json:"apiVersion"`
-	Kind       string `json:"kind"`
-}
-
 // SleepInfoSpec defines the desired state of SleepInfo
 type SleepInfoSpec struct {
-	// TargetRef     TargetRef `json:"targetRef"`
-	SleepSchedule string `json:"sleepSchedule"`
-	// RestoreAt               string    `json:"restoreAt"`
-	// StartingDeadlineSeconds int64 `json:"startingDeadlineSeconds"`
+	SleepSchedule   string `json:"sleepSchedule"`
+	RestoreSchedule string `json:"restoreSchedule"`
 }
 
-type DeploymentRestoreInfo struct {
-	Name     string `json:"name"`
-	Replicas int64  `json:"replicas"`
-}
+// TODO: save changed replica deployment info in sleepinfo status?
+// type DeploymentRestoreInfo struct {
+// 	Name     string `json:"name"`
+// 	Replicas int64  `json:"replicas"`
+// }
 
 // SleepInfoStatus defines the observed state of SleepInfo
 type SleepInfoStatus struct {
 	// Information when was the last time the run was successfully scheduled.
 	// +optional
 	LastScheduleTime metav1.Time `json:"lastScheduleTime,omitempty"`
-	// LastScheduleTime metav1.Time `json:"nextScheduledTime"`
-	// DeploymentRestoreInfo []DeploymentRestoreInfo `json:"deploymentRestoreInfo"`
+	// The operation type handled in last schedule. SLEEP or RESTORE are the
+	// possibilities
+	// +optional
+	OperationType string `json:"operation,omitempty"`
 }
 
 //+kubebuilder:object:root=true

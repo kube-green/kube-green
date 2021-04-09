@@ -36,10 +36,12 @@ spec:
           spec:
             description: SleepInfoSpec defines the desired state of SleepInfo
             properties:
+              restoreSchedule:
+                type: string
               sleepSchedule:
-                description: TargetRef     TargetRef `json:"targetRef"`
                 type: string
             required:
+            - restoreSchedule
             - sleepSchedule
             type: object
           status:
@@ -49,6 +51,10 @@ spec:
                 description: Information when was the last time the run was successfully
                   scheduled.
                 format: date-time
+                type: string
+              operation:
+                description: The operation type handled in last schedule. SLEEP or
+                  RESTORE are the possibilities
                 type: string
             type: object
         type: object

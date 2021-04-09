@@ -21,10 +21,12 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - namespace
+  - namespaces
   verbs:
   - get
+  - list
   - update
+  - watch
 - apiGroups:
   - kube-green.com
   resources:
