@@ -12,7 +12,7 @@ import (
 
 // TODO: handle deploy between sleep and restore
 func (r *SleepInfoReconciler) handleRestore(logger logr.Logger, ctx context.Context, deploymentList []appsv1.Deployment) error {
-	logger.Info("update deployments")
+	logger.Info("handle restore operation", "number of deployments", len(deploymentList))
 	err := r.restoreDeploymentReplicas(ctx, deploymentList)
 	if err != nil {
 		logger.Error(err, "fails to update deployments")

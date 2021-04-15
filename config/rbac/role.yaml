@@ -21,10 +21,13 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - namespaces
+  - secrets
   verbs:
+  - create
+  - delete
   - get
   - list
+  - patch
   - update
   - watch
 - apiGroups:

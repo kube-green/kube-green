@@ -7,13 +7,15 @@ import (
 	"github.com/robfig/cron/v3"
 )
 
-func (r *SleepInfoReconciler) getNextSchedule(schedule, nextOpSchedule string, lastSchedule, now time.Time) (bool, time.Time, time.Duration, error) {
-	sched, err := getCronParsed(schedule)
+func (r *SleepInfoReconciler) getNextSchedule(data SleepInfoData, now time.Time) (bool, time.Time, time.Duration, error) {
+	sched, err := getCronParsed(data.CurrentOperationSchedule)
 	if err != nil {
 		return false, time.Time{}, 0, fmt.Errorf("current schedule not valid: %s", err)
 	}
 
-	// sub 1 second because if now is after current schedule of some ms we skip
+	lastSchedule := data.LastSchedule
+
+	// sub 2 second because if now is after current schedule of some ms we skip
 	// the current schedule
 	var earliestTime time.Time = now.Add(-1 * time.Second)
 	if !lastSchedule.IsZero() {
@@ -21,14 +23,14 @@ func (r *SleepInfoReconciler) getNextSchedule(schedule, nextOpSchedule string, l
 	}
 	nextSchedule := sched.Next(earliestTime)
 
-	if earliestTime == lastSchedule && nextSchedule.Before(now) {
+	if earliestTime == lastSchedule && nextSchedule.Before(now) && !isTimeInDelta(nextSchedule, now, 1*time.Second) {
 		nextSchedule = sched.Next(now)
 	}
 	isToExecute := isTimeInDelta(now, nextSchedule, 1*time.Second)
 
 	var requeueAfter time.Duration
 	if isToExecute {
-		nextOpSched, err := getCronParsed(nextOpSchedule)
+		nextOpSched, err := getCronParsed(data.NextOperationSchedule)
 		if err != nil {
 			return false, time.Time{}, 0, fmt.Errorf("next op schedule not valid: %s", err)
 		}

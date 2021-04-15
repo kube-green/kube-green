@@ -3,15 +3,14 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"testing"
 	"time"
 
 	kubegreenv1alpha1 "github.com/davidebianchi/kube-green/api/v1alpha1"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	core "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -32,9 +31,8 @@ var _ = Describe("SleepInfo Controller", func() {
 	)
 
 	var (
-		sleepInfoReconciler      SleepInfoReconciler
-		testLogger                                 = zap.New(zap.UseDevMode(true), zap.WriteTo(GinkgoWriter))
-		expectedEmptyAnnotations map[string]string = nil
+		sleepInfoReconciler SleepInfoReconciler
+		testLogger          = zap.New(zap.UseDevMode(true), zap.WriteTo(GinkgoWriter))
 	)
 
 	BeforeEach(func() {
@@ -117,19 +115,17 @@ var _ = Describe("SleepInfo Controller", func() {
 			Expect(len(deployments)).To(Equal(0))
 		})
 
-		By("without deployments, namespace annotations are not written", func() {
-			namespace, err := sleepInfoReconciler.getNamespace(ctx, sleepInfoNamespace)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(namespace.GetAnnotations()).To(Equal(expectedEmptyAnnotations))
+		By("without deployments, secret is not written", func() {
+			secret, err := sleepInfoReconciler.getSecret(ctx, getSecretName(sleepInfoName), sleepInfoNamespace)
+			Expect(apierrors.IsNotFound(err)).To(BeTrue())
+			Expect(secret).To(BeNil())
 		})
 
 		By("sleepinfo status updated correctly", func() {
 			sleepInfo, err := sleepInfoReconciler.getSleepInfo(ctx, req)
 			Expect(err).NotTo(HaveOccurred())
-			lastSchedule, err := time.Parse(time.RFC3339, sleepScheduleTime)
-			Expect(err).NotTo(HaveOccurred())
 			Expect(sleepInfo.Status).To(Equal(kubegreenv1alpha1.SleepInfoStatus{
-				LastScheduleTime: metav1.NewTime(lastSchedule.Local()),
+				LastScheduleTime: metav1.NewTime(getTime(sleepScheduleTime).Local()),
 				// FIXME: sleep operation not really performed!
 				OperationType: sleepOperation,
 			}))
@@ -163,19 +159,17 @@ var _ = Describe("SleepInfo Controller", func() {
 		By("sleepinfo status updated correctly", func() {
 			sleepInfo, err := sleepInfoReconciler.getSleepInfo(ctx, req)
 			Expect(err).NotTo(HaveOccurred())
-			lastSchedule, err := time.Parse(time.RFC3339, sleepScheduleTime)
-			Expect(err).NotTo(HaveOccurred())
 			Expect(sleepInfo.Status).To(Equal(kubegreenv1alpha1.SleepInfoStatus{
-				LastScheduleTime: metav1.NewTime(lastSchedule.Local()),
+				LastScheduleTime: metav1.NewTime(getTime(sleepScheduleTime).Local()),
 				// FIXME: sleep operation not really performed!
 				OperationType: sleepOperation,
 			}))
 		})
 
-		By("without deployments, namespace annotations are not written", func() {
-			namespace, err := sleepInfoReconciler.getNamespace(ctx, sleepInfoNamespace)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(namespace.GetAnnotations()).To(Equal(expectedEmptyAnnotations))
+		By("without deployments, secret is not written", func() {
+			secret, err := sleepInfoReconciler.getSecret(ctx, getSecretName(sleepInfoName), sleepInfoNamespace)
+			Expect(apierrors.IsNotFound(err)).To(BeTrue())
+			Expect(secret).To(BeNil())
 		})
 	})
 
@@ -285,35 +279,24 @@ var _ = Describe("SleepInfo Controller", func() {
 		By("replicas are set to 0 to all deployments and annotations are set correctly to deployments", func() {
 			deployments, err := listDeployments(ctx, sleepInfoNamespace)
 			Expect(err).NotTo(HaveOccurred())
-			allReplicas := []int32{}
-			for idx, deployment := range deployments {
-				allReplicas = append(allReplicas, *deployment.Spec.Replicas)
-
-				annotations := deployment.GetAnnotations()
-				Expect(annotations[replicasBeforeSleepAnnotation]).To(Equal(fmt.Sprintf("%d", *originalDeployments[idx].Spec.Replicas)))
-			}
-			for _, replicas := range allReplicas {
-				Expect(replicas).To(Equal(int32(0)))
-			}
+			assertAllReplicasSetToZero(deployments, originalDeployments)
 		})
 
-		By("namespace annotations are correctly set", func() {
-			namespace, err := sleepInfoReconciler.getNamespace(ctx, sleepInfoNamespace)
+		By("secret is correctly set", func() {
+			secret, err := sleepInfoReconciler.getSecret(ctx, getSecretName(sleepInfoName), sleepInfoNamespace)
 			Expect(err).NotTo(HaveOccurred())
-			annotations := namespace.GetAnnotations()
-			Expect(annotations).To(Equal(map[string]string{
-				lastScheduledAnnotation: "2021-03-23T20:05:59Z",
-				lastOperationAnnotation: sleepOperation,
+			secretData := secret.Data
+			Expect(secretData).To(Equal(map[string][]byte{
+				lastScheduleKey:  []byte("2021-03-23T20:05:59Z"),
+				lastOperationKey: []byte(sleepOperation),
 			}))
 		})
 
 		By("sleepinfo status updated correctly", func() {
 			sleepInfo, err := sleepInfoReconciler.getSleepInfo(ctx, req)
 			Expect(err).NotTo(HaveOccurred())
-			lastSchedule, err := time.Parse(time.RFC3339, sleepScheduleTime)
-			Expect(err).NotTo(HaveOccurred())
 			Expect(sleepInfo.Status).To(Equal(kubegreenv1alpha1.SleepInfoStatus{
-				LastScheduleTime: metav1.NewTime(lastSchedule.Local()),
+				LastScheduleTime: metav1.NewTime(getTime(sleepScheduleTime).Local()),
 				OperationType:    sleepOperation,
 			}))
 		})
@@ -327,9 +310,10 @@ var _ = Describe("SleepInfo Controller", func() {
 		})
 
 		By("requeued correctly - RESTORE")
+		restoreScheduledTime := "2021-03-23T20:07:00.100Z"
 		sleepInfoReconciler = SleepInfoReconciler{
 			Clock: mockClock{
-				now: "2021-03-23T20:07:00.100Z",
+				now: restoreScheduledTime,
 			},
 			Client: k8sClient,
 			Log:    testLogger,
@@ -338,30 +322,39 @@ var _ = Describe("SleepInfo Controller", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		By("deployment replicas correctly restored and annotation deleted", func() {
-			// TODO:
 			deployments, err := listDeployments(ctx, sleepInfoNamespace)
 			Expect(err).NotTo(HaveOccurred())
 			for idx, deployment := range deployments {
 				Expect(deployment.Spec.Replicas).To(Equal(originalDeployments[idx].Spec.Replicas))
+
+				annotations := deployment.GetAnnotations()
+				_, ok := annotations[replicasBeforeSleepAnnotation]
+				Expect(ok).To(BeFalse())
 			}
 		})
 
 		By("status correctly updated", func() {
-			// TODO:
+			sleepInfo, err := sleepInfoReconciler.getSleepInfo(ctx, req)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(sleepInfo.Status).To(Equal(kubegreenv1alpha1.SleepInfoStatus{
+				LastScheduleTime: metav1.NewTime(getTime(restoreScheduledTime).Round(time.Second).Local()),
+				OperationType:    restoreOperation,
+			}))
 		})
 
 		By("is requeued after correct duration to sleep", func() {
-			// Expect(result).Should(Equal(ctrl.Result{
-			// 	// 61000 is the difference between mocked now and next uneven minute
-			// 	// (the next scheduled time for restore), in milliseconds
-			// 	RequeueAfter: 61000 * time.Millisecond,
-			// }))
+			Expect(result).Should(Equal(ctrl.Result{
+				// 59900 is the difference between mocked now and next even minute
+				// (the next scheduled time for sleep), in milliseconds
+				RequeueAfter: 59900 * time.Millisecond,
+			}))
 		})
 
 		By("requeued correctly - SLEEP")
+		sleepScheduleTime = "2021-03-23T20:08:00.000Z"
 		sleepInfoReconciler = SleepInfoReconciler{
 			Clock: mockClock{
-				now: "2021-03-23T20:07:00.100Z",
+				now: sleepScheduleTime,
 			},
 			Client: k8sClient,
 			Log:    testLogger,
@@ -370,75 +363,29 @@ var _ = Describe("SleepInfo Controller", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		By("deployment replicas correctly restored and annotation deleted", func() {
-			// TODO:
+			deployments, err := listDeployments(ctx, sleepInfoNamespace)
+			Expect(err).NotTo(HaveOccurred())
+			assertAllReplicasSetToZero(deployments, originalDeployments)
 		})
 
 		By("status correctly updated", func() {
-			// TODO:
+			sleepInfo, err := sleepInfoReconciler.getSleepInfo(ctx, req)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(sleepInfo.Status).To(Equal(kubegreenv1alpha1.SleepInfoStatus{
+				LastScheduleTime: metav1.NewTime(getTime(sleepScheduleTime).Round(time.Second).Local()),
+				OperationType:    sleepOperation,
+			}))
 		})
 
 		By("is requeued after correct duration to sleep", func() {
-			// Expect(result).Should(Equal(ctrl.Result{
-			// 	// 61000 is the difference between mocked now and next uneven minute
-			// 	// (the next scheduled time for restore), in milliseconds
-			// 	RequeueAfter: 61000 * time.Millisecond,
-			// }))
+			Expect(result).Should(Equal(ctrl.Result{
+				// 60000 is the difference between mocked now and next uneven minute
+				// (the next scheduled time for restore), in milliseconds
+				RequeueAfter: 60000 * time.Millisecond,
+			}))
 		})
 	})
 })
-
-func TestIsTimeInDeltaMs(t *testing.T) {
-	now := time.Now()
-	tests := []struct {
-		name     string
-		t1       time.Time
-		t2       time.Time
-		expected bool
-		delta    time.Duration
-	}{
-		{
-			name:     "t1 > t2 30s - delta 60s",
-			t1:       now,
-			t2:       now.Add(60 * time.Second),
-			delta:    time.Second * 60,
-			expected: true,
-		},
-		{
-			name:     "t1 > t2 1ms - delta 1ms",
-			t1:       now,
-			t2:       now.Add(1 * time.Millisecond),
-			delta:    time.Millisecond * 1,
-			expected: true,
-		},
-		{
-			name:     "t1 > t2 31s - delta 30s",
-			t1:       now,
-			t2:       now.Add(31 * time.Second),
-			delta:    time.Second * 30,
-			expected: false,
-		},
-		{
-			name:     "t1 > t2 30s - delta 60s",
-			t1:       now.Add(60 * time.Second),
-			t2:       now,
-			delta:    time.Second * 60,
-			expected: true,
-		},
-		{
-			name:     "t1 < t2 31s - delta 30s",
-			t1:       now.Add(31 * time.Second),
-			t2:       now,
-			delta:    time.Second * 30,
-			expected: false,
-		},
-	}
-	for _, test := range tests {
-		t.Run(fmt.Sprintf("name, %s", test.name), func(t *testing.T) {
-			output := isTimeInDelta(test.t1, test.t2, test.delta)
-			require.Equal(t, test.expected, output)
-		})
-	}
-}
 
 func createNamespace(ctx context.Context, name string) error {
 	namespace := &core.Namespace{
@@ -566,7 +513,7 @@ func createDeployments(ctx context.Context, namespace string) ([]appsv1.Deployme
 				Name:      "zero-replicas-annotation",
 				Namespace: namespace,
 				Annotations: map[string]string{
-					lastScheduledAnnotation: "2021-03-23T00:00:00.000Z",
+					lastScheduleKey: "2021-03-23T00:00:00.000Z",
 				},
 			},
 			Spec: appsv1.DeploymentSpec{
@@ -621,4 +568,24 @@ func (m mockClock) Now() time.Time {
 	parsedTime, err := time.Parse(time.RFC3339, m.now)
 	Expect(err).NotTo(HaveOccurred())
 	return parsedTime
+}
+
+func assertAllReplicasSetToZero(actualDeployments []appsv1.Deployment, originalDeployments []appsv1.Deployment) {
+	allReplicas := []int32{}
+	for idx, deployment := range actualDeployments {
+		allReplicas = append(allReplicas, *deployment.Spec.Replicas)
+
+		annotations := deployment.GetAnnotations()
+		Expect(annotations[replicasBeforeSleepAnnotation]).To(Equal(fmt.Sprintf("%d", *originalDeployments[idx].Spec.Replicas)))
+	}
+	for _, replicas := range allReplicas {
+		Expect(replicas).To(Equal(int32(0)))
+	}
+}
+
+// TODO: create a single function with the function in schedule_test
+func getTime(mockNowRaw string) time.Time {
+	now, err := time.Parse(time.RFC3339, mockNowRaw)
+	Expect(err).ShouldNot(HaveOccurred())
+	return now
 }

@@ -22,8 +22,9 @@ import (
 )
 
 const (
-	lastScheduledAnnotation       = "sleepinfo.kube-green.com/scheduled-at"
-	lastOperationAnnotation       = "sleepinfo.kube-green.com/operation"
+	lastScheduleKey               = "scheduled-at"
+	lastOperationKey              = "operation-type"
+	replicasBeforeSleepKey        = "deployment-replicas"
 	replicasBeforeSleepAnnotation = "sleepinfo.kube-green.com/replicas-before-sleep"
 
 	sleepOperation   = "SLEEP"
@@ -50,11 +51,23 @@ type Clock interface {
 	Now() time.Time
 }
 
+type OriginalDeploymentReplicas struct {
+	Name     string `json:"name"`
+	Replicas string `json:"replicas"`
+}
+type SleepInfoData struct {
+	LastSchedule                time.Time                    `json:"lastSchedule"`
+	CurrentOperationType        string                       `json:"operationType"`
+	OriginalDeploymentsReplicas []OriginalDeploymentReplicas `json:"originalDeploymentReplicas"`
+	CurrentOperationSchedule    string                       `json:"-"`
+	NextOperationSchedule       string                       `json:"-"`
+}
+
 //+kubebuilder:rbac:groups=kube-green.com,resources=sleepinfos,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=kube-green.com,resources=sleepinfos/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=kube-green.com,resources=sleepinfos/finalizers,verbs=update
 //+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;list;watch;update
+//+kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -77,22 +90,20 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	namespace, err := r.getNamespace(ctx, req.Namespace)
-	if err != nil {
+	secretName := getSecretName(req.Name)
+	secret, err := r.getSecret(ctx, secretName, req.Namespace)
+	if client.IgnoreNotFound(err) != nil {
 		log.Error(err, "unable to fetch namespace", "namespaceName", req.Namespace)
 		return ctrl.Result{}, err
 	}
-
-	lastSchedule, err := r.getLastScheduledAnnotation(namespace)
+	sleepInfoData, err := getSleepInfoData(secret, sleepInfo)
 	if err != nil {
-		log.Error(err, "last schedule is invalid")
+		log.Error(err, "unable to get secret data")
 		return ctrl.Result{}, err
 	}
-	currentOperation, currentOperationCronSchedule, nextOperationCronSchedule := r.getCurrentOperation(namespace, sleepInfo)
-	log.WithValues("operation", currentOperation)
-
 	now := r.Clock.Now()
-	isToExecute, nextSchedule, requeueAfter, err := r.getNextSchedule(currentOperationCronSchedule, nextOperationCronSchedule, lastSchedule, now)
+
+	isToExecute, nextSchedule, requeueAfter, err := r.getNextSchedule(sleepInfoData, now)
 	if err != nil {
 		log.Error(err, "unable to update deployment with 0 replicas")
 		return ctrl.Result{}, err
@@ -109,7 +120,7 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	// Handle operator status
 	scheduleLog.WithValues("last schedule", now, "status", sleepInfo.Status).Info("last schedule value")
 	sleepInfo.Status.LastScheduleTime = metav1.NewTime(now)
-	sleepInfo.Status.OperationType = currentOperation
+	sleepInfo.Status.OperationType = sleepInfoData.CurrentOperationType
 	if err := r.Status().Update(ctx, sleepInfo); err != nil {
 		log.Error(err, "unable to update sleepInfo status")
 		return ctrl.Result{}, err
@@ -123,8 +134,8 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	if len(deploymentList) == 0 {
 		// TODO: skip only if current operation is SLEEP - add test
-		if currentOperation == sleepOperation {
-			requeueAfter, err = skipRestoreIfSleepNotPerformed(currentOperationCronSchedule, nextSchedule, now)
+		if sleepInfoData.CurrentOperationType == sleepOperation {
+			requeueAfter, err = skipRestoreIfSleepNotPerformed(sleepInfoData.CurrentOperationSchedule, nextSchedule, now)
 			if err != nil {
 				log.Error(err, "fails to parse cron - 0 deployment")
 				return ctrl.Result{}, nil
@@ -137,7 +148,7 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		}, nil
 	}
 
-	switch currentOperation {
+	switch sleepInfoData.CurrentOperationType {
 	case sleepOperation:
 		if err := r.handleSleep(log, ctx, deploymentList); err != nil {
 			log.Error(err, "fails to handle sleep")
@@ -153,27 +164,58 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			}, err
 		}
 	default:
-		return ctrl.Result{}, fmt.Errorf("operation %s not supported", currentOperation)
+		return ctrl.Result{}, fmt.Errorf("operation %s not supported", sleepInfoData.CurrentOperationType)
 	}
 
-	namespaceAnnotations := namespace.GetAnnotations()
-	if namespaceAnnotations == nil {
-		namespaceAnnotations = map[string]string{}
+	// TODO: refactor this
+	logSecret := log.WithValues("secret", secretName)
+	logSecret.Info("update secret")
+
+	var newSecret = &v1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Secret",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretName,
+			Namespace: req.Namespace,
+		},
+		Data: nil,
 	}
-	namespaceAnnotations[lastScheduledAnnotation] = now.Format(time.RFC3339)
-	namespaceAnnotations[lastOperationAnnotation] = currentOperation
-	namespace.SetAnnotations(namespaceAnnotations)
-	log.Info("update namespace", "namespace", req.Namespace)
-	if err := r.Client.Update(ctx, namespace); err != nil {
-		if client.IgnoreNotFound(err) == nil {
-			log.Info("namespace not found", "namespace name", req.Namespace)
-			return ctrl.Result{}, nil
+	if secret != nil {
+		newSecret = secret.DeepCopy()
+	}
+	if newSecret.StringData == nil {
+		newSecret.StringData = map[string]string{}
+	}
+	newSecret.StringData[lastScheduleKey] = now.Format(time.RFC3339)
+	newSecret.StringData[lastOperationKey] = sleepInfoData.CurrentOperationType
+
+	if secret == nil {
+		if err := r.Client.Create(ctx, newSecret); err != nil {
+			if client.IgnoreNotFound(err) == nil {
+				logSecret.Info("secret not found")
+				return ctrl.Result{}, nil
+			}
+			logSecret.Error(err, "fails to update secret")
+			return ctrl.Result{
+				Requeue: true,
+			}, nil
 		}
-		log.Error(err, "fails to update namespace", "namespace name", req.Namespace)
-		return ctrl.Result{
-			Requeue: true,
-		}, nil
+	} else {
+		if err := r.Client.Update(ctx, newSecret); err != nil {
+			if client.IgnoreNotFound(err) == nil {
+				logSecret.Info("secret not found")
+				return ctrl.Result{}, nil
+			}
+			logSecret.Error(err, "fails to update secret")
+			return ctrl.Result{
+				Requeue: true,
+			}, nil
+		}
 	}
+
+	logSecret.Info("secret updated")
 
 	return ctrl.Result{
 		RequeueAfter: requeueAfter,
@@ -207,33 +249,16 @@ func (r *SleepInfoReconciler) getDeploymentsByNamespace(ctx context.Context, nam
 	return deployments.Items, nil
 }
 
-func (r *SleepInfoReconciler) getLastScheduledAnnotation(namespace *v1.Namespace) (time.Time, error) {
-	annotations := namespace.GetAnnotations()
-	if annotations == nil || annotations[lastScheduledAnnotation] == "" {
-		return time.Time{}, nil
-	}
-	lastScheduleRaw := annotations[lastScheduledAnnotation]
-	return time.Parse(time.RFC3339, lastScheduleRaw)
-}
-
-func (r *SleepInfoReconciler) getCurrentOperation(namespace *v1.Namespace, sleepInfo *kubegreenv1alpha1.SleepInfo) (string, string, string) {
-	annotations := namespace.GetAnnotations()
-	lastOperation := annotations[lastOperationAnnotation]
-	if lastOperation == sleepOperation {
-		return restoreOperation, sleepInfo.Spec.RestoreSchedule, sleepInfo.Spec.SleepSchedule
-	}
-	return sleepOperation, sleepInfo.Spec.SleepSchedule, sleepInfo.Spec.RestoreSchedule
-}
-
-func (r *SleepInfoReconciler) getNamespace(ctx context.Context, namespaceName string) (*v1.Namespace, error) {
-	namespace := &v1.Namespace{}
+func (r *SleepInfoReconciler) getSecret(ctx context.Context, secretName, namespaceName string) (*v1.Secret, error) {
+	secret := &v1.Secret{}
 	err := r.Client.Get(ctx, client.ObjectKey{
-		Name: namespaceName,
-	}, namespace)
+		Namespace: namespaceName,
+		Name:      secretName,
+	}, secret)
 	if err != nil {
 		return nil, err
 	}
-	return namespace, nil
+	return secret, nil
 }
 
 func (r *SleepInfoReconciler) getSleepInfo(ctx context.Context, req ctrl.Request) (*kubegreenv1alpha1.SleepInfo, error) {
@@ -252,4 +277,41 @@ func skipRestoreIfSleepNotPerformed(currentOperationCronSchedule string, nextSch
 	requeueAfter := getRequeueAfter(nextOpSched.Next(nextSchedule), now)
 
 	return requeueAfter, nil
+}
+
+func getSleepInfoData(secret *v1.Secret, sleepInfo *kubegreenv1alpha1.SleepInfo) (SleepInfoData, error) {
+	secretData := SleepInfoData{
+		CurrentOperationType:     sleepOperation,
+		CurrentOperationSchedule: sleepInfo.Spec.SleepSchedule,
+		NextOperationSchedule:    sleepInfo.Spec.RestoreSchedule,
+	}
+	if secret == nil || secret.Data == nil {
+		return secretData, nil
+	}
+
+	data := secret.Data
+	// originalDeploymentReplicas := []OriginalDeploymentReplicas{}
+	// if err := json.Unmarshal(data[replicasBeforeSleepKey], &originalDeploymentReplicas); err != nil {
+	// 	return SleepInfoData{}, err
+	// }
+
+	lastSchedule, err := time.Parse(time.RFC3339, string(data[lastScheduleKey]))
+	if err != nil {
+		return SleepInfoData{}, fmt.Errorf("fails to parse %s: %s", lastScheduleKey, err)
+	}
+	secretData.LastSchedule = lastSchedule
+
+	lastOperation := string(data[lastOperationKey])
+
+	if lastOperation == sleepOperation {
+		secretData.CurrentOperationSchedule = sleepInfo.Spec.RestoreSchedule
+		secretData.NextOperationSchedule = sleepInfo.Spec.SleepSchedule
+		secretData.CurrentOperationType = restoreOperation
+	}
+
+	return secretData, nil
+}
+
+func getSecretName(name string) string {
+	return fmt.Sprintf("sleepinfo-%s", name)
 }
