@@ -18,6 +18,7 @@ spec:
     hour: "8"
     minute: "00"
 
-  dayInterval: "lun-ven"
+# TODO: change the SleepInfo spec to this version
+  weekday: "lun-ven"
   sleepTime: "20:00"
   wakeTime: "08:00"

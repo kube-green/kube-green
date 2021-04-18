@@ -231,7 +231,7 @@ func (r *SleepInfoReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&kubegreenv1alpha1.SleepInfo{}).
 		WithEventFilter(pred).
-		// Owns(). // TODO: handle secrets
+		// Owns(). // TODO: handle secrets property
 		Complete(r)
 }
 

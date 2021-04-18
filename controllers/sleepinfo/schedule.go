@@ -39,7 +39,6 @@ func (r *SleepInfoReconciler) getNextSchedule(data SleepInfoData, now time.Time)
 	requeueAfter = getRequeueAfter(nextSchedule, now)
 	r.Log.Info("is time to execute", "execute", isToExecute, "next", nextSchedule, "last", lastSchedule, "now", now)
 
-	// TODO: add a better algorithm to correctly set requeue.
 	return isToExecute, nextSchedule, requeueAfter, nil
 }
 
