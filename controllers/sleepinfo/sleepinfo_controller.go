@@ -116,19 +116,16 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			RequeueAfter: requeueAfter,
 		}, nil
 	}
-
-	// Handle operator status
 	scheduleLog.WithValues("last schedule", now, "status", sleepInfo.Status).Info("last schedule value")
-	sleepInfo.Status.LastScheduleTime = metav1.NewTime(now)
-	sleepInfo.Status.OperationType = sleepInfoData.CurrentOperationType
-	if err := r.Status().Update(ctx, sleepInfo); err != nil {
-		log.Error(err, "unable to update sleepInfo status")
-		return ctrl.Result{}, err
-	}
 
 	deploymentList, err := r.getDeploymentsByNamespace(ctx, req.Namespace)
 	if err != nil {
 		log.Error(err, "fails to fetch deployments")
+		return ctrl.Result{}, err
+	}
+
+	if err := r.handleSleepInfoStatus(ctx, now, sleepInfo, sleepInfoData, deploymentList); err != nil {
+		log.Error(err, "unable to update sleepInfo status")
 		return ctrl.Result{}, err
 	}
 
@@ -314,4 +311,21 @@ func getSleepInfoData(secret *v1.Secret, sleepInfo *kubegreenv1alpha1.SleepInfo)
 
 func getSecretName(name string) string {
 	return fmt.Sprintf("sleepinfo-%s", name)
+}
+
+// handleSleepInfoStatus handles operator status
+func (r SleepInfoReconciler) handleSleepInfoStatus(
+	ctx context.Context,
+	now time.Time,
+	currentSleepInfo *kubegreenv1alpha1.SleepInfo,
+	sleepInfoData SleepInfoData,
+	deploymentList []appsv1.Deployment,
+) error {
+	sleepInfo := currentSleepInfo.DeepCopy()
+	sleepInfo.Status.LastScheduleTime = metav1.NewTime(now)
+	sleepInfo.Status.OperationType = sleepInfoData.CurrentOperationType
+	if len(deploymentList) == 0 && sleepInfoData.CurrentOperationSchedule != sleepOperation {
+		sleepInfo.Status.OperationType = ""
+	}
+	return r.Status().Update(ctx, sleepInfo)
 }

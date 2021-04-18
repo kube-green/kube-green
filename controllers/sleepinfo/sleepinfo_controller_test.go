@@ -126,8 +126,6 @@ var _ = Describe("SleepInfo Controller", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(sleepInfo.Status).To(Equal(kubegreenv1alpha1.SleepInfoStatus{
 				LastScheduleTime: metav1.NewTime(getTime(sleepScheduleTime).Local()),
-				// FIXME: sleep operation not really performed!
-				OperationType: sleepOperation,
 			}))
 		})
 
@@ -161,8 +159,6 @@ var _ = Describe("SleepInfo Controller", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(sleepInfo.Status).To(Equal(kubegreenv1alpha1.SleepInfoStatus{
 				LastScheduleTime: metav1.NewTime(getTime(sleepScheduleTime).Local()),
-				// FIXME: sleep operation not really performed!
-				OperationType: sleepOperation,
 			}))
 		})
 
