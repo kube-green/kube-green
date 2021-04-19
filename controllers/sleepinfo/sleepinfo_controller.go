@@ -130,7 +130,6 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 
 	if len(deploymentList) == 0 {
-		// TODO: skip only if current operation is SLEEP - add test
 		if sleepInfoData.CurrentOperationType == sleepOperation {
 			requeueAfter, err = skipRestoreIfSleepNotPerformed(sleepInfoData.CurrentOperationSchedule, nextSchedule, now)
 			if err != nil {
@@ -164,7 +163,7 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, fmt.Errorf("operation %s not supported", sleepInfoData.CurrentOperationType)
 	}
 
-	// TODO: refactor this
+	// TODO: refactor secret save
 	logSecret := log.WithValues("secret", secretName)
 	logSecret.Info("update secret")
 
