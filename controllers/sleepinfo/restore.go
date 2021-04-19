@@ -12,7 +12,7 @@ import (
 
 func (r *SleepInfoReconciler) handleRestore(logger logr.Logger, ctx context.Context, deploymentList []appsv1.Deployment) error {
 	logger.Info("handle restore operation", "number of deployments", len(deploymentList))
-	err := r.restoreDeploymentReplicas(ctx, deploymentList)
+	err := r.restoreDeploymentReplicas(logger, ctx, deploymentList)
 	if err != nil {
 		logger.Error(err, "fails to update deployments")
 		return err
@@ -21,10 +21,10 @@ func (r *SleepInfoReconciler) handleRestore(logger logr.Logger, ctx context.Cont
 	return nil
 }
 
-func (r *SleepInfoReconciler) restoreDeploymentReplicas(ctx context.Context, deployments []appsv1.Deployment) error {
+func (r *SleepInfoReconciler) restoreDeploymentReplicas(logger logr.Logger, ctx context.Context, deployments []appsv1.Deployment) error {
 	for _, deployment := range deployments {
 		if *deployment.Spec.Replicas != 0 {
-			// TODO: add log - replicas already not 0
+			logger.Info("replicas not 0 for deployment during restore", "deployment name", deployment.Name)
 			return nil
 		}
 		d := deployment.DeepCopy()
