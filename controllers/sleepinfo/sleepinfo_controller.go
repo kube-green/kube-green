@@ -199,6 +199,7 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 				Requeue: true,
 			}, nil
 		}
+		logSecret.Info("secret created")
 	} else {
 		if err := r.Client.Update(ctx, newSecret); err != nil {
 			if client.IgnoreNotFound(err) == nil {
@@ -210,9 +211,8 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 				Requeue: true,
 			}, nil
 		}
+		logSecret.Info("secret updated")
 	}
-
-	logSecret.Info("secret updated")
 
 	return ctrl.Result{
 		RequeueAfter: requeueAfter,

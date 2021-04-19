@@ -6,6 +6,7 @@ import (
 	"time"
 
 	kubegreenv1alpha1 "github.com/davidebianchi/kube-green/api/v1alpha1"
+	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
@@ -21,9 +22,8 @@ import (
 
 var _ = Describe("SleepInfo Controller", func() {
 	const (
-		sleepInfoNamespace = "my-namespace"
-		sleepInfoName      = "sleep-name"
-		mockNow            = "2021-03-23T20:05:20.555Z"
+		sleepInfoName = "sleep-name"
+		mockNow       = "2021-03-23T20:05:20.555Z"
 
 		timeout  = time.Second * 10
 		duration = time.Second * 10
@@ -47,8 +47,8 @@ var _ = Describe("SleepInfo Controller", func() {
 
 	ctx := context.Background()
 
-	It("create SleepInfo resource", func() {
-		Expect(createNamespace(ctx, sleepInfoNamespace)).NotTo(HaveOccurred())
+	createSleepInfo := func(namespace string) kubegreenv1alpha1.SleepInfo {
+		Expect(createNamespace(ctx, namespace)).NotTo(HaveOccurred())
 		sleepInfo := &kubegreenv1alpha1.SleepInfo{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       "SleepInfo",
@@ -56,7 +56,7 @@ var _ = Describe("SleepInfo Controller", func() {
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      sleepInfoName,
-				Namespace: sleepInfoNamespace,
+				Namespace: namespace,
 			},
 			Spec: kubegreenv1alpha1.SleepInfoSpec{
 				SleepSchedule:   "*/2 * * * *",    // every even minute
@@ -65,7 +65,7 @@ var _ = Describe("SleepInfo Controller", func() {
 		}
 		Expect(k8sClient.Create(ctx, sleepInfo)).Should(Succeed())
 
-		sleepInfoLookupKey := types.NamespacedName{Name: sleepInfoName, Namespace: sleepInfoNamespace}
+		sleepInfoLookupKey := types.NamespacedName{Name: sleepInfoName, Namespace: namespace}
 		createdSleepInfo := &kubegreenv1alpha1.SleepInfo{}
 
 		// We'll need to retry getting this newly created SleepInfo, given that creation may not immediately happen.
@@ -75,15 +75,17 @@ var _ = Describe("SleepInfo Controller", func() {
 			return true
 		}, timeout, interval).Should(BeTrue())
 
-		Expect(createdSleepInfo.Spec.SleepSchedule).Should(Equal("*/2 * * * *"))
-		Expect(createdSleepInfo.Spec.RestoreSchedule).Should(Equal("1-59/2 * * * *"))
-	})
+		return *createdSleepInfo
+	}
 
+	namespace := "zero-deployments"
 	It("reconcile - zero deployments", func() {
+		createdSleepInfo := createSleepInfo(namespace)
+
 		req := reconcile.Request{
 			NamespacedName: types.NamespacedName{
-				Name:      sleepInfoName,
-				Namespace: sleepInfoNamespace,
+				Name:      createdSleepInfo.Name,
+				Namespace: namespace,
 			},
 		}
 		result, err := sleepInfoReconciler.Reconcile(ctx, req)
@@ -110,17 +112,18 @@ var _ = Describe("SleepInfo Controller", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		By("not exists deployments", func() {
-			deployments, err := listDeployments(ctx, sleepInfoNamespace)
+			deployments, err := listDeployments(ctx, namespace)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(len(deployments)).To(Equal(0))
 		})
 
 		By("without deployments, secret is not written", func() {
-			secret, err := sleepInfoReconciler.getSecret(ctx, getSecretName(sleepInfoName), sleepInfoNamespace)
+			secret, err := sleepInfoReconciler.getSecret(ctx, getSecretName(sleepInfoName), namespace)
 			Expect(apierrors.IsNotFound(err)).To(BeTrue())
 			Expect(secret).To(BeNil())
 		})
 
+		// FIXME: write or status and secret equally
 		By("sleepinfo status updated correctly", func() {
 			sleepInfo, err := sleepInfoReconciler.getSleepInfo(ctx, req)
 			Expect(err).NotTo(HaveOccurred())
@@ -149,11 +152,12 @@ var _ = Describe("SleepInfo Controller", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		By("no deployment in namespace", func() {
-			deployments, err := listDeployments(ctx, sleepInfoNamespace)
+			deployments, err := listDeployments(ctx, namespace)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(len(deployments)).To(Equal(0))
 		})
 
+		// FIXME: write or status and secret equally
 		By("sleepinfo status updated correctly", func() {
 			sleepInfo, err := sleepInfoReconciler.getSleepInfo(ctx, req)
 			Expect(err).NotTo(HaveOccurred())
@@ -163,7 +167,7 @@ var _ = Describe("SleepInfo Controller", func() {
 		})
 
 		By("without deployments, secret is not written", func() {
-			secret, err := sleepInfoReconciler.getSecret(ctx, getSecretName(sleepInfoName), sleepInfoNamespace)
+			secret, err := sleepInfoReconciler.getSecret(ctx, getSecretName(sleepInfoName), namespace)
 			Expect(apierrors.IsNotFound(err)).To(BeTrue())
 			Expect(secret).To(BeNil())
 		})
@@ -173,7 +177,7 @@ var _ = Describe("SleepInfo Controller", func() {
 		req := reconcile.Request{
 			NamespacedName: types.NamespacedName{
 				Name:      "not-exists",
-				Namespace: sleepInfoNamespace,
+				Namespace: namespace,
 			},
 		}
 		result, err := sleepInfoReconciler.Reconcile(ctx, req)
@@ -191,7 +195,7 @@ var _ = Describe("SleepInfo Controller", func() {
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      name,
-				Namespace: sleepInfoNamespace,
+				Namespace: namespace,
 			},
 			Spec: kubegreenv1alpha1.SleepInfoSpec{
 				SleepSchedule: "* * * *",
@@ -202,7 +206,7 @@ var _ = Describe("SleepInfo Controller", func() {
 		req := reconcile.Request{
 			NamespacedName: types.NamespacedName{
 				Name:      name,
-				Namespace: sleepInfoNamespace,
+				Namespace: namespace,
 			},
 		}
 		result, err := sleepInfoReconciler.Reconcile(ctx, req)
@@ -220,21 +224,22 @@ var _ = Describe("SleepInfo Controller", func() {
 		result, err := sleepInfoReconciler.Reconcile(ctx, req)
 		Expect(err).NotTo(HaveOccurred())
 
-		By("is requeue correctly")
+		By("is requeued correctly")
 		Expect(result).Should(Equal(ctrl.Result{}))
 	})
 
 	It("reconcile - with deployments", func() {
-		// TODO: create a new namespace
+		namespace := "multiple-deployments"
+		createSleepInfo(namespace)
 
 		By("create deployments")
-		originalDeployments, err := createDeployments(ctx, sleepInfoNamespace)
+		originalDeployments, err := upsertDeployments(ctx, namespace, false)
 		Expect(err).NotTo(HaveOccurred())
 
 		req := reconcile.Request{
 			NamespacedName: types.NamespacedName{
 				Name:      sleepInfoName,
-				Namespace: sleepInfoNamespace,
+				Namespace: namespace,
 			},
 		}
 		result, err := sleepInfoReconciler.Reconcile(ctx, req)
@@ -249,7 +254,7 @@ var _ = Describe("SleepInfo Controller", func() {
 		})
 
 		By("replicas not changed", func() {
-			deploymentsNotChanged, err := listDeployments(ctx, sleepInfoNamespace)
+			deploymentsNotChanged, err := listDeployments(ctx, namespace)
 			Expect(err).NotTo(HaveOccurred())
 			for _, deployment := range deploymentsNotChanged {
 				if deployment.Name == "zero-replicas" || deployment.Name == "zero-replicas-annotation" {
@@ -260,65 +265,54 @@ var _ = Describe("SleepInfo Controller", func() {
 			}
 		})
 
-		By("is requeued correctly - SLEEP")
-		sleepScheduleTime := "2021-03-23T20:05:59.000Z"
-		sleepInfoReconciler = SleepInfoReconciler{
-			Clock: mockClock{
-				now: sleepScheduleTime,
-			},
-			Client: k8sClient,
-			Log:    testLogger,
+		assertContextInfo := AssertOperation{
+			testLogger:          testLogger,
+			ctx:                 ctx,
+			req:                 req,
+			namespace:           namespace,
+			sleepInfoName:       sleepInfoName,
+			originalDeployments: originalDeployments,
 		}
-		result, err = sleepInfoReconciler.Reconcile(ctx, req)
+
+		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T20:05:59.000Z").withRequeue(61))
+		assertCorrectRestoreOperation(assertContextInfo.withSchedule("2021-03-23T20:07:00.100Z").withRequeue(59.9))
+		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T20:08:00.000Z").withRequeue(60))
+	})
+
+	It("reconcile - deploy between sleep and restore", func() {
+		namespace := "deploy-between-sleep-and-restore"
+		createSleepInfo(namespace)
+
+		By("create deployments")
+		originalDeployments, err := upsertDeployments(ctx, namespace, false)
 		Expect(err).NotTo(HaveOccurred())
 
-		By("replicas are set to 0 to all deployments and annotations are set correctly to deployments", func() {
-			deployments, err := listDeployments(ctx, sleepInfoNamespace)
-			Expect(err).NotTo(HaveOccurred())
-			assertAllReplicasSetToZero(deployments, originalDeployments)
-		})
-
-		By("secret is correctly set", func() {
-			secret, err := sleepInfoReconciler.getSecret(ctx, getSecretName(sleepInfoName), sleepInfoNamespace)
-			Expect(err).NotTo(HaveOccurred())
-			secretData := secret.Data
-			Expect(secretData).To(Equal(map[string][]byte{
-				lastScheduleKey:  []byte("2021-03-23T20:05:59Z"),
-				lastOperationKey: []byte(sleepOperation),
-			}))
-		})
-
-		By("sleepinfo status updated correctly", func() {
-			sleepInfo, err := sleepInfoReconciler.getSleepInfo(ctx, req)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(sleepInfo.Status).To(Equal(kubegreenv1alpha1.SleepInfoStatus{
-				LastScheduleTime: metav1.NewTime(getTime(sleepScheduleTime).Local()),
-				OperationType:    sleepOperation,
-			}))
-		})
-
-		By("is requeued after correct duration to restore", func() {
-			Expect(result).Should(Equal(ctrl.Result{
-				// 61000 is the difference between mocked now and next uneven minute
-				// (the next scheduled time for restore), in milliseconds
-				RequeueAfter: 61000 * time.Millisecond,
-			}))
-		})
-
-		By("requeued correctly - RESTORE")
-		restoreScheduledTime := "2021-03-23T20:07:00.100Z"
-		sleepInfoReconciler = SleepInfoReconciler{
-			Clock: mockClock{
-				now: restoreScheduledTime,
+		req := reconcile.Request{
+			NamespacedName: types.NamespacedName{
+				Name:      sleepInfoName,
+				Namespace: namespace,
 			},
-			Client: k8sClient,
-			Log:    testLogger,
 		}
-		result, err = sleepInfoReconciler.Reconcile(ctx, req)
+		_, err = sleepInfoReconciler.Reconcile(ctx, req)
 		Expect(err).NotTo(HaveOccurred())
 
-		By("deployment replicas correctly restored and annotation deleted", func() {
-			deployments, err := listDeployments(ctx, sleepInfoNamespace)
+		assertContextInfo := AssertOperation{
+			testLogger:          testLogger,
+			ctx:                 ctx,
+			req:                 req,
+			namespace:           namespace,
+			sleepInfoName:       sleepInfoName,
+			originalDeployments: originalDeployments,
+		}
+
+		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T20:05:59.000Z").withRequeue(61))
+
+		By("re deploy", func() {
+			_, err = upsertDeployments(ctx, namespace, true)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("check replicas")
+			deployments, err := listDeployments(ctx, namespace)
 			Expect(err).NotTo(HaveOccurred())
 			for idx, deployment := range deployments {
 				Expect(deployment.Spec.Replicas).To(Equal(originalDeployments[idx].Spec.Replicas))
@@ -329,57 +323,51 @@ var _ = Describe("SleepInfo Controller", func() {
 			}
 		})
 
-		By("status correctly updated", func() {
-			sleepInfo, err := sleepInfoReconciler.getSleepInfo(ctx, req)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(sleepInfo.Status).To(Equal(kubegreenv1alpha1.SleepInfoStatus{
-				LastScheduleTime: metav1.NewTime(getTime(restoreScheduledTime).Round(time.Second).Local()),
-				OperationType:    restoreOperation,
-			}))
-		})
+		assertCorrectRestoreOperation(assertContextInfo.withSchedule("2021-03-23T20:07:00.000Z").withRequeue(60))
+	})
 
-		By("is requeued after correct duration to sleep", func() {
-			Expect(result).Should(Equal(ctrl.Result{
-				// 59900 is the difference between mocked now and next even minute
-				// (the next scheduled time for sleep), in milliseconds
-				RequeueAfter: 59900 * time.Millisecond,
-			}))
-		})
+	It("reconcile - change single deployment replicas between sleep and restore", func() {
+		namespace := "change-replicas-between-sleep-and-restore"
+		createSleepInfo(namespace)
 
-		By("requeued correctly - SLEEP")
-		sleepScheduleTime = "2021-03-23T20:08:00.000Z"
-		sleepInfoReconciler = SleepInfoReconciler{
-			Clock: mockClock{
-				now: sleepScheduleTime,
-			},
-			Client: k8sClient,
-			Log:    testLogger,
-		}
-		result, err = sleepInfoReconciler.Reconcile(ctx, req)
+		By("create deployments")
+		originalDeployments, err := upsertDeployments(ctx, namespace, false)
 		Expect(err).NotTo(HaveOccurred())
 
-		By("deployment replicas correctly restored and annotation deleted", func() {
-			deployments, err := listDeployments(ctx, sleepInfoNamespace)
+		req := reconcile.Request{
+			NamespacedName: types.NamespacedName{
+				Name:      sleepInfoName,
+				Namespace: namespace,
+			},
+		}
+		_, err = sleepInfoReconciler.Reconcile(ctx, req)
+		Expect(err).NotTo(HaveOccurred())
+
+		assertContextInfo := AssertOperation{
+			testLogger:          testLogger,
+			ctx:                 ctx,
+			req:                 req,
+			namespace:           namespace,
+			sleepInfoName:       sleepInfoName,
+			originalDeployments: originalDeployments,
+		}
+		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T20:05:59.000Z").withRequeue(61))
+
+		By("re deploy a single deployment", func() {
+			deployments, err := listDeployments(ctx, namespace)
 			Expect(err).NotTo(HaveOccurred())
-			assertAllReplicasSetToZero(deployments, originalDeployments)
+
+			deploymentToUpdate := deployments[0].DeepCopy()
+			*deploymentToUpdate.Spec.Replicas = 0
+			patch := client.RawPatch(types.ApplyPatchType, []byte(deploymentToUpdate.String()))
+			k8sClient.Patch(ctx, deploymentToUpdate, patch)
+
+			updatedDeployment := appsv1.Deployment{}
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: deploymentToUpdate.Name, Namespace: namespace}, &updatedDeployment)).To(Succeed())
+			Expect(*updatedDeployment.Spec.Replicas).To(Equal(int32(0)))
 		})
 
-		By("status correctly updated", func() {
-			sleepInfo, err := sleepInfoReconciler.getSleepInfo(ctx, req)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(sleepInfo.Status).To(Equal(kubegreenv1alpha1.SleepInfoStatus{
-				LastScheduleTime: metav1.NewTime(getTime(sleepScheduleTime).Round(time.Second).Local()),
-				OperationType:    sleepOperation,
-			}))
-		})
-
-		By("is requeued after correct duration to sleep", func() {
-			Expect(result).Should(Equal(ctrl.Result{
-				// 60000 is the difference between mocked now and next uneven minute
-				// (the next scheduled time for restore), in milliseconds
-				RequeueAfter: 60000 * time.Millisecond,
-			}))
-		})
+		assertCorrectRestoreOperation(assertContextInfo.withSchedule("2021-03-23T20:07:00.000Z").withRequeue(60))
 	})
 })
 
@@ -396,7 +384,7 @@ func createNamespace(ctx context.Context, name string) error {
 	return k8sClient.Create(ctx, namespace)
 }
 
-func createDeployments(ctx context.Context, namespace string) ([]appsv1.Deployment, error) {
+func upsertDeployments(ctx context.Context, namespace string, updateIfAlreadyCreated bool) ([]appsv1.Deployment, error) {
 	var threeReplicas int32 = 3
 	var oneReplica int32 = 1
 	var zeroReplicas int32 = 0
@@ -538,8 +526,25 @@ func createDeployments(ctx context.Context, namespace string) ([]appsv1.Deployme
 		},
 	}
 	for _, deployment := range deployments {
-		if err := k8sClient.Create(ctx, &deployment); err != nil {
-			return nil, fmt.Errorf("error %s creating deployment 1", err)
+		var deploymentAlreadyExists bool
+		if updateIfAlreadyCreated {
+			d := appsv1.Deployment{}
+			err := k8sClient.Get(ctx, types.NamespacedName{
+				Name:      deployment.Name,
+				Namespace: namespace,
+			}, &d)
+			if err == nil {
+				deploymentAlreadyExists = true
+			}
+		}
+		if deploymentAlreadyExists {
+			if err := k8sClient.Update(ctx, &deployment); err != nil {
+				return nil, fmt.Errorf("error %s updating deployment 1", err)
+			}
+		} else {
+			if err := k8sClient.Create(ctx, &deployment); err != nil {
+				return nil, fmt.Errorf("error %s creating deployment 1", err)
+			}
 		}
 	}
 	return deployments, nil
@@ -584,4 +589,119 @@ func getTime(mockNowRaw string) time.Time {
 	now, err := time.Parse(time.RFC3339, mockNowRaw)
 	Expect(err).ShouldNot(HaveOccurred())
 	return now
+}
+
+type AssertOperation struct {
+	testLogger          logr.Logger
+	ctx                 context.Context
+	req                 ctrl.Request
+	namespace           string
+	sleepInfoName       string
+	originalDeployments []appsv1.Deployment
+	scheduleTime        string
+	expectedNextRequeue time.Duration
+}
+
+func (a AssertOperation) withSchedule(schedule string) AssertOperation {
+	a.scheduleTime = schedule
+	return a
+}
+
+func (a AssertOperation) withRequeue(requeue float64) AssertOperation {
+	a.expectedNextRequeue = time.Duration(requeue*1000) * time.Millisecond
+	return a
+}
+
+func assertCorrectSleepOperation(assert AssertOperation) {
+	By("is requeued correctly - SLEEP")
+	sleepInfoReconciler := SleepInfoReconciler{
+		Clock: mockClock{
+			now: assert.scheduleTime,
+		},
+		Client: k8sClient,
+		Log:    assert.testLogger,
+	}
+	result, err := sleepInfoReconciler.Reconcile(assert.ctx, assert.req)
+	Expect(err).NotTo(HaveOccurred())
+
+	By("replicas are set to 0 to all deployments and annotations are set correctly to deployments", func() {
+		deployments, err := listDeployments(assert.ctx, assert.namespace)
+		Expect(err).NotTo(HaveOccurred())
+		assertAllReplicasSetToZero(deployments, assert.originalDeployments)
+	})
+
+	By("secret is correctly set", func() {
+		secret, err := sleepInfoReconciler.getSecret(assert.ctx, getSecretName(assert.sleepInfoName), assert.namespace)
+		Expect(err).NotTo(HaveOccurred())
+		secretData := secret.Data
+		Expect(secretData).To(Equal(map[string][]byte{
+			lastScheduleKey:  []byte(getTime(assert.scheduleTime).Truncate(time.Second).Format(time.RFC3339)),
+			lastOperationKey: []byte(sleepOperation),
+		}))
+	})
+
+	By("sleepinfo status updated correctly", func() {
+		sleepInfo, err := sleepInfoReconciler.getSleepInfo(assert.ctx, assert.req)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(sleepInfo.Status).To(Equal(kubegreenv1alpha1.SleepInfoStatus{
+			LastScheduleTime: metav1.NewTime(getTime(assert.scheduleTime).Local()),
+			OperationType:    sleepOperation,
+		}))
+	})
+
+	By("is requeued after correct duration to restore", func() {
+		Expect(result).Should(Equal(ctrl.Result{
+			RequeueAfter: assert.expectedNextRequeue,
+		}))
+	})
+}
+
+func assertCorrectRestoreOperation(assert AssertOperation) {
+	By("requeued correctly - RESTORE")
+	sleepInfoReconciler := SleepInfoReconciler{
+		Clock: mockClock{
+			now: assert.scheduleTime,
+		},
+		Client: k8sClient,
+		Log:    assert.testLogger,
+	}
+	result, err := sleepInfoReconciler.Reconcile(assert.ctx, assert.req)
+	Expect(err).NotTo(HaveOccurred())
+
+	By("deployment replicas correctly restored and annotation deleted", func() {
+		deployments, err := listDeployments(assert.ctx, assert.namespace)
+		Expect(err).NotTo(HaveOccurred())
+		for idx, deployment := range deployments {
+			Expect(deployment.Spec.Replicas).To(Equal(assert.originalDeployments[idx].Spec.Replicas))
+
+			annotations := deployment.GetAnnotations()
+			_, ok := annotations[replicasBeforeSleepAnnotation]
+			Expect(ok).To(BeFalse())
+		}
+	})
+
+	By("secret is correctly set", func() {
+		secret, err := sleepInfoReconciler.getSecret(assert.ctx, getSecretName(assert.sleepInfoName), assert.namespace)
+		Expect(err).NotTo(HaveOccurred())
+		secretData := secret.Data
+		Expect(secretData).To(Equal(map[string][]byte{
+			lastScheduleKey:  []byte(getTime(assert.scheduleTime).Truncate(time.Second).Format(time.RFC3339)),
+			lastOperationKey: []byte(restoreOperation),
+		}))
+	})
+
+	By("status correctly updated", func() {
+		sleepInfo, err := sleepInfoReconciler.getSleepInfo(assert.ctx, assert.req)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(sleepInfo.Status).To(Equal(kubegreenv1alpha1.SleepInfoStatus{
+			LastScheduleTime: metav1.NewTime(getTime(assert.scheduleTime).Round(time.Second).Local()),
+			OperationType:    restoreOperation,
+		}))
+	})
+
+	By("is requeued after correct duration to sleep", func() {
+		Expect(result).Should(Equal(ctrl.Result{
+			RequeueAfter: assert.expectedNextRequeue,
+		}))
+	})
 }

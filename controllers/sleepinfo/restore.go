@@ -10,7 +10,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// TODO: handle deploy between sleep and restore
 func (r *SleepInfoReconciler) handleRestore(logger logr.Logger, ctx context.Context, deploymentList []appsv1.Deployment) error {
 	logger.Info("handle restore operation", "number of deployments", len(deploymentList))
 	err := r.restoreDeploymentReplicas(ctx, deploymentList)
@@ -24,6 +23,10 @@ func (r *SleepInfoReconciler) handleRestore(logger logr.Logger, ctx context.Cont
 
 func (r *SleepInfoReconciler) restoreDeploymentReplicas(ctx context.Context, deployments []appsv1.Deployment) error {
 	for _, deployment := range deployments {
+		if *deployment.Spec.Replicas != 0 {
+			// TODO: add log - replicas already not 0
+			return nil
+		}
 		d := deployment.DeepCopy()
 		annotations := d.GetAnnotations()
 		if annotations == nil {
