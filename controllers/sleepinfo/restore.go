@@ -24,7 +24,7 @@ func (r *SleepInfoReconciler) handleRestore(logger logr.Logger, ctx context.Cont
 func (r *SleepInfoReconciler) restoreDeploymentReplicas(logger logr.Logger, ctx context.Context, deployments []appsv1.Deployment) error {
 	for _, deployment := range deployments {
 		if *deployment.Spec.Replicas != 0 {
-			logger.Info("replicas not 0 for deployment during restore", "deployment name", deployment.Name)
+			logger.Info("replicas not 0 during restore", "deployment name", deployment.Name)
 			return nil
 		}
 		d := deployment.DeepCopy()
