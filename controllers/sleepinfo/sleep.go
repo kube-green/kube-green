@@ -9,7 +9,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// TODO: handle double subsequent sleep --> replicas annotation must not be set to 0
 // TODO: handle only sleep - restore nil
 func (r *SleepInfoReconciler) handleSleep(logger logr.Logger, ctx context.Context, deploymentList []appsv1.Deployment) error {
 	logger.Info("handle sleep operation", "number of deployments", len(deploymentList))
