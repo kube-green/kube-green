@@ -104,12 +104,12 @@ var _ = Describe("SleepInfo Controller", func() {
 		By("is requeued correctly to next SLEEP", func() {
 			Expect(result).Should(Equal(ctrl.Result{
 				// 121000 is the difference between mocked now and next uneven minute
-				// (the next scheduled time for restore), in milliseconds
+				// (the next scheduled time for wake up), in milliseconds
 				RequeueAfter: 121000 * time.Millisecond,
 			}))
 		})
 
-		By("is reconciled correctly - RESTORE")
+		By("is reconciled correctly - WAKE_UP")
 		sleepInfoReconciler = SleepInfoReconciler{
 			Clock: mockClock{
 				now: "2021-03-23T20:07:00.000Z",
@@ -167,7 +167,7 @@ var _ = Describe("SleepInfo Controller", func() {
 				Namespace: namespace,
 			},
 			Spec: kubegreenv1alpha1.SleepInfoSpec{
-				SleepSchedule: "* * * *",
+				Weekdays: "",
 			},
 		}
 		Expect(k8sClient.Create(ctx, sleepInfo)).Should(Succeed())
@@ -179,7 +179,7 @@ var _ = Describe("SleepInfo Controller", func() {
 			},
 		}
 		result, err := sleepInfoReconciler.Reconcile(ctx, req)
-		Expect(err.Error()).Should(Equal("current schedule not valid: expected exactly 5 fields, found 4: [* * * *]"))
+		Expect(err.Error()).Should(Equal("empty weekday from sleep info configuration"))
 		Expect(result).Should(Equal(ctrl.Result{}))
 	})
 
@@ -211,12 +211,12 @@ var _ = Describe("SleepInfo Controller", func() {
 		}
 
 		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T20:05:59.000Z").withRequeue(61))
-		assertCorrectRestoreOperation(assertContextInfo.withSchedule("2021-03-23T20:07:00.100Z").withRequeue(59.9))
+		assertCorrectWakeUpOperation(assertContextInfo.withSchedule("2021-03-23T20:07:00.100Z").withRequeue(59.9))
 		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T20:08:00.000Z").withRequeue(60))
 	})
 
-	It("reconcile - deploy between sleep and restore", func() {
-		namespace := "deploy-between-sleep-and-restore"
+	It("reconcile - deploy between sleep and wake up", func() {
+		namespace := "deploy-between-sleep-and-wake-up"
 		req, originalDeployments := setupNamespaceWithDeployments(ctx, sleepInfoName, namespace, sleepInfoReconciler)
 
 		assertContextInfo := AssertOperation{
@@ -246,11 +246,11 @@ var _ = Describe("SleepInfo Controller", func() {
 			}
 		})
 
-		assertCorrectRestoreOperation(assertContextInfo.withSchedule("2021-03-23T20:07:00.000Z").withRequeue(60))
+		assertCorrectWakeUpOperation(assertContextInfo.withSchedule("2021-03-23T20:07:00.000Z").withRequeue(60))
 	})
 
-	It("reconcile - change single deployment replicas between sleep and restore", func() {
-		namespace := "change-replicas-between-sleep-and-restore"
+	It("reconcile - change single deployment replicas between sleep and wake up", func() {
+		namespace := "change-replicas-between-sleep-and-wake-up"
 		req, originalDeployments := setupNamespaceWithDeployments(ctx, sleepInfoName, namespace, sleepInfoReconciler)
 
 		assertContextInfo := AssertOperation{
@@ -277,7 +277,7 @@ var _ = Describe("SleepInfo Controller", func() {
 			Expect(*updatedDeployment.Spec.Replicas).To(Equal(int32(0)))
 		})
 
-		assertCorrectRestoreOperation(assertContextInfo.withSchedule("2021-03-23T20:07:00.000Z").withRequeue(60))
+		assertCorrectWakeUpOperation(assertContextInfo.withSchedule("2021-03-23T20:07:00.000Z").withRequeue(60))
 	})
 
 	It("reconcile - twice consecutive sleep operation", func() {
@@ -590,15 +590,15 @@ func assertCorrectSleepOperation(assert AssertOperation) {
 		}))
 	})
 
-	By("is requeued after correct duration to restore", func() {
+	By("is requeued after correct duration to wake up", func() {
 		Expect(result).Should(Equal(ctrl.Result{
 			RequeueAfter: assert.expectedNextRequeue,
 		}))
 	})
 }
 
-func assertCorrectRestoreOperation(assert AssertOperation) {
-	By("requeued correctly - RESTORE")
+func assertCorrectWakeUpOperation(assert AssertOperation) {
+	By("requeued correctly - WAKE_UP")
 	sleepInfoReconciler := SleepInfoReconciler{
 		Clock: mockClock{
 			now: assert.scheduleTime,
@@ -609,7 +609,7 @@ func assertCorrectRestoreOperation(assert AssertOperation) {
 	result, err := sleepInfoReconciler.Reconcile(assert.ctx, assert.req)
 	Expect(err).NotTo(HaveOccurred())
 
-	By("deployment replicas correctly restored and annotation deleted", func() {
+	By("deployment replicas correctly waked up and annotation deleted", func() {
 		deployments, err := listDeployments(assert.ctx, assert.namespace)
 		Expect(err).NotTo(HaveOccurred())
 		for idx, deployment := range deployments {
@@ -627,7 +627,7 @@ func assertCorrectRestoreOperation(assert AssertOperation) {
 		secretData := secret.Data
 		Expect(secretData).To(Equal(map[string][]byte{
 			lastScheduleKey:  []byte(getTime(assert.expectedScheduleTime).Truncate(time.Second).Format(time.RFC3339)),
-			lastOperationKey: []byte(restoreOperation),
+			lastOperationKey: []byte(wakeUpOperation),
 		}))
 	})
 
@@ -636,7 +636,7 @@ func assertCorrectRestoreOperation(assert AssertOperation) {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(sleepInfo.Status).To(Equal(kubegreenv1alpha1.SleepInfoStatus{
 			LastScheduleTime: metav1.NewTime(getTime(assert.expectedScheduleTime).Round(time.Second).Local()),
-			OperationType:    restoreOperation,
+			OperationType:    wakeUpOperation,
 		}))
 	})
 
@@ -699,8 +699,9 @@ func createSleepInfo(ctx context.Context, sleepInfoName, namespace string) kubeg
 			Namespace: namespace,
 		},
 		Spec: kubegreenv1alpha1.SleepInfoSpec{
-			SleepSchedule:   "*/2 * * * *",    // every even minute
-			RestoreSchedule: "1-59/2 * * * *", // every uneven minute
+			Weekdays:   "*",
+			SleepTime:  "*:*/2",    // every even minute
+			WakeUpTime: "*:1-59/2", // every uneven minute
 		},
 	}
 	Expect(k8sClient.Create(ctx, sleepInfo)).Should(Succeed())

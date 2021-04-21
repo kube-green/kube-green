@@ -9,7 +9,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// TODO: handle only sleep - restore nil
+// TODO: handle only sleep - wake up nil
 func (r *SleepInfoReconciler) handleSleep(logger logr.Logger, ctx context.Context, deploymentList []appsv1.Deployment) error {
 	logger.Info("handle sleep operation", "number of deployments", len(deploymentList))
 	err := r.updateDeploymentsWithZeroReplicas(ctx, deploymentList)

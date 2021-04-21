@@ -15,12 +15,16 @@ import (
 
 // SleepInfoSpec defines the desired state of SleepInfo
 type SleepInfoSpec struct {
-	SleepSchedule   string `json:"sleepSchedule"`
-	RestoreSchedule string `json:"restoreSchedule"`
+	// Weekdays are in cron notation
+	Weekdays string `json:"weekdays"`
+	// Hour:minute
+	SleepTime string `json:"sleepAt"`
+	// Hour:minute
+	WakeUpTime string `json:"wakeUpAt"`
 }
 
 // TODO: save changed replica deployment info in sleepinfo status?
-// type DeploymentRestoreInfo struct {
+// type DeploymentWakeUpInfo struct {
 // 	Name     string `json:"name"`
 // 	Replicas int64  `json:"replicas"`
 // }
@@ -30,7 +34,7 @@ type SleepInfoStatus struct {
 	// Information when was the last time the run was successfully scheduled.
 	// +optional
 	LastScheduleTime metav1.Time `json:"lastScheduleTime,omitempty"`
-	// The operation type handled in last schedule. SLEEP or RESTORE are the
+	// The operation type handled in last schedule. SLEEP or WAKE_UP are the
 	// possibilities
 	// +optional
 	OperationType string `json:"operation,omitempty"`

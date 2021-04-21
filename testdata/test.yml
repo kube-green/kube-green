@@ -3,22 +3,6 @@ kind: SleepInfo
 metadata:
   name: prova
 spec:
-  # targetRef:
-  #   apiVersion: "apps/v1"
-  #   kind: Deployment
-  sleepSchedule: "0 20 1-5 * *"
-  restoreSchedule: "0 8 1-5 * *"
-
-  sleep:
-    weekday: "lun-ven"
-    hour: "20"
-    minute: "00"
-  restore:
-    weekday: "lun-ven"
-    hour: "8"
-    minute: "00"
-
-# TODO: change the SleepInfo spec to this version
-  weekday: "lun-ven"
+  weekday: "1-5"
   sleepTime: "20:00"
-  wakeTime: "08:00"
+  wakeUpTime: "08:00"

@@ -7,6 +7,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -27,8 +28,8 @@ const (
 	replicasBeforeSleepKey        = "deployment-replicas"
 	replicasBeforeSleepAnnotation = "sleepinfo.kube-green.com/replicas-before-sleep"
 
-	sleepOperation   = "SLEEP"
-	restoreOperation = "RESTORE"
+	sleepOperation  = "SLEEP"
+	wakeUpOperation = "WAKE_UP"
 )
 
 // SleepInfoReconciler reconciles a SleepInfo object
@@ -131,7 +132,7 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	if len(deploymentList) == 0 {
 		if sleepInfoData.CurrentOperationType == sleepOperation {
-			requeueAfter, err = skipRestoreIfSleepNotPerformed(sleepInfoData.CurrentOperationSchedule, nextSchedule, now)
+			requeueAfter, err = skipWakeUpIfSleepNotPerformed(sleepInfoData.CurrentOperationSchedule, nextSchedule, now)
 			if err != nil {
 				log.Error(err, "fails to parse cron - 0 deployment")
 				return ctrl.Result{}, nil
@@ -152,9 +153,9 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 				Requeue: true,
 			}, err
 		}
-	case restoreOperation:
-		if err := r.handleRestore(log, ctx, deploymentList); err != nil {
-			log.Error(err, "fails to handle restore")
+	case wakeUpOperation:
+		if err := r.handleWakeUp(log, ctx, deploymentList); err != nil {
+			log.Error(err, "fails to handle wake up")
 			return ctrl.Result{
 				Requeue: true,
 			}, err
@@ -265,7 +266,7 @@ func (r *SleepInfoReconciler) getSleepInfo(ctx context.Context, req ctrl.Request
 	return sleepInfo, nil
 }
 
-func skipRestoreIfSleepNotPerformed(currentOperationCronSchedule string, nextSchedule, now time.Time) (time.Duration, error) {
+func skipWakeUpIfSleepNotPerformed(currentOperationCronSchedule string, nextSchedule, now time.Time) (time.Duration, error) {
 	nextOpSched, err := getCronParsed(currentOperationCronSchedule)
 	if err != nil {
 		return 0, fmt.Errorf("fails to parse cron current schedule: %s", err)
@@ -276,10 +277,19 @@ func skipRestoreIfSleepNotPerformed(currentOperationCronSchedule string, nextSch
 }
 
 func getSleepInfoData(secret *v1.Secret, sleepInfo *kubegreenv1alpha1.SleepInfo) (SleepInfoData, error) {
+	sleepSchedule, err := getScheduleFromWeekdayAndTime(sleepInfo.Spec.Weekdays, sleepInfo.Spec.SleepTime)
+	if err != nil {
+		return SleepInfoData{}, err
+	}
+	wakeUpSchedule, err := getScheduleFromWeekdayAndTime(sleepInfo.Spec.Weekdays, sleepInfo.Spec.WakeUpTime)
+	if err != nil {
+		return SleepInfoData{}, err
+	}
+
 	secretData := SleepInfoData{
 		CurrentOperationType:     sleepOperation,
-		CurrentOperationSchedule: sleepInfo.Spec.SleepSchedule,
-		NextOperationSchedule:    sleepInfo.Spec.RestoreSchedule,
+		CurrentOperationSchedule: sleepSchedule,
+		NextOperationSchedule:    wakeUpSchedule,
 	}
 	if secret == nil || secret.Data == nil {
 		return secretData, nil
@@ -300,9 +310,9 @@ func getSleepInfoData(secret *v1.Secret, sleepInfo *kubegreenv1alpha1.SleepInfo)
 	lastOperation := string(data[lastOperationKey])
 
 	if lastOperation == sleepOperation {
-		secretData.CurrentOperationSchedule = sleepInfo.Spec.RestoreSchedule
-		secretData.NextOperationSchedule = sleepInfo.Spec.SleepSchedule
-		secretData.CurrentOperationType = restoreOperation
+		secretData.CurrentOperationSchedule = wakeUpSchedule
+		secretData.NextOperationSchedule = sleepSchedule
+		secretData.CurrentOperationType = wakeUpOperation
 	}
 
 	return secretData, nil
@@ -310,6 +320,18 @@ func getSleepInfoData(secret *v1.Secret, sleepInfo *kubegreenv1alpha1.SleepInfo)
 
 func getSecretName(name string) string {
 	return fmt.Sprintf("sleepinfo-%s", name)
+}
+
+func getScheduleFromWeekdayAndTime(weekday string, hourAndMinute string) (string, error) {
+	if weekday == "" {
+		return "", fmt.Errorf("empty weekday from sleep info configuration")
+	}
+
+	splittedTime := strings.Split(hourAndMinute, ":")
+	if len(splittedTime) != 2 {
+		return "", fmt.Errorf("time should be of format HH:mm, actual: %s", hourAndMinute)
+	}
+	return fmt.Sprintf("%s %s * * %s", splittedTime[1], splittedTime[0], weekday), nil
 }
 
 // handleSleepInfoStatus handles operator status
