@@ -24,10 +24,6 @@ var _ = Describe("SleepInfo Controller", func() {
 	const (
 		sleepInfoName = "sleep-name"
 		mockNow       = "2021-03-23T20:05:20.555Z"
-
-		timeout  = time.Second * 10
-		interval = time.Millisecond * 250
-		duration = time.Second * 10
 	)
 
 	var (
