@@ -164,54 +164,16 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, fmt.Errorf("operation %s not supported", sleepInfoData.CurrentOperationType)
 	}
 
-	// TODO: refactor secret save
 	logSecret := log.WithValues("secret", secretName)
-	logSecret.Info("update secret")
-
-	var newSecret = &v1.Secret{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Secret",
-			APIVersion: "v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      secretName,
-			Namespace: req.Namespace,
-		},
-		Data: nil,
-	}
-	if secret != nil {
-		newSecret = secret.DeepCopy()
-	}
-	if newSecret.StringData == nil {
-		newSecret.StringData = map[string]string{}
-	}
-	newSecret.StringData[lastScheduleKey] = now.Format(time.RFC3339)
-	newSecret.StringData[lastOperationKey] = sleepInfoData.CurrentOperationType
-
-	if secret == nil {
-		if err := r.Client.Create(ctx, newSecret); err != nil {
-			if client.IgnoreNotFound(err) == nil {
-				logSecret.Info("secret not found")
-				return ctrl.Result{}, nil
-			}
-			logSecret.Error(err, "fails to update secret")
-			return ctrl.Result{
-				Requeue: true,
-			}, nil
+	if err = r.upsertSecret(ctx, logSecret, now, secretName, req.Namespace, secret, sleepInfoData); err != nil {
+		if client.IgnoreNotFound(err) == nil {
+			logSecret.Info("secret not found")
+			return ctrl.Result{}, nil
 		}
-		logSecret.Info("secret created")
-	} else {
-		if err := r.Client.Update(ctx, newSecret); err != nil {
-			if client.IgnoreNotFound(err) == nil {
-				logSecret.Info("secret not found")
-				return ctrl.Result{}, nil
-			}
-			logSecret.Error(err, "fails to update secret")
-			return ctrl.Result{
-				Requeue: true,
-			}, nil
-		}
-		logSecret.Info("secret updated")
+		logSecret.Error(err, "fails to update secret")
+		return ctrl.Result{
+			Requeue: true,
+		}, nil
 	}
 
 	return ctrl.Result{
@@ -356,4 +318,48 @@ func (r SleepInfoReconciler) handleSleepInfoStatus(
 		sleepInfo.Status.OperationType = ""
 	}
 	return r.Status().Update(ctx, sleepInfo)
+}
+
+func (r SleepInfoReconciler) upsertSecret(
+	ctx context.Context,
+	logger logr.Logger,
+	now time.Time,
+	secretName, namespace string,
+	secret *v1.Secret,
+	sleepInfoData SleepInfoData,
+) error {
+	logger.Info("update secret")
+
+	var newSecret = &v1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Secret",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretName,
+			Namespace: namespace,
+		},
+		Data: nil,
+	}
+	if secret != nil {
+		newSecret = secret.DeepCopy()
+	}
+	if newSecret.StringData == nil {
+		newSecret.StringData = map[string]string{}
+	}
+	newSecret.StringData[lastScheduleKey] = now.Format(time.RFC3339)
+	newSecret.StringData[lastOperationKey] = sleepInfoData.CurrentOperationType
+
+	if secret == nil {
+		if err := r.Client.Create(ctx, newSecret); err != nil {
+			return err
+		}
+		logger.Info("secret created")
+	} else {
+		if err := r.Client.Update(ctx, newSecret); err != nil {
+			return err
+		}
+		logger.Info("secret updated")
+	}
+	return nil
 }
