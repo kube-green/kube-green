@@ -9,7 +9,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// TODO: handle only sleep - wake up nil
 func (r *SleepInfoReconciler) handleSleep(logger logr.Logger, ctx context.Context, deploymentList []appsv1.Deployment) error {
 	logger.Info("handle sleep operation", "number of deployments", len(deploymentList))
 	err := r.updateDeploymentsWithZeroReplicas(ctx, deploymentList)
@@ -24,7 +23,11 @@ func (r *SleepInfoReconciler) handleSleep(logger logr.Logger, ctx context.Contex
 func (r *SleepInfoReconciler) updateDeploymentsWithZeroReplicas(ctx context.Context, deployments []appsv1.Deployment) error {
 	for _, deployment := range deployments {
 		// TODO: handle replicas in secret instead of annotations
-		currentDeploymentReplicas := strconv.Itoa(int(*deployment.Spec.Replicas))
+		deploymentReplicas := *deployment.Spec.Replicas
+		if deploymentReplicas == 0 {
+			continue
+		}
+		currentDeploymentReplicas := strconv.Itoa(int(deploymentReplicas))
 		d := deployment.DeepCopy()
 		annotations := d.GetAnnotations()
 		if annotations == nil {

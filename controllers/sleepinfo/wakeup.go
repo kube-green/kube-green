@@ -34,11 +34,13 @@ func (r *SleepInfoReconciler) wakeUpDeploymentReplicas(logger logr.Logger, ctx c
 		}
 		replicas, ok := annotations[replicasBeforeSleepAnnotation]
 		if !ok {
-			return fmt.Errorf("replicas annotation not set on deployment %s in namespace %s", deployment.Name, deployment.Namespace)
+			logger.Info(fmt.Sprintf("replicas annotation not set on deployment %s in namespace %s", deployment.Name, deployment.Namespace))
+			continue
 		}
 		deploymentReplicasToWakeUp, err := strconv.Atoi(replicas)
 		if err != nil {
-			return fmt.Errorf("replicas in annotation %s is not correct: %s", replicasBeforeSleepAnnotation, err)
+			logger.Error(err, fmt.Sprintf("replicas in annotation %s is not correct", replicasBeforeSleepAnnotation))
+			continue
 		}
 		delete(annotations, replicasBeforeSleepAnnotation)
 		d.SetAnnotations(annotations)

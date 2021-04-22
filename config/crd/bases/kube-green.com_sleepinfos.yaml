@@ -37,17 +37,20 @@ spec:
             description: SleepInfoSpec defines the desired state of SleepInfo
             properties:
               sleepAt:
-                description: Hour:minute
+                description: Hours:Minutes Accept cron schedule for both hour and
+                  minute. A possible configuration, for example, is *:*/2 for every
+                  even minute.
                 type: string
               wakeUpAt:
-                description: Hour:minute
+                description: Hours:Minutes Accept cron schedule for both hour and
+                  minute. A possible configuration, for example, is *:*/2 for every
+                  even minute.
                 type: string
               weekdays:
                 description: Weekdays are in cron notation
                 type: string
             required:
             - sleepAt
-            - wakeUpAt
             - weekdays
             type: object
           status:

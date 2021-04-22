@@ -5,8 +5,6 @@ Copyright 2021.
 package v1alpha1
 
 import (
-	"time"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -17,9 +15,12 @@ import (
 type SleepInfoSpec struct {
 	// Weekdays are in cron notation
 	Weekdays string `json:"weekdays"`
-	// Hour:minute
+	// Hours:Minutes
+	// Accept cron schedule for both hour and minute. A possible configuration, for example, is *:*/2 for every even minute.
 	SleepTime string `json:"sleepAt"`
-	// Hour:minute
+	// Hours:Minutes
+	// Accept cron schedule for both hour and minute. A possible configuration, for example, is *:*/2 for every even minute.
+	// +optional
 	WakeUpTime string `json:"wakeUpAt"`
 }
 
@@ -64,8 +65,4 @@ type SleepInfoList struct {
 
 func init() {
 	SchemeBuilder.Register(&SleepInfo{}, &SleepInfoList{})
-}
-
-func getParsedDate(date string) (time.Time, error) {
-	return time.Parse(time.RFC3339, date)
 }

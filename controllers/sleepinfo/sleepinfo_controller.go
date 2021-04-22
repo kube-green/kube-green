@@ -281,9 +281,12 @@ func getSleepInfoData(secret *v1.Secret, sleepInfo *kubegreenv1alpha1.SleepInfo)
 	if err != nil {
 		return SleepInfoData{}, err
 	}
-	wakeUpSchedule, err := getScheduleFromWeekdayAndTime(sleepInfo.Spec.Weekdays, sleepInfo.Spec.WakeUpTime)
-	if err != nil {
-		return SleepInfoData{}, err
+	var wakeUpSchedule string
+	if sleepInfo.Spec.WakeUpTime != "" {
+		wakeUpSchedule, err = getScheduleFromWeekdayAndTime(sleepInfo.Spec.Weekdays, sleepInfo.Spec.WakeUpTime)
+		if err != nil {
+			return SleepInfoData{}, err
+		}
 	}
 
 	secretData := SleepInfoData{
@@ -291,6 +294,10 @@ func getSleepInfoData(secret *v1.Secret, sleepInfo *kubegreenv1alpha1.SleepInfo)
 		CurrentOperationSchedule: sleepSchedule,
 		NextOperationSchedule:    wakeUpSchedule,
 	}
+	if wakeUpSchedule == "" {
+		secretData.NextOperationSchedule = sleepSchedule
+	}
+
 	if secret == nil || secret.Data == nil {
 		return secretData, nil
 	}
@@ -309,7 +316,7 @@ func getSleepInfoData(secret *v1.Secret, sleepInfo *kubegreenv1alpha1.SleepInfo)
 
 	lastOperation := string(data[lastOperationKey])
 
-	if lastOperation == sleepOperation {
+	if lastOperation == sleepOperation && wakeUpSchedule != "" {
 		secretData.CurrentOperationSchedule = wakeUpSchedule
 		secretData.NextOperationSchedule = sleepSchedule
 		secretData.CurrentOperationType = wakeUpOperation

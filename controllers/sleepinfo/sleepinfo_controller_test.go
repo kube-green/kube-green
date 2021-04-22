@@ -45,7 +45,7 @@ var _ = Describe("SleepInfo Controller", func() {
 
 	namespace := "zero-deployments"
 	It("reconcile - zero deployments", func() {
-		createdSleepInfo := createSleepInfo(ctx, sleepInfoName, namespace)
+		createdSleepInfo := createSleepInfo(ctx, sleepInfoName, namespace, false)
 
 		req := reconcile.Request{
 			NamespacedName: types.NamespacedName{
@@ -296,6 +296,95 @@ var _ = Describe("SleepInfo Controller", func() {
 				withRequeue(60),
 		)
 	})
+
+	It("reconcile - only sleep, wake up set to nil", func() {
+		namespace := "without-wake-up"
+		req, originalDeployments := setupNamespaceWithDeployments(ctx, sleepInfoName, namespace, sleepInfoReconciler, SetupOptions{
+			UnsetWakeUpTime: true,
+		})
+
+		assertContextInfo := AssertOperation{
+			testLogger:          testLogger,
+			ctx:                 ctx,
+			req:                 req,
+			namespace:           namespace,
+			sleepInfoName:       sleepInfoName,
+			originalDeployments: originalDeployments,
+		}
+		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T20:05:59.000Z").withRequeue(121))
+		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T20:08:00.000Z").withRequeue(120))
+
+		By("re deploy", func() {
+			_, err := upsertDeployments(ctx, namespace, true)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("check replicas")
+			deployments, err := listDeployments(ctx, namespace)
+			Expect(err).NotTo(HaveOccurred())
+			for idx, deployment := range deployments {
+				Expect(deployment.Spec.Replicas).To(Equal(originalDeployments[idx].Spec.Replicas))
+
+				annotations := deployment.GetAnnotations()
+				_, ok := annotations[replicasBeforeSleepAnnotation]
+				Expect(ok).To(BeFalse())
+			}
+		})
+
+		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T20:10:00.000Z").withRequeue(120))
+	})
+
+	It("reconcile - sleep info not present in namespace", func() {
+		namespace := "no-sleepinfo"
+		err := createNamespace(ctx, namespace)
+		Expect(err).ShouldNot(HaveOccurred())
+
+		req := reconcile.Request{
+			NamespacedName: types.NamespacedName{
+				Name:      sleepInfoName,
+				Namespace: namespace,
+			},
+		}
+		result, err := sleepInfoReconciler.Reconcile(ctx, req)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(result).Should(Equal(ctrl.Result{}))
+	})
+
+	It("reconcile - sleepinfo deployed when should be triggered", func() {
+		namespace := "immediately-triggered"
+		createSleepInfo(ctx, sleepInfoName, namespace, false)
+		originalDeployments, err := upsertDeployments(ctx, namespace, false)
+		Expect(err).NotTo(HaveOccurred())
+
+		req := reconcile.Request{
+			NamespacedName: types.NamespacedName{
+				Name:      sleepInfoName,
+				Namespace: namespace,
+			},
+		}
+		sleepInfoReconciler = SleepInfoReconciler{
+			Clock: mockClock{
+				now: "2021-03-23T20:06:00.000Z",
+			},
+			Client: k8sClient,
+			Log:    testLogger,
+		}
+		result, err := sleepInfoReconciler.Reconcile(ctx, req)
+		Expect(err).NotTo(HaveOccurred())
+
+		By("is requeued after correct duration", func() {
+			Expect(result).Should(Equal(ctrl.Result{
+				// 60000 is the difference between mocked now and next minute
+				// (the next scheduled time), in milliseconds
+				RequeueAfter: 60000 * time.Millisecond,
+			}))
+		})
+
+		By("replicas are set to 0 to all deployments and annotations are set correctly to deployments", func() {
+			deployments, err := listDeployments(ctx, namespace)
+			Expect(err).NotTo(HaveOccurred())
+			assertAllReplicasSetToZero(deployments, originalDeployments)
+		})
+	})
 })
 
 func createNamespace(ctx context.Context, name string) error {
@@ -504,7 +593,12 @@ func assertAllReplicasSetToZero(actualDeployments []appsv1.Deployment, originalD
 		allReplicas = append(allReplicas, *deployment.Spec.Replicas)
 
 		annotations := deployment.GetAnnotations()
-		Expect(annotations[replicasBeforeSleepAnnotation]).To(Equal(fmt.Sprintf("%d", *originalDeployments[idx].Spec.Replicas)))
+		originalReplicas := *originalDeployments[idx].Spec.Replicas
+		if originalReplicas == 0 {
+			Expect(annotations[replicasBeforeSleepAnnotation]).To(BeEmpty())
+		} else {
+			Expect(annotations[replicasBeforeSleepAnnotation]).To(Equal(fmt.Sprintf("%d", *originalDeployments[idx].Spec.Replicas)))
+		}
 	}
 	for _, replicas := range allReplicas {
 		Expect(replicas).To(Equal(int32(0)))
@@ -643,8 +737,16 @@ func assertCorrectWakeUpOperation(assert AssertOperation) {
 	})
 }
 
-func setupNamespaceWithDeployments(ctx context.Context, sleepInfoName, namespace string, reconciler SleepInfoReconciler) (ctrl.Request, []appsv1.Deployment) {
-	createSleepInfo(ctx, sleepInfoName, namespace)
+type SetupOptions struct {
+	UnsetWakeUpTime bool
+}
+
+func setupNamespaceWithDeployments(ctx context.Context, sleepInfoName, namespace string, reconciler SleepInfoReconciler, opts ...SetupOptions) (ctrl.Request, []appsv1.Deployment) {
+	var unsetWakeUpTime bool
+	if len(opts) != 0 {
+		unsetWakeUpTime = opts[0].UnsetWakeUpTime
+	}
+	createSleepInfo(ctx, sleepInfoName, namespace, unsetWakeUpTime)
 
 	By("create deployments")
 	originalDeployments, err := upsertDeployments(ctx, namespace, false)
@@ -678,7 +780,7 @@ func setupNamespaceWithDeployments(ctx context.Context, sleepInfoName, namespace
 	return req, originalDeployments
 }
 
-func createSleepInfo(ctx context.Context, sleepInfoName, namespace string) kubegreenv1alpha1.SleepInfo {
+func createSleepInfo(ctx context.Context, sleepInfoName, namespace string, unsetWakeUpTime bool) kubegreenv1alpha1.SleepInfo {
 	var (
 		timeout  = time.Second * 10
 		interval = time.Millisecond * 250
@@ -700,6 +802,10 @@ func createSleepInfo(ctx context.Context, sleepInfoName, namespace string) kubeg
 			WakeUpTime: "*:1-59/2", // every uneven minute
 		},
 	}
+	if unsetWakeUpTime {
+		sleepInfo.Spec.WakeUpTime = ""
+	}
+
 	Expect(k8sClient.Create(ctx, sleepInfo)).Should(Succeed())
 
 	sleepInfoLookupKey := types.NamespacedName{Name: sleepInfoName, Namespace: namespace}

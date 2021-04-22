@@ -162,6 +162,34 @@ func TestSchedule(t *testing.T) {
 			},
 		},
 		{
+			name: "last schedule (+1s), is time to execute [now]",
+			now:  "2021-03-23T20:06:00.000Z",
+			data: SleepInfoData{
+				CurrentOperationSchedule: "6 * * * *",
+				NextOperationSchedule:    "10 * * * *",
+				LastSchedule:             getTime("2021-03-23T19:10:00.000Z").Add(1 * time.Second),
+			},
+			expected: expected{
+				isToExecute:  true,
+				nextSchedule: "2021-03-23T20:10:00Z",
+				requeueAfter: 4 * time.Minute,
+			},
+		},
+		{
+			name: "last schedule (-1s), is time to execute [now]",
+			now:  "2021-03-23T20:06:00.000Z",
+			data: SleepInfoData{
+				CurrentOperationSchedule: "6 * * * *",
+				NextOperationSchedule:    "10 * * * *",
+				LastSchedule:             getTime("2021-03-23T19:10:00.000Z").Add(-1 * time.Second),
+			},
+			expected: expected{
+				isToExecute:  true,
+				nextSchedule: "2021-03-23T20:10:00Z",
+				requeueAfter: 4 * time.Minute,
+			},
+		},
+		{
 			name: "last schedule (at least one operation skipped), is time to execute [now +1s]",
 			now:  "2021-03-23T20:06:01.000Z",
 			data: SleepInfoData{
@@ -214,6 +242,34 @@ func TestSchedule(t *testing.T) {
 				isToExecute:  false,
 				nextSchedule: "2021-03-23T20:06:00Z",
 				requeueAfter: 5*time.Minute + 1*time.Second,
+			},
+		},
+		{
+			name: "same next and current schedule - last schedule (-1s), is time to execute [now]",
+			now:  "2021-03-23T20:06:00.000Z",
+			data: SleepInfoData{
+				CurrentOperationSchedule: "6 * * * *",
+				NextOperationSchedule:    "6 * * * *",
+				LastSchedule:             getTime("2021-03-23T19:06:00.000Z").Add(-1 * time.Second),
+			},
+			expected: expected{
+				isToExecute:  true,
+				nextSchedule: "2021-03-23T21:06:00Z",
+				requeueAfter: 60 * time.Minute,
+			},
+		},
+		{
+			name: "same next and current schedule - last schedule (+1s), is time to execute [now]",
+			now:  "2021-03-23T20:06:00.000Z",
+			data: SleepInfoData{
+				CurrentOperationSchedule: "6 * * * *",
+				NextOperationSchedule:    "6 * * * *",
+				LastSchedule:             getTime("2021-03-23T19:06:00.000Z").Add(1 * time.Second),
+			},
+			expected: expected{
+				isToExecute:  true,
+				nextSchedule: "2021-03-23T21:06:00Z",
+				requeueAfter: 60 * time.Minute,
 			},
 		},
 	}

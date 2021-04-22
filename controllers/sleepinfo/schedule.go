@@ -15,7 +15,7 @@ func (r *SleepInfoReconciler) getNextSchedule(data SleepInfoData, now time.Time)
 
 	lastSchedule := data.LastSchedule
 
-	// sub 2 second because if now is after current schedule of some ms we skip
+	// subtract 1 second because if now is after current schedule of some ms we skip
 	// the current schedule
 	var earliestTime time.Time = now.Add(-1 * time.Second)
 	if !lastSchedule.IsZero() {
@@ -24,7 +24,7 @@ func (r *SleepInfoReconciler) getNextSchedule(data SleepInfoData, now time.Time)
 	nextSchedule := sched.Next(earliestTime)
 
 	if earliestTime == lastSchedule && nextSchedule.Before(now) && !isTimeInDelta(nextSchedule, now, 1*time.Second) {
-		nextSchedule = sched.Next(now)
+		nextSchedule = sched.Next(now.Add(-1 * time.Second))
 	}
 	isToExecute := isTimeInDelta(now, nextSchedule, 1*time.Second)
 
