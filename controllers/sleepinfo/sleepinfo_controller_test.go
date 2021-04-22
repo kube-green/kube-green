@@ -11,7 +11,6 @@ import (
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	core "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -84,11 +83,13 @@ var _ = Describe("SleepInfo Controller", func() {
 
 		By("without deployments, secret is not written", func() {
 			secret, err := sleepInfoReconciler.getSecret(ctx, getSecretName(sleepInfoName), namespace)
-			Expect(apierrors.IsNotFound(err)).To(BeTrue())
-			Expect(secret).To(BeNil())
+			Expect(err).To(BeNil())
+			Expect(secret).NotTo(BeNil())
+			Expect(secret.Data).To(Equal(map[string][]byte{
+				lastScheduleKey: []byte(getTime(sleepScheduleTime).Format(time.RFC3339)),
+			}))
 		})
 
-		// FIXME: write or status and secret equally
 		By("sleepinfo status updated correctly", func() {
 			sleepInfo, err := sleepInfoReconciler.getSleepInfo(ctx, req)
 			Expect(err).NotTo(HaveOccurred())
@@ -122,7 +123,6 @@ var _ = Describe("SleepInfo Controller", func() {
 			Expect(len(deployments)).To(Equal(0))
 		})
 
-		// FIXME: write or status and secret equally
 		By("sleepinfo status updated correctly", func() {
 			sleepInfo, err := sleepInfoReconciler.getSleepInfo(ctx, req)
 			Expect(err).NotTo(HaveOccurred())
@@ -133,8 +133,11 @@ var _ = Describe("SleepInfo Controller", func() {
 
 		By("without deployments, secret is not written", func() {
 			secret, err := sleepInfoReconciler.getSecret(ctx, getSecretName(sleepInfoName), namespace)
-			Expect(apierrors.IsNotFound(err)).To(BeTrue())
-			Expect(secret).To(BeNil())
+			Expect(err).To(BeNil())
+			Expect(secret).NotTo(BeNil())
+			Expect(secret.Data).To(Equal(map[string][]byte{
+				lastScheduleKey: []byte(getTime(sleepScheduleTime).Format(time.RFC3339)),
+			}))
 		})
 	})
 

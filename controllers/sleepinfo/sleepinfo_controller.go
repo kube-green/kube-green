@@ -130,7 +130,15 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, err
 	}
 
+	logSecret := log.WithValues("secret", secretName)
 	if len(deploymentList) == 0 {
+		if err = r.upsertSecret(ctx, log, now, secretName, req.Namespace, secret, sleepInfoData, deploymentList); err != nil {
+			logSecret.Error(err, "fails to update secret")
+			return ctrl.Result{
+				Requeue: true,
+			}, nil
+		}
+
 		if sleepInfoData.CurrentOperationType == sleepOperation {
 			requeueAfter, err = skipWakeUpIfSleepNotPerformed(sleepInfoData.CurrentOperationSchedule, nextSchedule, now)
 			if err != nil {
@@ -164,12 +172,7 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, fmt.Errorf("operation %s not supported", sleepInfoData.CurrentOperationType)
 	}
 
-	logSecret := log.WithValues("secret", secretName)
-	if err = r.upsertSecret(ctx, logSecret, now, secretName, req.Namespace, secret, sleepInfoData); err != nil {
-		if client.IgnoreNotFound(err) == nil {
-			logSecret.Info("secret not found")
-			return ctrl.Result{}, nil
-		}
+	if err = r.upsertSecret(ctx, log, now, secretName, req.Namespace, secret, sleepInfoData, deploymentList); err != nil {
 		logSecret.Error(err, "fails to update secret")
 		return ctrl.Result{
 			Requeue: true,
@@ -327,6 +330,7 @@ func (r SleepInfoReconciler) upsertSecret(
 	secretName, namespace string,
 	secret *v1.Secret,
 	sleepInfoData SleepInfoData,
+	deploymentList []appsv1.Deployment,
 ) error {
 	logger.Info("update secret")
 
@@ -349,6 +353,9 @@ func (r SleepInfoReconciler) upsertSecret(
 	}
 	newSecret.StringData[lastScheduleKey] = now.Format(time.RFC3339)
 	newSecret.StringData[lastOperationKey] = sleepInfoData.CurrentOperationType
+	if len(deploymentList) == 0 && sleepInfoData.CurrentOperationSchedule != sleepOperation {
+		delete(newSecret.StringData, lastOperationKey)
+	}
 
 	if secret == nil {
 		if err := r.Client.Create(ctx, newSecret); err != nil {

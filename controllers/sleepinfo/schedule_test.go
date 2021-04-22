@@ -269,6 +269,7 @@ var _ = Describe("Test Schedule", func() {
 	}
 
 	for _, test := range tests {
+		test := test //necessary to ensure the correct value is passed to the closure
 		It(test.name, func() {
 			isToExecute, nextSchedule, requeueAfter, err := sleepInfoReconciler.getNextSchedule(test.data, getTime(test.now))
 
@@ -340,6 +341,7 @@ var _ = Describe("TestIsTimeInDeltaMs", func() {
 		},
 	}
 	for _, test := range tests {
+		test := test //necessary to ensure the correct value is passed to the closure
 		It(fmt.Sprintf("name, %s", test.name), func() {
 			output := isTimeInDelta(test.t1, test.t2, test.delta)
 			Expect(output).To(Equal(test.expected))
