@@ -605,7 +605,6 @@ func assertAllReplicasSetToZero(actualDeployments []appsv1.Deployment, originalD
 	}
 }
 
-// TODO: create a single function with the function in schedule_test
 func getTime(mockNowRaw string) time.Time {
 	now, err := time.Parse(time.RFC3339, mockNowRaw)
 	Expect(err).ShouldNot(HaveOccurred())

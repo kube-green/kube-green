@@ -4,20 +4,14 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
-func TestSchedule(t *testing.T) {
-	getTime := func(mockNowRaw string) time.Time {
-		now, err := time.Parse(time.RFC3339, mockNowRaw)
-		require.NoError(t, err)
-		return now
-	}
-
+var _ = Describe("Test Schedule", func() {
 	buffer := bytes.Buffer{}
 	writer := io.Writer(&buffer)
 	testLogger := zap.New(zap.WriteTo(writer), zap.UseDevMode(true))
@@ -275,25 +269,25 @@ func TestSchedule(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
+		It(test.name, func() {
 			isToExecute, nextSchedule, requeueAfter, err := sleepInfoReconciler.getNextSchedule(test.data, getTime(test.now))
 
 			expected := test.expected
-			require.Equal(t, expected.isToExecute, isToExecute)
+			Expect(isToExecute).To(Equal(expected.isToExecute))
 			if expected.nextSchedule != "" {
-				require.Equal(t, expected.nextSchedule, nextSchedule.Format(time.RFC3339))
+				Expect(nextSchedule.Format(time.RFC3339)).To(Equal(expected.nextSchedule))
 			}
-			require.Equal(t, expected.requeueAfter, requeueAfter)
+			Expect(requeueAfter).To(Equal(expected.requeueAfter))
 			if expected.err != "" {
-				require.Equal(t, expected.err, err.Error())
+				Expect(err).To(MatchError(expected.err))
 			} else {
-				require.Nil(t, err)
+				Expect(err).To(BeNil())
 			}
 		})
 	}
-}
+})
 
-func TestIsTimeInDeltaMs(t *testing.T) {
+var _ = Describe("TestIsTimeInDeltaMs", func() {
 	now := time.Now()
 	tests := []struct {
 		name     string
@@ -346,9 +340,9 @@ func TestIsTimeInDeltaMs(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		t.Run(fmt.Sprintf("name, %s", test.name), func(t *testing.T) {
+		It(fmt.Sprintf("name, %s", test.name), func() {
 			output := isTimeInDelta(test.t1, test.t2, test.delta)
-			require.Equal(t, test.expected, output)
+			Expect(output).To(Equal(test.expected))
 		})
 	}
-}
+})
