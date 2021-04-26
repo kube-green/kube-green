@@ -6,6 +6,7 @@ package controllers
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -54,14 +55,14 @@ type Clock interface {
 
 type OriginalDeploymentReplicas struct {
 	Name     string `json:"name"`
-	Replicas string `json:"replicas"`
+	Replicas int32  `json:"replicas"`
 }
 type SleepInfoData struct {
-	LastSchedule                time.Time                    `json:"lastSchedule"`
-	CurrentOperationType        string                       `json:"operationType"`
-	OriginalDeploymentsReplicas []OriginalDeploymentReplicas `json:"originalDeploymentReplicas"`
-	CurrentOperationSchedule    string                       `json:"-"`
-	NextOperationSchedule       string                       `json:"-"`
+	LastSchedule                time.Time        `json:"lastSchedule"`
+	CurrentOperationType        string           `json:"operationType"`
+	OriginalDeploymentsReplicas map[string]int32 `json:"originalDeploymentReplicas"`
+	CurrentOperationSchedule    string           `json:"-"`
+	NextOperationSchedule       string           `json:"-"`
 }
 
 //+kubebuilder:rbac:groups=kube-green.com,resources=sleepinfos,verbs=get;list;watch;create;update;patch;delete
@@ -153,6 +154,13 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		}, nil
 	}
 
+	if err = r.upsertSecret(ctx, log, now, secretName, req.Namespace, secret, sleepInfoData, deploymentList); err != nil {
+		logSecret.Error(err, "fails to update secret")
+		return ctrl.Result{
+			Requeue: true,
+		}, nil
+	}
+
 	switch sleepInfoData.CurrentOperationType {
 	case sleepOperation:
 		if err := r.handleSleep(log, ctx, deploymentList); err != nil {
@@ -162,7 +170,7 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			}, err
 		}
 	case wakeUpOperation:
-		if err := r.handleWakeUp(log, ctx, deploymentList); err != nil {
+		if err := r.handleWakeUp(log, ctx, deploymentList, sleepInfoData); err != nil {
 			log.Error(err, "fails to handle wake up")
 			return ctrl.Result{
 				Requeue: true,
@@ -170,13 +178,6 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		}
 	default:
 		return ctrl.Result{}, fmt.Errorf("operation %s not supported", sleepInfoData.CurrentOperationType)
-	}
-
-	if err = r.upsertSecret(ctx, log, now, secretName, req.Namespace, secret, sleepInfoData, deploymentList); err != nil {
-		logSecret.Error(err, "fails to update secret")
-		return ctrl.Result{
-			Requeue: true,
-		}, nil
 	}
 
 	return ctrl.Result{
@@ -268,10 +269,17 @@ func getSleepInfoData(secret *v1.Secret, sleepInfo *kubegreenv1alpha1.SleepInfo)
 	}
 
 	data := secret.Data
-	// originalDeploymentReplicas := []OriginalDeploymentReplicas{}
-	// if err := json.Unmarshal(data[replicasBeforeSleepKey], &originalDeploymentReplicas); err != nil {
-	// 	return SleepInfoData{}, err
-	// }
+	originalDeploymentsReplicas := []OriginalDeploymentReplicas{}
+	if data[replicasBeforeSleepKey] != nil {
+		if err := json.Unmarshal(data[replicasBeforeSleepKey], &originalDeploymentsReplicas); err != nil {
+			return SleepInfoData{}, err
+		}
+		originalDeploymentsReplicasData := map[string]int32{}
+		for _, replicaInfo := range originalDeploymentsReplicas {
+			originalDeploymentsReplicasData[replicaInfo.Name] = replicaInfo.Replicas
+		}
+		secretData.OriginalDeploymentsReplicas = originalDeploymentsReplicasData
+	}
 
 	lastSchedule, err := time.Parse(time.RFC3339, string(data[lastScheduleKey]))
 	if err != nil {
@@ -343,7 +351,7 @@ func (r SleepInfoReconciler) upsertSecret(
 			Name:      secretName,
 			Namespace: namespace,
 		},
-		Data: nil,
+		Data: make(map[string][]byte),
 	}
 	if secret != nil {
 		newSecret = secret.DeepCopy()
@@ -353,8 +361,35 @@ func (r SleepInfoReconciler) upsertSecret(
 	}
 	newSecret.StringData[lastScheduleKey] = now.Format(time.RFC3339)
 	newSecret.StringData[lastOperationKey] = sleepInfoData.CurrentOperationType
-	if len(deploymentList) == 0 && sleepInfoData.CurrentOperationSchedule != sleepOperation {
+	if len(deploymentList) == 0 {
 		delete(newSecret.StringData, lastOperationKey)
+	}
+
+	// TODO: add function to check operation type isSleepOperation ...
+	if len(deploymentList) != 0 && sleepInfoData.CurrentOperationType == sleepOperation {
+		originalDeploymentsReplicas := []OriginalDeploymentReplicas{}
+		for _, deployment := range deploymentList {
+			replica, ok := sleepInfoData.OriginalDeploymentsReplicas[deployment.Name]
+			originalReplicas := *deployment.Spec.Replicas
+			if ok && replica != 0 {
+				originalReplicas = replica
+			}
+			if originalReplicas == 0 {
+				continue
+			}
+			originalDeploymentsReplicas = append(originalDeploymentsReplicas, OriginalDeploymentReplicas{
+				Name:     deployment.Name,
+				Replicas: originalReplicas,
+			})
+		}
+		originalReplicasToSave, err := json.Marshal(originalDeploymentsReplicas)
+		if err != nil {
+			return err
+		}
+		newSecret.Data[replicasBeforeSleepKey] = originalReplicasToSave
+	}
+	if sleepInfoData.CurrentOperationType == wakeUpOperation {
+		delete(newSecret.Data, replicasBeforeSleepKey)
 	}
 
 	if secret == nil {

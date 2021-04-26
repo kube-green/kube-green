@@ -24,12 +24,6 @@ type SleepInfoSpec struct {
 	WakeUpTime string `json:"wakeUpAt"`
 }
 
-// TODO: save changed replica deployment info in sleepinfo status?
-// type DeploymentWakeUpInfo struct {
-// 	Name     string `json:"name"`
-// 	Replicas int64  `json:"replicas"`
-// }
-
 // SleepInfoStatus defines the observed state of SleepInfo
 type SleepInfoStatus struct {
 	// Information when was the last time the run was successfully scheduled.

@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"context"
-	"strconv"
 
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
@@ -22,21 +21,17 @@ func (r *SleepInfoReconciler) handleSleep(logger logr.Logger, ctx context.Contex
 
 func (r *SleepInfoReconciler) updateDeploymentsWithZeroReplicas(ctx context.Context, deployments []appsv1.Deployment) error {
 	for _, deployment := range deployments {
-		// TODO: handle replicas in secret instead of annotations
+		// TODO: handle replicas in secret instead of annotations. Annotations are merged with patch
 		deploymentReplicas := *deployment.Spec.Replicas
 		if deploymentReplicas == 0 {
 			continue
 		}
-		currentDeploymentReplicas := strconv.Itoa(int(deploymentReplicas))
 		d := deployment.DeepCopy()
-		annotations := d.GetAnnotations()
-		if annotations == nil {
-			annotations = map[string]string{}
-		}
-		annotations[replicasBeforeSleepAnnotation] = currentDeploymentReplicas
-		d.SetAnnotations(annotations)
 
 		*d.Spec.Replicas = 0
+		// TODO:
+		// v1 "k8s.io/api/autoscaling/v1"
+		// v1.Scale
 		if err := r.Client.Update(ctx, d); err != nil {
 			if client.IgnoreNotFound(err) == nil {
 				return nil

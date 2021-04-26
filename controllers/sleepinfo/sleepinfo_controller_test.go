@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
+	v1 "k8s.io/api/apps/v1"
 	core "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -236,12 +238,9 @@ var _ = Describe("SleepInfo Controller", func() {
 			By("check replicas")
 			deployments, err := listDeployments(ctx, namespace)
 			Expect(err).NotTo(HaveOccurred())
-			for idx, deployment := range deployments {
-				Expect(deployment.Spec.Replicas).To(Equal(originalDeployments[idx].Spec.Replicas))
-
-				annotations := deployment.GetAnnotations()
-				_, ok := annotations[replicasBeforeSleepAnnotation]
-				Expect(ok).To(BeFalse())
+			for _, deployment := range deployments {
+				originalDeployment := findDeployByName(originalDeployments, deployment.Name)
+				Expect(deployment.Spec.Replicas).To(Equal(originalDeployment.Spec.Replicas))
 			}
 		})
 
@@ -267,9 +266,10 @@ var _ = Describe("SleepInfo Controller", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			deploymentToUpdate := deployments[0].DeepCopy()
+			patch := client.MergeFrom(deploymentToUpdate)
 			*deploymentToUpdate.Spec.Replicas = 0
-			patch := client.RawPatch(types.ApplyPatchType, []byte(deploymentToUpdate.String()))
-			k8sClient.Patch(ctx, deploymentToUpdate, patch)
+			err = k8sClient.Patch(ctx, deploymentToUpdate, patch)
+			Expect(err).ToNot(HaveOccurred())
 
 			updatedDeployment := appsv1.Deployment{}
 			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: deploymentToUpdate.Name, Namespace: namespace}, &updatedDeployment)).To(Succeed())
@@ -324,12 +324,9 @@ var _ = Describe("SleepInfo Controller", func() {
 			By("check replicas")
 			deployments, err := listDeployments(ctx, namespace)
 			Expect(err).NotTo(HaveOccurred())
-			for idx, deployment := range deployments {
-				Expect(deployment.Spec.Replicas).To(Equal(originalDeployments[idx].Spec.Replicas))
-
-				annotations := deployment.GetAnnotations()
-				_, ok := annotations[replicasBeforeSleepAnnotation]
-				Expect(ok).To(BeFalse())
+			for _, deployment := range deployments {
+				originalDeployment := findDeployByName(originalDeployments, deployment.Name)
+				Expect(deployment.Spec.Replicas).To(Equal(originalDeployment.Spec.Replicas))
 			}
 		})
 
@@ -382,11 +379,84 @@ var _ = Describe("SleepInfo Controller", func() {
 			}))
 		})
 
-		By("replicas are set to 0 to all deployments and annotations are set correctly to deployments", func() {
+		By("replicas are set to 0 to all deployments", func() {
 			deployments, err := listDeployments(ctx, namespace)
 			Expect(err).NotTo(HaveOccurred())
 			assertAllReplicasSetToZero(deployments, originalDeployments)
 		})
+	})
+
+	// TODO: add a test to create a deployment between two trigger
+	It("reconcile - create deployment between sleep and wake up", func() {
+		namespace := "create-deployment-between-sleep-and-wake-up"
+		req, originalDeployments := setupNamespaceWithDeployments(ctx, sleepInfoName, namespace, sleepInfoReconciler)
+
+		assertContextInfo := AssertOperation{
+			testLogger:          testLogger,
+			ctx:                 ctx,
+			req:                 req,
+			namespace:           namespace,
+			sleepInfoName:       sleepInfoName,
+			originalDeployments: originalDeployments,
+		}
+
+		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T20:05:59.000Z").withRequeue(61))
+
+		createdServiceName := "service-new"
+		By("create deployment", func() {
+			fiveReplicas := int32(5)
+			deployToCreate := v1.Deployment{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Deployment",
+					APIVersion: "apps/v1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      createdServiceName,
+					Namespace: namespace,
+				},
+				Spec: appsv1.DeploymentSpec{
+					Replicas: &fiveReplicas,
+					Selector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							"app": "service-1",
+						},
+					},
+					Template: core.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: map[string]string{
+								"app": "service-1",
+							},
+						},
+						Spec: core.PodSpec{
+							Containers: []core.Container{
+								{
+									Name:  "c1",
+									Image: "davidebianchi/echo-service",
+								},
+							},
+						},
+					},
+				},
+			}
+			err := k8sClient.Create(ctx, deployToCreate.DeepCopy())
+			Expect(err).NotTo(HaveOccurred())
+
+			newOriginalDeployments := append(originalDeployments, deployToCreate)
+			assertContextInfo.originalDeployments = newOriginalDeployments
+
+			By("check replicas")
+			deployments, err := listDeployments(ctx, namespace)
+			Expect(err).NotTo(HaveOccurred())
+			for _, deployment := range deployments {
+				if deployment.Name == createdServiceName {
+					Expect(*deployment.Spec.Replicas).To(Equal(fiveReplicas))
+					continue
+				}
+				Expect(*deployment.Spec.Replicas).To(Equal(int32(0)), deployment.Name)
+			}
+		})
+
+		assertCorrectWakeUpOperation(assertContextInfo.withSchedule("2021-03-23T20:07:00.000Z").withRequeue(60))
 	})
 })
 
@@ -546,8 +616,8 @@ func upsertDeployments(ctx context.Context, namespace string, updateIfAlreadyCre
 	}
 	for _, deployment := range deployments {
 		var deploymentAlreadyExists bool
+		d := appsv1.Deployment{}
 		if updateIfAlreadyCreated {
-			d := appsv1.Deployment{}
 			err := k8sClient.Get(ctx, types.NamespacedName{
 				Name:      deployment.Name,
 				Namespace: namespace,
@@ -557,8 +627,11 @@ func upsertDeployments(ctx context.Context, namespace string, updateIfAlreadyCre
 			}
 		}
 		if deploymentAlreadyExists {
-			if err := k8sClient.Update(ctx, &deployment); err != nil {
-				return nil, fmt.Errorf("error %s updating deployment 1", err)
+			// TODO: try with patch
+			patch := client.MergeFrom(d.DeepCopy())
+			d.Spec.Replicas = deployment.Spec.Replicas
+			if err := k8sClient.Patch(ctx, &d, patch); err != nil {
+				return nil, fmt.Errorf("error updating deployment: %s %s", err, deployment.Name)
 			}
 		} else {
 			if err := k8sClient.Create(ctx, &deployment); err != nil {
@@ -592,16 +665,8 @@ func (m mockClock) Now() time.Time {
 
 func assertAllReplicasSetToZero(actualDeployments []appsv1.Deployment, originalDeployments []appsv1.Deployment) {
 	allReplicas := []int32{}
-	for idx, deployment := range actualDeployments {
+	for _, deployment := range actualDeployments {
 		allReplicas = append(allReplicas, *deployment.Spec.Replicas)
-
-		annotations := deployment.GetAnnotations()
-		originalReplicas := *originalDeployments[idx].Spec.Replicas
-		if originalReplicas == 0 {
-			Expect(annotations[replicasBeforeSleepAnnotation]).To(BeEmpty())
-		} else {
-			Expect(annotations[replicasBeforeSleepAnnotation]).To(Equal(fmt.Sprintf("%d", *originalDeployments[idx].Spec.Replicas)))
-		}
 	}
 	for _, replicas := range allReplicas {
 		Expect(replicas).To(Equal(int32(0)))
@@ -657,7 +722,7 @@ func assertCorrectSleepOperation(assert AssertOperation) {
 	result, err := sleepInfoReconciler.Reconcile(assert.ctx, assert.req)
 	Expect(err).NotTo(HaveOccurred())
 
-	By("replicas are set to 0 to all deployments and annotations are set correctly to deployments", func() {
+	By("replicas are set to 0 to all deployments", func() {
 		deployments, err := listDeployments(assert.ctx, assert.namespace)
 		Expect(err).NotTo(HaveOccurred())
 		assertAllReplicasSetToZero(deployments, assert.originalDeployments)
@@ -667,9 +732,25 @@ func assertCorrectSleepOperation(assert AssertOperation) {
 		secret, err := sleepInfoReconciler.getSecret(assert.ctx, getSecretName(assert.sleepInfoName), assert.namespace)
 		Expect(err).NotTo(HaveOccurred())
 		secretData := secret.Data
+
+		var originalReplicas []OriginalDeploymentReplicas
+		for _, deployment := range assert.originalDeployments {
+			if *deployment.Spec.Replicas == 0 {
+				continue
+			}
+			originalReplicas = append(originalReplicas, OriginalDeploymentReplicas{
+				Name:     deployment.Name,
+				Replicas: *deployment.Spec.Replicas,
+			})
+		}
+		var expectedReplicas = []byte{}
+		expectedReplicas, err = json.Marshal(originalReplicas)
+		Expect(err).NotTo(HaveOccurred())
+
 		Expect(secretData).To(Equal(map[string][]byte{
-			lastScheduleKey:  []byte(getTime(assert.expectedScheduleTime).Truncate(time.Second).Format(time.RFC3339)),
-			lastOperationKey: []byte(sleepOperation),
+			lastScheduleKey:        []byte(getTime(assert.expectedScheduleTime).Truncate(time.Second).Format(time.RFC3339)),
+			lastOperationKey:       []byte(sleepOperation),
+			replicasBeforeSleepKey: expectedReplicas,
 		}))
 	})
 
@@ -701,15 +782,12 @@ func assertCorrectWakeUpOperation(assert AssertOperation) {
 	result, err := sleepInfoReconciler.Reconcile(assert.ctx, assert.req)
 	Expect(err).NotTo(HaveOccurred())
 
-	By("deployment replicas correctly waked up and annotation deleted", func() {
+	By("deployment replicas correctly waked up", func() {
 		deployments, err := listDeployments(assert.ctx, assert.namespace)
 		Expect(err).NotTo(HaveOccurred())
-		for idx, deployment := range deployments {
-			Expect(deployment.Spec.Replicas).To(Equal(assert.originalDeployments[idx].Spec.Replicas))
-
-			annotations := deployment.GetAnnotations()
-			_, ok := annotations[replicasBeforeSleepAnnotation]
-			Expect(ok).To(BeFalse())
+		for _, deployment := range deployments {
+			originalDeployment := findDeployByName(assert.originalDeployments, deployment.Name)
+			Expect(deployment.Spec.Replicas).To(Equal(originalDeployment.Spec.Replicas))
 		}
 	})
 
@@ -821,4 +899,13 @@ func createSleepInfo(ctx context.Context, sleepInfoName, namespace string, unset
 	}, timeout, interval).Should(BeTrue())
 
 	return *createdSleepInfo
+}
+
+func findDeployByName(deployments []appsv1.Deployment, nameToFind string) *appsv1.Deployment {
+	for _, deployment := range deployments {
+		if deployment.Name == nameToFind {
+			return deployment.DeepCopy()
+		}
+	}
+	return nil
 }
