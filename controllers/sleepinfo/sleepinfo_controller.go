@@ -65,6 +65,14 @@ type SleepInfoData struct {
 	NextOperationSchedule       string           `json:"-"`
 }
 
+func (s SleepInfoData) isWakeUpOperation() bool {
+	return s.CurrentOperationType == wakeUpOperation
+}
+
+func (s SleepInfoData) isSleepOperation() bool {
+	return s.CurrentOperationType == sleepOperation
+}
+
 //+kubebuilder:rbac:groups=kube-green.com,resources=sleepinfos,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=kube-green.com,resources=sleepinfos/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=kube-green.com,resources=sleepinfos/finalizers,verbs=update
@@ -140,7 +148,7 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			}, nil
 		}
 
-		if sleepInfoData.CurrentOperationType == sleepOperation {
+		if sleepInfoData.isSleepOperation() {
 			requeueAfter, err = skipWakeUpIfSleepNotPerformed(sleepInfoData.CurrentOperationSchedule, nextSchedule, now)
 			if err != nil {
 				log.Error(err, "fails to parse cron - 0 deployment")
@@ -161,15 +169,15 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		}, nil
 	}
 
-	switch sleepInfoData.CurrentOperationType {
-	case sleepOperation:
+	switch {
+	case sleepInfoData.isSleepOperation():
 		if err := r.handleSleep(log, ctx, deploymentList); err != nil {
 			log.Error(err, "fails to handle sleep")
 			return ctrl.Result{
 				Requeue: true,
 			}, err
 		}
-	case wakeUpOperation:
+	case sleepInfoData.isWakeUpOperation():
 		if err := r.handleWakeUp(log, ctx, deploymentList, sleepInfoData); err != nil {
 			log.Error(err, "fails to handle wake up")
 			return ctrl.Result{
@@ -325,7 +333,7 @@ func (r SleepInfoReconciler) handleSleepInfoStatus(
 	sleepInfo := currentSleepInfo.DeepCopy()
 	sleepInfo.Status.LastScheduleTime = metav1.NewTime(now)
 	sleepInfo.Status.OperationType = sleepInfoData.CurrentOperationType
-	if len(deploymentList) == 0 && sleepInfoData.CurrentOperationSchedule != sleepOperation {
+	if len(deploymentList) == 0 {
 		sleepInfo.Status.OperationType = ""
 	}
 	return r.Status().Update(ctx, sleepInfo)
@@ -365,8 +373,7 @@ func (r SleepInfoReconciler) upsertSecret(
 		delete(newSecret.StringData, lastOperationKey)
 	}
 
-	// TODO: add function to check operation type isSleepOperation ...
-	if len(deploymentList) != 0 && sleepInfoData.CurrentOperationType == sleepOperation {
+	if len(deploymentList) != 0 && sleepInfoData.isSleepOperation() {
 		originalDeploymentsReplicas := []OriginalDeploymentReplicas{}
 		for _, deployment := range deploymentList {
 			replica, ok := sleepInfoData.OriginalDeploymentsReplicas[deployment.Name]
@@ -388,7 +395,7 @@ func (r SleepInfoReconciler) upsertSecret(
 		}
 		newSecret.Data[replicasBeforeSleepKey] = originalReplicasToSave
 	}
-	if sleepInfoData.CurrentOperationType == wakeUpOperation {
+	if sleepInfoData.isWakeUpOperation() {
 		delete(newSecret.Data, replicasBeforeSleepKey)
 	}
 
