@@ -386,7 +386,6 @@ var _ = Describe("SleepInfo Controller", func() {
 		})
 	})
 
-	// TODO: add a test to create a deployment between two trigger
 	It("reconcile - create deployment between sleep and wake up", func() {
 		namespace := "create-deployment-between-sleep-and-wake-up"
 		req, originalDeployments := setupNamespaceWithDeployments(ctx, sleepInfoName, namespace, sleepInfoReconciler)
@@ -627,7 +626,6 @@ func upsertDeployments(ctx context.Context, namespace string, updateIfAlreadyCre
 			}
 		}
 		if deploymentAlreadyExists {
-			// TODO: try with patch
 			patch := client.MergeFrom(d.DeepCopy())
 			d.Spec.Replicas = deployment.Spec.Replicas
 			if err := k8sClient.Patch(ctx, &d, patch); err != nil {

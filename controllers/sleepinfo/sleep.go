@@ -21,7 +21,6 @@ func (r *SleepInfoReconciler) handleSleep(logger logr.Logger, ctx context.Contex
 
 func (r *SleepInfoReconciler) updateDeploymentsWithZeroReplicas(ctx context.Context, deployments []appsv1.Deployment) error {
 	for _, deployment := range deployments {
-		// TODO: handle replicas in secret instead of annotations. Annotations are merged with patch
 		deploymentReplicas := *deployment.Spec.Replicas
 		if deploymentReplicas == 0 {
 			continue
