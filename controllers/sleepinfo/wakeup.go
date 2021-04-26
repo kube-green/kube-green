@@ -13,7 +13,6 @@ func (r *SleepInfoReconciler) handleWakeUp(logger logr.Logger, ctx context.Conte
 	logger.Info("handle wake up operation", "number of deployments", len(deploymentList))
 	err := r.wakeUpDeploymentReplicas(logger, ctx, deploymentList, sleepInfoData)
 	if err != nil {
-		logger.Error(err, "fails to update deployments")
 		return err
 	}
 
@@ -26,7 +25,6 @@ func (r *SleepInfoReconciler) wakeUpDeploymentReplicas(logger logr.Logger, ctx c
 			logger.Info("replicas not 0 during wake up", "deployment name", deployment.Name)
 			return nil
 		}
-		d := deployment.DeepCopy()
 
 		replica, ok := sleepInfoData.OriginalDeploymentsReplicas[deployment.Name]
 		if !ok {
@@ -34,9 +32,11 @@ func (r *SleepInfoReconciler) wakeUpDeploymentReplicas(logger logr.Logger, ctx c
 			continue
 		}
 
+		d := deployment.DeepCopy()
 		*d.Spec.Replicas = replica
-		// TODO: change update with patch
-		if err := r.Client.Update(ctx, d); err != nil {
+
+		patch := client.MergeFrom(deployment.DeepCopy())
+		if err := r.Client.Patch(ctx, d, patch); err != nil {
 			if client.IgnoreNotFound(err) == nil {
 				return nil
 			}

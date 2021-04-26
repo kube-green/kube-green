@@ -26,12 +26,10 @@ func (r *SleepInfoReconciler) updateDeploymentsWithZeroReplicas(ctx context.Cont
 			continue
 		}
 		d := deployment.DeepCopy()
-
 		*d.Spec.Replicas = 0
-		// TODO:
-		// v1 "k8s.io/api/autoscaling/v1"
-		// v1.Scale
-		if err := r.Client.Update(ctx, d); err != nil {
+
+		patch := client.MergeFrom(deployment.DeepCopy())
+		if err := r.Client.Patch(ctx, d, patch); err != nil {
 			if client.IgnoreNotFound(err) == nil {
 				return nil
 			}
