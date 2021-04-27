@@ -195,8 +195,6 @@ func (r *SleepInfoReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		r.Clock = realClock{}
 	}
 
-	// TODO: validate schedule
-
 	pred := predicate.GenerationChangedPredicate{}
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&kubegreenv1alpha1.SleepInfo{}).

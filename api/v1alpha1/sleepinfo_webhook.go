@@ -1,0 +1,69 @@
+/*
+Copyright 2021.
+*/
+
+package v1alpha1
+
+import (
+	"github.com/robfig/cron/v3"
+	"k8s.io/apimachinery/pkg/runtime"
+	ctrl "sigs.k8s.io/controller-runtime"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
+)
+
+// log is for logging in this package.
+var sleepinfolog = logf.Log.WithName("sleepinfo-resource")
+
+func (r *SleepInfo) SetupWebhookWithManager(mgr ctrl.Manager) error {
+	return ctrl.NewWebhookManagedBy(mgr).
+		For(r).
+		Complete()
+}
+
+//+kubebuilder:webhook:path=/validate-kube-green-com-v1alpha1-sleepinfo,mutating=false,failurePolicy=fail,sideEffects=None,groups=kube-green.com,resources=sleepinfos,verbs=create;update,versions=v1alpha1,name=vsleepinfo.kb.io,admissionReviewVersions={v1,v1beta1}
+
+var _ webhook.Validator = &SleepInfo{}
+
+// ValidateCreate implements webhook.Validator so a webhook will be registered for the type
+func (s *SleepInfo) ValidateCreate() error {
+	sleepinfolog.Info("validate create", "name", s.Name)
+
+	return s.validateSleepInfo()
+}
+
+// ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
+func (s *SleepInfo) ValidateUpdate(old runtime.Object) error {
+	sleepinfolog.Info("validate update", "name", s.Name)
+
+	return s.validateSleepInfo()
+}
+
+// ValidateDelete implements webhook.Validator so a webhook will be registered for the type
+func (r *SleepInfo) ValidateDelete() error {
+	sleepinfolog.Info("validate delete", "name", r.Name)
+	return nil
+}
+
+func (s SleepInfo) validateSleepInfo() error {
+	schedule, err := s.GetScheduleFromWeekdayAndTime(s.Spec.SleepTime)
+	if err != nil {
+		return err
+	}
+	if _, err = cron.ParseStandard(schedule); err != nil {
+		return err
+	}
+
+	if s.Spec.WakeUpTime == "" {
+		return nil
+	}
+
+	schedule, err = s.GetScheduleFromWeekdayAndTime(s.Spec.WakeUpTime)
+	if err != nil {
+		return err
+	}
+	if _, err = cron.ParseStandard(schedule); err != nil {
+		return err
+	}
+	return nil
+}

@@ -5,6 +5,9 @@ Copyright 2021.
 package v1alpha1
 
 import (
+	"fmt"
+	"strings"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -46,6 +49,19 @@ type SleepInfo struct {
 
 	Spec   SleepInfoSpec   `json:"spec,omitempty"`
 	Status SleepInfoStatus `json:"status,omitempty"`
+}
+
+func (s SleepInfo) GetScheduleFromWeekdayAndTime(hourAndMinute string) (string, error) {
+	weekday := s.Spec.Weekdays
+	if weekday == "" {
+		return "", fmt.Errorf("empty weekday from sleep info configuration")
+	}
+
+	splittedTime := strings.Split(hourAndMinute, ":")
+	if len(splittedTime) != 2 {
+		return "", fmt.Errorf("time should be of format HH:mm, actual: %s", hourAndMinute)
+	}
+	return fmt.Sprintf("%s %s * * %s", splittedTime[1], splittedTime[0], weekday), nil
 }
 
 //+kubebuilder:object:root=true

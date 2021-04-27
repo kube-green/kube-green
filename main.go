@@ -74,6 +74,10 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "SleepInfo")
 		os.Exit(1)
 	}
+	if err = (&kubegreencomv1alpha1.SleepInfo{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "SleepInfo")
+		os.Exit(1)
+	}
 	// +kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("health", healthz.Ping); err != nil {
