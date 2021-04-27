@@ -156,7 +156,10 @@ var _ = Describe("SleepInfo Controller", func() {
 	})
 
 	It("not valid sleep schedule", func() {
-		name := "not-valid-schedule"
+		namespace := "not-valid-sleep-schedule"
+		err := createNamespace(ctx, namespace)
+		Expect(err).NotTo(HaveOccurred())
+
 		By("create SleepInfo")
 		sleepInfo := &kubegreenv1alpha1.SleepInfo{
 			TypeMeta: metav1.TypeMeta{
@@ -164,7 +167,74 @@ var _ = Describe("SleepInfo Controller", func() {
 				APIVersion: "kube-green.com/v1alpha1",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      name,
+				Name:      sleepInfoName,
+				Namespace: namespace,
+			},
+			Spec: kubegreenv1alpha1.SleepInfoSpec{
+				Weekdays:  "1",
+				SleepTime: "",
+			},
+		}
+		Expect(k8sClient.Create(ctx, sleepInfo)).Should(Succeed())
+
+		req := reconcile.Request{
+			NamespacedName: types.NamespacedName{
+				Name:      sleepInfoName,
+				Namespace: namespace,
+			},
+		}
+		result, err := sleepInfoReconciler.Reconcile(ctx, req)
+		Expect(err.Error()).Should(Equal("time should be of format HH:mm, actual: "))
+		Expect(result).Should(Equal(ctrl.Result{}))
+	})
+
+	It("not valid wake up schedule", func() {
+		namespace := "not-valid-wake-up-schedule"
+		err := createNamespace(ctx, namespace)
+		Expect(err).NotTo(HaveOccurred())
+
+		By("create SleepInfo")
+		sleepInfo := &kubegreenv1alpha1.SleepInfo{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "SleepInfo",
+				APIVersion: "kube-green.com/v1alpha1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      sleepInfoName,
+				Namespace: namespace,
+			},
+			Spec: kubegreenv1alpha1.SleepInfoSpec{
+				Weekdays:   "1",
+				SleepTime:  "*:*",
+				WakeUpTime: "*",
+			},
+		}
+		Expect(k8sClient.Create(ctx, sleepInfo)).Should(Succeed())
+
+		req := reconcile.Request{
+			NamespacedName: types.NamespacedName{
+				Name:      sleepInfoName,
+				Namespace: namespace,
+			},
+		}
+		result, err := sleepInfoReconciler.Reconcile(ctx, req)
+		Expect(err.Error()).Should(Equal("time should be of format HH:mm, actual: *"))
+		Expect(result).Should(Equal(ctrl.Result{}))
+	})
+
+	It("not valid weekday", func() {
+		namespace := "not-valid-weekday"
+		err := createNamespace(ctx, namespace)
+		Expect(err).NotTo(HaveOccurred())
+
+		By("create SleepInfo")
+		sleepInfo := &kubegreenv1alpha1.SleepInfo{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "SleepInfo",
+				APIVersion: "kube-green.com/v1alpha1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      sleepInfoName,
 				Namespace: namespace,
 			},
 			Spec: kubegreenv1alpha1.SleepInfoSpec{
@@ -175,7 +245,7 @@ var _ = Describe("SleepInfo Controller", func() {
 
 		req := reconcile.Request{
 			NamespacedName: types.NamespacedName{
-				Name:      name,
+				Name:      sleepInfoName,
 				Namespace: namespace,
 			},
 		}
