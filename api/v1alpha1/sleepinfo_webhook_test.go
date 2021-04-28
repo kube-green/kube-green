@@ -14,7 +14,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var _ = FDescribe("validate sleep info", func() {
+var _ = Describe("validate sleep info", func() {
 	sleepInfo := &SleepInfo{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "SleepInfo",
