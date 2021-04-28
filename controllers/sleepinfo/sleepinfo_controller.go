@@ -8,7 +8,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -244,13 +243,13 @@ func skipWakeUpIfSleepNotPerformed(currentOperationCronSchedule string, nextSche
 }
 
 func getSleepInfoData(secret *v1.Secret, sleepInfo *kubegreenv1alpha1.SleepInfo) (SleepInfoData, error) {
-	sleepSchedule, err := getScheduleFromWeekdayAndTime(sleepInfo.Spec.Weekdays, sleepInfo.Spec.SleepTime)
+	sleepSchedule, err := sleepInfo.GetSleepSchedule()
 	if err != nil {
 		return SleepInfoData{}, err
 	}
 	var wakeUpSchedule string
 	if sleepInfo.Spec.WakeUpTime != "" {
-		wakeUpSchedule, err = getScheduleFromWeekdayAndTime(sleepInfo.Spec.Weekdays, sleepInfo.Spec.WakeUpTime)
+		wakeUpSchedule, err = sleepInfo.GetWakeUpSchedule()
 		if err != nil {
 			return SleepInfoData{}, err
 		}
@@ -301,18 +300,6 @@ func getSleepInfoData(secret *v1.Secret, sleepInfo *kubegreenv1alpha1.SleepInfo)
 
 func getSecretName(name string) string {
 	return fmt.Sprintf("sleepinfo-%s", name)
-}
-
-func getScheduleFromWeekdayAndTime(weekday string, hourAndMinute string) (string, error) {
-	if weekday == "" {
-		return "", fmt.Errorf("empty weekday from sleep info configuration")
-	}
-
-	splittedTime := strings.Split(hourAndMinute, ":")
-	if len(splittedTime) != 2 {
-		return "", fmt.Errorf("time should be of format HH:mm, actual: %s", hourAndMinute)
-	}
-	return fmt.Sprintf("%s %s * * %s", splittedTime[1], splittedTime[0], weekday), nil
 }
 
 // handleSleepInfoStatus handles operator status

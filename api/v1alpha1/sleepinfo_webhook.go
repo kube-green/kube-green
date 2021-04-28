@@ -46,7 +46,7 @@ func (r *SleepInfo) ValidateDelete() error {
 }
 
 func (s SleepInfo) validateSleepInfo() error {
-	schedule, err := s.GetScheduleFromWeekdayAndTime(s.Spec.SleepTime)
+	schedule, err := s.GetSleepSchedule()
 	if err != nil {
 		return err
 	}
@@ -58,7 +58,7 @@ func (s SleepInfo) validateSleepInfo() error {
 		return nil
 	}
 
-	schedule, err = s.GetScheduleFromWeekdayAndTime(s.Spec.WakeUpTime)
+	schedule, err = s.GetWakeUpSchedule()
 	if err != nil {
 		return err
 	}

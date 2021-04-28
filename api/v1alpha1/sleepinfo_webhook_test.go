@@ -55,6 +55,30 @@ var _ = Describe("validate sleep info", func() {
 			},
 		},
 		{
+			name:          "fails - sleep time without `:`",
+			expectedError: "time should be of format HH:mm, actual: 130",
+			sleepInfoSpec: SleepInfoSpec{
+				Weekdays:  "1-5",
+				SleepTime: "130",
+			},
+		},
+		{
+			name:          "fails - sleep time with double `:`",
+			expectedError: "time should be of format HH:mm, actual: 1:3:0",
+			sleepInfoSpec: SleepInfoSpec{
+				Weekdays:  "1-5",
+				SleepTime: "1:3:0",
+			},
+		},
+		{
+			name:          "fails - sleep time with letter instead of numbers",
+			expectedError: "failed to parse int from c: strconv.Atoi: parsing \"c\": invalid syntax",
+			sleepInfoSpec: SleepInfoSpec{
+				Weekdays:  "1-5",
+				SleepTime: "ab:c",
+			},
+		},
+		{
 			name:          "ok - no wake up time",
 			expectedError: "",
 			sleepInfoSpec: SleepInfoSpec{
@@ -81,19 +105,30 @@ var _ = Describe("validate sleep info", func() {
 			},
 		},
 		{
-			name:          "fails - sleep time without `:`",
-			expectedError: "time should be of format HH:mm, actual: 130",
+			name:          "fails - wake up time without `:`",
+			expectedError: "time should be of format HH:mm, actual: 11",
 			sleepInfoSpec: SleepInfoSpec{
-				Weekdays:  "1-5",
-				SleepTime: "130",
+				Weekdays:   "1-5",
+				SleepTime:  "13:00",
+				WakeUpTime: "11",
 			},
 		},
 		{
-			name:          "fails - sleep time with double `:`",
+			name:          "fails - wake up time with double `:`",
 			expectedError: "time should be of format HH:mm, actual: 1:3:0",
 			sleepInfoSpec: SleepInfoSpec{
-				Weekdays:  "1-5",
-				SleepTime: "1:3:0",
+				Weekdays:   "1-5",
+				SleepTime:  "13:0",
+				WakeUpTime: "1:3:0",
+			},
+		},
+		{
+			name:          "fails - sleep time with letter instead of numbers",
+			expectedError: "failed to parse int from c: strconv.Atoi: parsing \"c\": invalid syntax",
+			sleepInfoSpec: SleepInfoSpec{
+				Weekdays:   "1-5",
+				SleepTime:  "13:15",
+				WakeUpTime: "ab:c",
 			},
 		},
 	}
@@ -113,6 +148,7 @@ var _ = Describe("validate sleep info", func() {
 		})
 	}
 
+	// TODO: make e2e test of webhook
 	Context("validate create", func() {
 		It("ok", func() {
 			sleepInfo := &SleepInfo{
@@ -188,6 +224,25 @@ var _ = Describe("validate sleep info", func() {
 
 			err := sleepInfo.ValidateUpdate(sleepInfo)
 			Expect(err.Error()).To(Equal("empty weekday from sleep info configuration"))
+		})
+	})
+
+	Context("validate delete", func() {
+		It("ok", func() {
+			sleepInfo := &SleepInfo{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "SleepInfo",
+					APIVersion: "kube-green.com/v1alpha1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "namespace",
+				},
+				Spec: SleepInfoSpec{},
+			}
+
+			err := sleepInfo.ValidateDelete()
+			Expect(err).To(BeNil())
 		})
 	})
 })

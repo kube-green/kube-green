@@ -16,13 +16,19 @@ import (
 
 // SleepInfoSpec defines the desired state of SleepInfo
 type SleepInfoSpec struct {
-	// Weekdays are in cron notation
+	// Weekdays are in cron notation.
+	//
+	// For example, to configure a schedule from monday to friday, set it to "1-5"
 	Weekdays string `json:"weekdays"`
 	// Hours:Minutes
-	// Accept cron schedule for both hour and minute. A possible configuration, for example, is *:*/2 for every even minute.
+	//
+	// Accept cron schedule for both hour and minute.
+	// For example, *:*/2 is set to configure a run every even minute.
 	SleepTime string `json:"sleepAt"`
 	// Hours:Minutes
-	// Accept cron schedule for both hour and minute. A possible configuration, for example, is *:*/2 for every even minute.
+	//
+	// Accept cron schedule for both hour and minute.
+	// For example, *:*/2 is set to configure a run every even minute.
 	// +optional
 	WakeUpTime string `json:"wakeUpAt"`
 }
@@ -51,7 +57,15 @@ type SleepInfo struct {
 	Status SleepInfoStatus `json:"status,omitempty"`
 }
 
-func (s SleepInfo) GetScheduleFromWeekdayAndTime(hourAndMinute string) (string, error) {
+func (s SleepInfo) GetSleepSchedule() (string, error) {
+	return s.getScheduleFromWeekdayAndTime(s.Spec.SleepTime)
+}
+
+func (s SleepInfo) GetWakeUpSchedule() (string, error) {
+	return s.getScheduleFromWeekdayAndTime(s.Spec.WakeUpTime)
+}
+
+func (s SleepInfo) getScheduleFromWeekdayAndTime(hourAndMinute string) (string, error) {
 	weekday := s.Spec.Weekdays
 	if weekday == "" {
 		return "", fmt.Errorf("empty weekday from sleep info configuration")
