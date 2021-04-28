@@ -3,7 +3,7 @@ kind: SleepInfo
 metadata:
   name: prova
 spec:
-  # targetRef:
-  #   apiVersion: "apps/v1"
-  #   kind: Deployment
-  sleepSchedule: "*/10 * * * *"
+  weekday: "1-5"
+  sleepTime: "20:00"
+  wakeUpTime: "08:00"
+# TODO: add timezone

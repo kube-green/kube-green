@@ -5,7 +5,8 @@ Copyright 2021.
 package v1alpha1
 
 import (
-	"time"
+	"fmt"
+	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -13,22 +14,23 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-type TargetRef struct {
-	ApiVersion string `json:"apiVersion"`
-	Kind       string `json:"kind"`
-}
-
 // SleepInfoSpec defines the desired state of SleepInfo
 type SleepInfoSpec struct {
-	// TargetRef     TargetRef `json:"targetRef"`
-	SleepSchedule string `json:"sleepSchedule"`
-	// RestoreAt               string    `json:"restoreAt"`
-	// StartingDeadlineSeconds int64 `json:"startingDeadlineSeconds"`
-}
-
-type DeploymentRestoreInfo struct {
-	Name     string `json:"name"`
-	Replicas int64  `json:"replicas"`
+	// Weekdays are in cron notation.
+	//
+	// For example, to configure a schedule from monday to friday, set it to "1-5"
+	Weekdays string `json:"weekdays"`
+	// Hours:Minutes
+	//
+	// Accept cron schedule for both hour and minute.
+	// For example, *:*/2 is set to configure a run every even minute.
+	SleepTime string `json:"sleepAt"`
+	// Hours:Minutes
+	//
+	// Accept cron schedule for both hour and minute.
+	// For example, *:*/2 is set to configure a run every even minute.
+	// +optional
+	WakeUpTime string `json:"wakeUpAt"`
 }
 
 // SleepInfoStatus defines the observed state of SleepInfo
@@ -36,8 +38,10 @@ type SleepInfoStatus struct {
 	// Information when was the last time the run was successfully scheduled.
 	// +optional
 	LastScheduleTime metav1.Time `json:"lastScheduleTime,omitempty"`
-	// LastScheduleTime metav1.Time `json:"nextScheduledTime"`
-	// DeploymentRestoreInfo []DeploymentRestoreInfo `json:"deploymentRestoreInfo"`
+	// The operation type handled in last schedule. SLEEP or WAKE_UP are the
+	// possibilities
+	// +optional
+	OperationType string `json:"operation,omitempty"`
 }
 
 //+kubebuilder:object:root=true
@@ -53,6 +57,27 @@ type SleepInfo struct {
 	Status SleepInfoStatus `json:"status,omitempty"`
 }
 
+func (s SleepInfo) GetSleepSchedule() (string, error) {
+	return s.getScheduleFromWeekdayAndTime(s.Spec.SleepTime)
+}
+
+func (s SleepInfo) GetWakeUpSchedule() (string, error) {
+	return s.getScheduleFromWeekdayAndTime(s.Spec.WakeUpTime)
+}
+
+func (s SleepInfo) getScheduleFromWeekdayAndTime(hourAndMinute string) (string, error) {
+	weekday := s.Spec.Weekdays
+	if weekday == "" {
+		return "", fmt.Errorf("empty weekdays from sleep info configuration")
+	}
+
+	splittedTime := strings.Split(hourAndMinute, ":")
+	if len(splittedTime) != 2 {
+		return "", fmt.Errorf("time should be of format HH:mm, actual: %s", hourAndMinute)
+	}
+	return fmt.Sprintf("%s %s * * %s", splittedTime[1], splittedTime[0], weekday), nil
+}
+
 //+kubebuilder:object:root=true
 
 // SleepInfoList contains a list of SleepInfo
@@ -64,8 +89,4 @@ type SleepInfoList struct {
 
 func init() {
 	SchemeBuilder.Register(&SleepInfo{}, &SleepInfoList{})
-}
-
-func getParsedDate(date string) (time.Time, error) {
-	return time.Parse(time.RFC3339, date)
 }

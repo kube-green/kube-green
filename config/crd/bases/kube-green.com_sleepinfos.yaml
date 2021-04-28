@@ -36,11 +36,23 @@ spec:
           spec:
             description: SleepInfoSpec defines the desired state of SleepInfo
             properties:
-              sleepSchedule:
-                description: TargetRef     TargetRef `json:"targetRef"`
+              sleepAt:
+                description: "Hours:Minutes \n Accept cron schedule for both hour
+                  and minute. For example, *:*/2 is set to configure a run every even
+                  minute."
+                type: string
+              wakeUpAt:
+                description: "Hours:Minutes \n Accept cron schedule for both hour
+                  and minute. For example, *:*/2 is set to configure a run every even
+                  minute."
+                type: string
+              weekdays:
+                description: "Weekdays are in cron notation. \n For example, to configure
+                  a schedule from monday to friday, set it to \"1-5\""
                 type: string
             required:
-            - sleepSchedule
+            - sleepAt
+            - weekdays
             type: object
           status:
             description: SleepInfoStatus defines the observed state of SleepInfo
@@ -49,6 +61,10 @@ spec:
                 description: Information when was the last time the run was successfully
                   scheduled.
                 format: date-time
+                type: string
+              operation:
+                description: The operation type handled in last schedule. SLEEP or
+                  WAKE_UP are the possibilities
                 type: string
             type: object
         type: object
