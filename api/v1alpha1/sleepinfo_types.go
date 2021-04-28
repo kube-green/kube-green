@@ -68,7 +68,7 @@ func (s SleepInfo) GetWakeUpSchedule() (string, error) {
 func (s SleepInfo) getScheduleFromWeekdayAndTime(hourAndMinute string) (string, error) {
 	weekday := s.Spec.Weekdays
 	if weekday == "" {
-		return "", fmt.Errorf("empty weekday from sleep info configuration")
+		return "", fmt.Errorf("empty weekdays from sleep info configuration")
 	}
 
 	splittedTime := strings.Split(hourAndMinute, ":")

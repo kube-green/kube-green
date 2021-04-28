@@ -5,12 +5,16 @@ Copyright 2021.
 package v1alpha1
 
 import (
+	"context"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var _ = Describe("validate sleep info", func() {
+var _ = FDescribe("validate sleep info", func() {
 	sleepInfo := &SleepInfo{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "SleepInfo",
@@ -29,7 +33,7 @@ var _ = Describe("validate sleep info", func() {
 	}{
 		{
 			name:          "fails - without weekdays",
-			expectedError: "empty weekday from sleep info configuration",
+			expectedError: "empty weekdays from sleep info configuration",
 		},
 		{
 			name:          "fails - without sleep",
@@ -147,9 +151,14 @@ var _ = Describe("validate sleep info", func() {
 			}
 		})
 	}
+	const (
+		namespace     = "default"
+		sleepInfoName = "name"
+	)
 
-	// TODO: make e2e test of webhook
 	Context("validate create", func() {
+		ctx := context.Background()
+
 		It("ok", func() {
 			sleepInfo := &SleepInfo{
 				TypeMeta: metav1.TypeMeta{
@@ -157,8 +166,8 @@ var _ = Describe("validate sleep info", func() {
 					APIVersion: "kube-green.com/v1alpha1",
 				},
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "name",
-					Namespace: "namespace",
+					Name:      sleepInfoName,
+					Namespace: namespace,
 				},
 				Spec: SleepInfoSpec{
 					Weekdays:   "1-5",
@@ -166,7 +175,7 @@ var _ = Describe("validate sleep info", func() {
 					WakeUpTime: "8:00",
 				},
 			}
-			err := sleepInfo.ValidateCreate()
+			err := k8sClient.Create(ctx, sleepInfo)
 			Expect(err).To(BeNil())
 		})
 
@@ -177,72 +186,76 @@ var _ = Describe("validate sleep info", func() {
 					APIVersion: "kube-green.com/v1alpha1",
 				},
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "name",
-					Namespace: "namespace",
+					Name:      sleepInfoName,
+					Namespace: namespace,
 				},
 				Spec: SleepInfoSpec{},
 			}
-			err := sleepInfo.ValidateCreate()
-			Expect(err.Error()).To(Equal("empty weekday from sleep info configuration"))
+			err := k8sClient.Create(ctx, sleepInfo)
+			Expect(err.Error()).To(Equal("admission webhook \"vsleepinfo.kb.io\" denied the request: empty weekdays from sleep info configuration"))
+		})
+	})
+
+	Context("validate patch", func() {
+		ctx := context.Background()
+		namespace := "default"
+
+		It("ok", func() {
+			sleepInfo := getSleepInfo(sleepInfoName, namespace)
+
+			patch := client.MergeFrom(sleepInfo.DeepCopy())
+			sleepInfo.Spec.Weekdays = "*"
+			err := k8sClient.Patch(ctx, sleepInfo, patch)
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		It("ko", func() {
+			sleepInfo := getSleepInfo(sleepInfoName, namespace)
+
+			patch := client.MergeFrom(sleepInfo.DeepCopy())
+			sleepInfo.Spec.Weekdays = ""
+			err := k8sClient.Patch(ctx, sleepInfo, patch)
+			Expect(err.Error()).To(Equal("admission webhook \"vsleepinfo.kb.io\" denied the request: empty weekdays from sleep info configuration"))
 		})
 	})
 
 	Context("validate update", func() {
-		It("ok", func() {
-			sleepInfo := &SleepInfo{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "SleepInfo",
-					APIVersion: "kube-green.com/v1alpha1",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "name",
-					Namespace: "namespace",
-				},
-				Spec: SleepInfoSpec{
-					Weekdays:   "1-5",
-					SleepTime:  "19:00",
-					WakeUpTime: "8:00",
-				},
-			}
+		ctx := context.Background()
+		namespace := "default"
 
-			err := sleepInfo.ValidateUpdate(sleepInfo)
-			Expect(err).To(BeNil())
+		It("ok", func() {
+			sleepInfo := getSleepInfo(sleepInfoName, namespace)
+
+			sleepInfo.Spec.Weekdays = "*"
+			err := k8sClient.Update(ctx, sleepInfo)
+			Expect(err).NotTo(HaveOccurred())
 		})
 
 		It("ko", func() {
-			sleepInfo := &SleepInfo{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "SleepInfo",
-					APIVersion: "kube-green.com/v1alpha1",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "name",
-					Namespace: "namespace",
-				},
-				Spec: SleepInfoSpec{},
-			}
+			sleepInfo := getSleepInfo(sleepInfoName, namespace)
 
-			err := sleepInfo.ValidateUpdate(sleepInfo)
-			Expect(err.Error()).To(Equal("empty weekday from sleep info configuration"))
+			sleepInfo.Spec.Weekdays = ""
+			err := k8sClient.Update(ctx, sleepInfo)
+			Expect(err.Error()).To(Equal("admission webhook \"vsleepinfo.kb.io\" denied the request: empty weekdays from sleep info configuration"))
 		})
 	})
 
 	Context("validate delete", func() {
 		It("ok", func() {
-			sleepInfo := &SleepInfo{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "SleepInfo",
-					APIVersion: "kube-green.com/v1alpha1",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "name",
-					Namespace: "namespace",
-				},
-				Spec: SleepInfoSpec{},
-			}
+			sleepInfo := getSleepInfo(sleepInfoName, namespace)
 
-			err := sleepInfo.ValidateDelete()
+			err := k8sClient.Delete(ctx, sleepInfo)
 			Expect(err).To(BeNil())
 		})
 	})
 })
+
+func getSleepInfo(name, namespace string) *SleepInfo {
+	sleepInfo := &SleepInfo{}
+	err := k8sClient.Get(ctx, types.NamespacedName{
+		Namespace: namespace,
+		Name:      name,
+	}, sleepInfo)
+	Expect(err).NotTo(HaveOccurred())
+	return sleepInfo
+}

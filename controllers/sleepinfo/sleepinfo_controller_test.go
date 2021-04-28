@@ -11,7 +11,6 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
-	v1 "k8s.io/api/apps/v1"
 	core "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -250,7 +249,7 @@ var _ = Describe("SleepInfo Controller", func() {
 			},
 		}
 		result, err := sleepInfoReconciler.Reconcile(ctx, req)
-		Expect(err.Error()).Should(Equal("empty weekday from sleep info configuration"))
+		Expect(err.Error()).Should(Equal("empty weekdays from sleep info configuration"))
 		Expect(result).Should(Equal(ctrl.Result{}))
 	})
 
@@ -474,7 +473,7 @@ var _ = Describe("SleepInfo Controller", func() {
 		createdServiceName := "service-new"
 		By("create deployment", func() {
 			fiveReplicas := int32(5)
-			deployToCreate := v1.Deployment{
+			deployToCreate := appsv1.Deployment{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "Deployment",
 					APIVersion: "apps/v1",
