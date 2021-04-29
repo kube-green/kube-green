@@ -5,27 +5,27 @@ on:
   push:
 jobs:
   tests:
-     name: Test on go ${{ matrix.go_version }} on os ${{matrix.os}}
-     runs-on: ${{ matrix.os }}
-     strategy:
-       matrix:
-         go_version: [1.16]
-         os: [macos-latest, ubuntu-latest]
-     steps:
-       - uses: actions/checkout@v2
-       - name: Use golang ${{ matrix.go_version }}
-         uses: actions/setup-go@v2
-         with:
-           go-version: ${{ matrix.go_version }}
-       - name: Go version
-         run: go version
-       - name: Go get dependencies
-         run: go get -v -t -d ./...
-       - name: Run tests
-         run: make test
-       - name: Vet and Build
-         run: make manager
-       - name: Coveralls
-         uses: coverallsapp/github-action@master
-         with:
-           github-token: ${{ secrets.GITHUB_TOKEN }}
+    name: Test on go ${{ matrix.go_version }} on os ${{matrix.os}}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        go_version: [1.16]
+        os: [macos-latest, ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v2
+      - name: Use golang ${{ matrix.go_version }}
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go_version }}
+      - name: Go version
+        run: go version
+      - name: Go get dependencies
+        run: go get -v -t -d ./...
+      - name: Run tests
+        run: make test
+      - name: Vet and Build
+        run: make manager
+      - name: Send the coverage output
+        uses: shogo82148/actions-goveralls@v1
+        with:
+          path-to-profile: cover.out
