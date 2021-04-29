@@ -6,4 +6,4 @@ spec:
   weekday: "1-5"
   sleepTime: "20:00"
   wakeUpTime: "08:00"
-# TODO: add timezone
+  timeZone: "Europe/Rome"

@@ -266,6 +266,34 @@ var _ = Describe("Test Schedule", func() {
 				requeueAfter: 60 * time.Minute,
 			},
 		},
+		{
+			name: "schedule contains a timezone",
+			now:  "2021-03-23T17:00:00.000Z", // timezone UTC+1
+			data: SleepInfoData{
+				CurrentOperationSchedule: "CRON_TZ=Europe/Rome 0 19 * * *",
+				NextOperationSchedule:    "CRON_TZ=Europe/Rome 0 8 * * *",
+				LastSchedule:             getTime("2021-03-23T08:00:00.000Z").Add(1 * time.Second),
+			},
+			expected: expected{
+				isToExecute:  false,
+				nextSchedule: "2021-03-23T18:00:00Z",
+				requeueAfter: 1 * time.Hour,
+			},
+		},
+		{
+			name: "schedule contains a timezone - timezone after hour change",
+			now:  "2021-04-29T17:00:00.000Z", // timezone UTC+2
+			data: SleepInfoData{
+				CurrentOperationSchedule: "CRON_TZ=Europe/Rome 0 19 * * *",
+				NextOperationSchedule:    "CRON_TZ=Europe/Rome 0 8 * * *",
+				LastSchedule:             getTime("2021-04-29T06:00:00.000Z").Add(1 * time.Second),
+			},
+			expected: expected{
+				isToExecute:  true,
+				nextSchedule: "2021-04-30T06:00:00Z",
+				requeueAfter: 13 * time.Hour,
+			},
+		},
 	}
 
 	for _, test := range tests {
@@ -274,16 +302,16 @@ var _ = Describe("Test Schedule", func() {
 			isToExecute, nextSchedule, requeueAfter, err := sleepInfoReconciler.getNextSchedule(test.data, getTime(test.now))
 
 			expected := test.expected
-			Expect(isToExecute).To(Equal(expected.isToExecute))
-			if expected.nextSchedule != "" {
-				Expect(nextSchedule.Format(time.RFC3339)).To(Equal(expected.nextSchedule))
-			}
-			Expect(requeueAfter).To(Equal(expected.requeueAfter))
 			if expected.err != "" {
 				Expect(err).To(MatchError(expected.err))
 			} else {
 				Expect(err).To(BeNil())
 			}
+			Expect(isToExecute).To(Equal(expected.isToExecute))
+			if expected.nextSchedule != "" {
+				Expect(nextSchedule.Format(time.RFC3339)).To(Equal(expected.nextSchedule))
+			}
+			Expect(requeueAfter).To(Equal(expected.requeueAfter))
 		})
 	}
 })

@@ -247,12 +247,9 @@ func getSleepInfoData(secret *v1.Secret, sleepInfo *kubegreenv1alpha1.SleepInfo)
 	if err != nil {
 		return SleepInfoData{}, err
 	}
-	var wakeUpSchedule string
-	if sleepInfo.Spec.WakeUpTime != "" {
-		wakeUpSchedule, err = sleepInfo.GetWakeUpSchedule()
-		if err != nil {
-			return SleepInfoData{}, err
-		}
+	wakeUpSchedule, err := sleepInfo.GetWakeUpSchedule()
+	if err != nil {
+		return SleepInfoData{}, err
 	}
 
 	secretData := SleepInfoData{

@@ -29,8 +29,14 @@ type SleepInfoSpec struct {
 	//
 	// Accept cron schedule for both hour and minute.
 	// For example, *:*/2 is set to configure a run every even minute.
+	// It is not required.
 	// +optional
-	WakeUpTime string `json:"wakeUpAt"`
+	WakeUpTime string `json:"wakeUpAt,omitempty"`
+	// Time zone to set the schedule, in IANA time zone identifier.
+	// It is not required, default to UTC.
+	// For example, for the Italy time zone set Europe/Rome.
+	// +optional
+	TimeZone string `json:"timeZone,omitempty"`
 }
 
 // SleepInfoStatus defines the observed state of SleepInfo
@@ -62,6 +68,9 @@ func (s SleepInfo) GetSleepSchedule() (string, error) {
 }
 
 func (s SleepInfo) GetWakeUpSchedule() (string, error) {
+	if s.Spec.WakeUpTime == "" {
+		return "", nil
+	}
 	return s.getScheduleFromWeekdayAndTime(s.Spec.WakeUpTime)
 }
 
@@ -75,7 +84,11 @@ func (s SleepInfo) getScheduleFromWeekdayAndTime(hourAndMinute string) (string, 
 	if len(splittedTime) != 2 {
 		return "", fmt.Errorf("time should be of format HH:mm, actual: %s", hourAndMinute)
 	}
-	return fmt.Sprintf("%s %s * * %s", splittedTime[1], splittedTime[0], weekday), nil
+	schedule := fmt.Sprintf("%s %s * * %s", splittedTime[1], splittedTime[0], weekday)
+	if s.Spec.TimeZone != "" {
+		schedule = fmt.Sprintf("CRON_TZ=%s %s", s.Spec.TimeZone, schedule)
+	}
+	return schedule, nil
 }
 
 //+kubebuilder:object:root=true

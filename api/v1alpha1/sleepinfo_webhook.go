@@ -54,13 +54,12 @@ func (s SleepInfo) validateSleepInfo() error {
 		return err
 	}
 
-	if s.Spec.WakeUpTime == "" {
-		return nil
-	}
-
 	schedule, err = s.GetWakeUpSchedule()
 	if err != nil {
 		return err
+	}
+	if schedule == "" {
+		return nil
 	}
 	if _, err = cron.ParseStandard(schedule); err != nil {
 		return err

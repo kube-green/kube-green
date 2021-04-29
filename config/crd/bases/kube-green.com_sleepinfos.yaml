@@ -41,10 +41,15 @@ spec:
                   and minute. For example, *:*/2 is set to configure a run every even
                   minute."
                 type: string
+              timeZone:
+                description: Time zone to set the schedule, in IANA time zone identifier.
+                  It is not required, default to UTC. For example, for the Italy time
+                  zone set Europe/Rome.
+                type: string
               wakeUpAt:
                 description: "Hours:Minutes \n Accept cron schedule for both hour
                   and minute. For example, *:*/2 is set to configure a run every even
-                  minute."
+                  minute. It is not required."
                 type: string
               weekdays:
                 description: "Weekdays are in cron notation. \n For example, to configure
