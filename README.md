@@ -36,8 +36,8 @@ An example of CRD is accessible [at this link](./testdata/test.yml)
 The SleepInfo spec contains:
 
 * **weekdays**: day of the week. `*` is every day, `1` is monday, `1-5` is from monday to friday
-* **sleepTime**: time in hours and minutes (HH:mm)when deployments replicas should be set to 0. Valid values are, for example, 19:00or `*:*` for every minute and every hour.
-* **wakeUpTime**: time in hours and minutes (HH:mm)when deployments replicas should be set restored. Valid values are, for example, 19:00or `*:*` for every minute and every hour
+* **sleepAt**: time in hours and minutes (HH:mm)when deployments replicas should be set to 0. Valid values are, for example, 19:00or `*:*` for every minute and every hour.
+* **wakeUpAt**: time in hours and minutes (HH:mm)when deployments replicas should be set restored. Valid values are, for example, 19:00or `*:*` for every minute and every hour
 * **timeZone**: time zone in IANA specification. For example for italian hour, set `Europe/Rome`
 
 [go-report-svg]: https://goreportcard.com/badge/github.com/davidebianchi/kube-green
