@@ -3,7 +3,7 @@ module github.com/davidebianchi/kube-green
 go 1.16
 
 require (
-	github.com/go-logr/logr v0.3.0
+	github.com/go-logr/logr v0.4.0
 	github.com/onsi/ginkgo v1.14.1
 	github.com/onsi/gomega v1.11.0
 	github.com/robfig/cron/v3 v3.0.1
