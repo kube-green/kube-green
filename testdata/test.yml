@@ -4,6 +4,6 @@ metadata:
   name: prova
 spec:
   weekday: "1-5"
-  sleepTime: "20:00"
-  wakeUpTime: "08:00"
+  sleepAt: "20:00"
+  wakeUpAt: "08:00"
   timeZone: "Europe/Rome"
