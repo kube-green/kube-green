@@ -36,8 +36,8 @@ An example of CRD is accessible [at this link](./testdata/test.yml)
 The SleepInfo spec contains:
 
 * **weekdays**: day of the week. `*` is every day, `1` is monday, `1-5` is from monday to friday
-* **sleepTime**: time in hours and minutes (HH:mm)when deployments replicas should be set to 0. Valid values are, for example, 19:00or `*:*` for every minute and every hour.
-* **wakeUpTime**: time in hours and minutes (HH:mm)when deployments replicas should be set restored. Valid values are, for example, 19:00or `*:*` for every minute and every hour
+* **sleepAt**: time in hours and minutes (HH:mm)when deployments replicas should be set to 0. Valid values are, for example, 19:00or `*:*` for every minute and every hour.
+* **wakeUpAt**: time in hours and minutes (HH:mm)when deployments replicas should be set restored. Valid values are, for example, 19:00or `*:*` for every minute and every hour
 * **timeZone**: time zone in IANA specification. For example for italian hour, set `Europe/Rome`
 
 [go-report-svg]: https://goreportcard.com/badge/github.com/davidebianchi/kube-green
@@ -46,3 +46,7 @@ The SleepInfo spec contains:
 [test-and-build]: https://github.com/davidebianchi/kube-green/actions/workflows/test.yml
 [coverage-badge]: https://coveralls.io/repos/github/davidebianchi/kube-green/badge.svg?branch=main
 [coverage]: https://coveralls.io/github/davidebianchi/kube-green?branch=main
+
+## Acknowledgement
+
+Special thanks to [JGiola](https://github.com/JGiola) for the tech review.
