@@ -55,6 +55,16 @@ To uninstall the operator from the cluster, run:
 make undeploy
 ```
 
+## Versioning
+
+To upgrade the version:
+
+1. `export VERSION=v{{NEW_VERSION_TO_TAG}}` where `{{NEW_VERSION_TO_TAG}}` should be replaced with the next version to upgrade. N.B.: version should include `v` as first char.
+2. run `./scripts/update-version.sh $VERSION`
+3. add, commit and push
+4. git tag $VERSION
+5. `git push --tags origin $VERSION`
+
 ## Acknowledgement
 
 Special thanks to [JGiola](https://github.com/JGiola) for the tech review.
