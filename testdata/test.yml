@@ -1,9 +1,9 @@
 apiVersion: kube-green.com/v1alpha1
 kind: SleepInfo
 metadata:
-  name: prova-2
+  name: prova
 spec:
-  weekdays: "1-5"
-  sleepAt: "*:*/2"
-  wakeUpAt: "*:1-59/2"
+  weekday: "1-5"
+  sleepTime: "20:00"
+  wakeUpTime: "08:00"
   timeZone: "Europe/Rome"
