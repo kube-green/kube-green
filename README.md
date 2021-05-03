@@ -47,6 +47,14 @@ The SleepInfo spec contains:
 [coverage-badge]: https://coveralls.io/repos/github/davidebianchi/kube-green/badge.svg?branch=main
 [coverage]: https://coveralls.io/github/davidebianchi/kube-green?branch=main
 
+## Uninstall
+
+To uninstall the operator from the cluster, run:
+
+```sh
+make undeploy
+```
+
 ## Acknowledgement
 
 Special thanks to [JGiola](https://github.com/JGiola) for the tech review.
