@@ -46,3 +46,7 @@ The SleepInfo spec contains:
 [test-and-build]: https://github.com/davidebianchi/kube-green/actions/workflows/test.yml
 [coverage-badge]: https://coveralls.io/repos/github/davidebianchi/kube-green/badge.svg?branch=main
 [coverage]: https://coveralls.io/github/davidebianchi/kube-green?branch=main
+
+## Acknowledgement
+
+Special thanks to [JGiola](https://github.com/JGiola) for the tech review.
