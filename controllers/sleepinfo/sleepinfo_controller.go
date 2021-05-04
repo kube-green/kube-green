@@ -128,11 +128,13 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		log.Error(err, "fails to fetch deployments")
 		return ctrl.Result{}, err
 	}
+	log.V(1).Info("deployments in namespace", "number of deployment", len(deploymentList))
 
 	if err := r.handleSleepInfoStatus(ctx, now, sleepInfo, sleepInfoData, deploymentList); err != nil {
 		log.Error(err, "unable to update sleepInfo status")
 		return ctrl.Result{}, err
 	}
+	log.V(1).Info("update status info")
 
 	logSecret := log.WithValues("secret", secretName)
 	if len(deploymentList) == 0 {
@@ -204,6 +206,7 @@ func (r *SleepInfoReconciler) SetupWithManager(mgr ctrl.Manager) error {
 func (r *SleepInfoReconciler) getDeploymentsByNamespace(ctx context.Context, namespace string) ([]appsv1.Deployment, error) {
 	listOptions := &client.ListOptions{
 		Namespace: namespace,
+		Limit:     500,
 	}
 	deployments := appsv1.DeploymentList{}
 	if err := r.Client.List(ctx, &deployments, listOptions); err != nil {
