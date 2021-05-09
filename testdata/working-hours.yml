@@ -1,7 +1,7 @@
 apiVersion: kube-green.com/v1alpha1
 kind: SleepInfo
 metadata:
-  name: prova
+  name: working-hours
 spec:
   weekday: "1-5"
   sleepAt: "20:00"
