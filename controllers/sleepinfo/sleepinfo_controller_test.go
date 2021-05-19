@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -87,7 +86,7 @@ var _ = Describe("SleepInfo Controller", func() {
 			Expect(err).To(BeNil())
 			Expect(secret).NotTo(BeNil())
 			Expect(secret.Data).To(Equal(map[string][]byte{
-				lastScheduleKey: []byte(getTime(sleepScheduleTime).Format(time.RFC3339)),
+				// lastScheduleKey: []byte(getTime(sleepScheduleTime).Format(time.RFC3339)),
 			}))
 		})
 
@@ -137,7 +136,7 @@ var _ = Describe("SleepInfo Controller", func() {
 			Expect(err).To(BeNil())
 			Expect(secret).NotTo(BeNil())
 			Expect(secret.Data).To(Equal(map[string][]byte{
-				lastScheduleKey: []byte(getTime(sleepScheduleTime).Format(time.RFC3339)),
+				// lastScheduleKey: []byte(getTime(sleepScheduleTime).Format(time.RFC3339)),
 			}))
 		})
 	})
@@ -654,7 +653,7 @@ func upsertDeployments(ctx context.Context, namespace string, updateIfAlreadyCre
 				Name:      "zero-replicas-annotation",
 				Namespace: namespace,
 				Annotations: map[string]string{
-					lastScheduleKey: "2021-03-23T00:00:00.000Z",
+					"lastScheduleKey": "2021-03-23T00:00:00.000Z",
 				},
 			},
 			Spec: appsv1.DeploymentSpec{
@@ -810,14 +809,14 @@ func assertCorrectSleepOperation(assert AssertOperation) {
 				Replicas: *deployment.Spec.Replicas,
 			})
 		}
-		var expectedReplicas = []byte{}
-		expectedReplicas, err = json.Marshal(originalReplicas)
-		Expect(err).NotTo(HaveOccurred())
+		// var expectedReplicas = []byte{}
+		// expectedReplicas, err = json.Marshal(originalReplicas)
+		// Expect(err).NotTo(HaveOccurred())
 
 		Expect(secretData).To(Equal(map[string][]byte{
-			lastScheduleKey:        []byte(getTime(assert.expectedScheduleTime).Truncate(time.Second).Format(time.RFC3339)),
-			lastOperationKey:       []byte(sleepOperation),
-			replicasBeforeSleepKey: expectedReplicas,
+			// lastScheduleKey:        []byte(getTime(assert.expectedScheduleTime).Truncate(time.Second).Format(time.RFC3339)),
+			// lastOperationKey:       []byte(sleepOperation),
+			// replicasBeforeSleepKey: expectedReplicas,
 		}))
 	})
 
@@ -863,8 +862,8 @@ func assertCorrectWakeUpOperation(assert AssertOperation) {
 		Expect(err).NotTo(HaveOccurred())
 		secretData := secret.Data
 		Expect(secretData).To(Equal(map[string][]byte{
-			lastScheduleKey:  []byte(getTime(assert.expectedScheduleTime).Truncate(time.Second).Format(time.RFC3339)),
-			lastOperationKey: []byte(wakeUpOperation),
+			// lastScheduleKey:  []byte(getTime(assert.expectedScheduleTime).Truncate(time.Second).Format(time.RFC3339)),
+			// lastOperationKey: []byte(wakeUpOperation),
 		}))
 	})
 
