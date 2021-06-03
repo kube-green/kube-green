@@ -31,7 +31,7 @@ The use of this operator is very simple.
 ### SleepInfo
 
 In the namespace where you want to enable Kube Green, apply the SleepInfo CRD.
-An example of CRD is accessible [at this link](./testdata/test.yml)
+An example of CRD is accessible [at this link](./testdata/working-hours.yml)
 
 The SleepInfo spec contains:
 
