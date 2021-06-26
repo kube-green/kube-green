@@ -4,7 +4,7 @@ go 1.16
 
 require (
 	github.com/go-logr/logr v0.4.0
-	github.com/onsi/ginkgo v1.16.2
+	github.com/onsi/ginkgo v1.16.4
 	github.com/onsi/gomega v1.13.0
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/stretchr/testify v1.7.0 // indirect
