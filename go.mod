@@ -9,7 +9,7 @@ require (
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/stretchr/testify v1.7.0 // indirect
 	k8s.io/api v0.20.2
-	k8s.io/apimachinery v0.21.1
+	k8s.io/apimachinery v0.21.2
 	k8s.io/client-go v0.20.2
 	sigs.k8s.io/controller-runtime v0.8.3
 )
