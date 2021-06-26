@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -80,13 +81,19 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	log := r.Log.WithValues("sleepinfo", req.NamespacedName)
 
 	_, err := r.getSleepInfo(ctx, req)
-	if err != nil {
+	if err != nil && !apierrors.IsNotFound(err) {
 		log.Error(err, "unable to fetch sleepInfo")
 		// we'll ignore not-found errors, since they can't be fixed by an immediate
 		// requeue (we'll need to wait for a new notification), and we can get them
 		// on deleted requests.
-		return ctrl.Result{}, client.IgnoreNotFound(err)
+		return ctrl.Result{}, err
 	}
+	if apierrors.IsNotFound(err) {
+		log.Info("sleep info is deleted")
+		// TODO: restore namespace, delete cronjob and remove secret
+	}
+
+	// TODO: create cronjobs, handle timezone
 
 	// now := r.Clock.Now()
 
