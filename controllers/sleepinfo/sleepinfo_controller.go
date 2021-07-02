@@ -109,7 +109,7 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 	now := r.Clock.Now()
 
-	isToExecute, nextSchedule, requeueAfter, err := r.getNextSchedule(sleepInfoData, now)
+	isToExecute, nextSchedule, requeueAfter, err := r.getNextSchedule(sleepInfoData, now, 1)
 	if err != nil {
 		log.Error(err, "unable to update deployment with 0 replicas")
 		return ctrl.Result{}, err
