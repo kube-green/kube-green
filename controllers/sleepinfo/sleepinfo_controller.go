@@ -73,6 +73,8 @@ func (s SleepInfoData) isSleepOperation() bool {
 	return s.CurrentOperationType == sleepOperation
 }
 
+var sleepDelta int64 = 60
+
 //+kubebuilder:rbac:groups=kube-green.com,resources=sleepinfos,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=kube-green.com,resources=sleepinfos/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=kube-green.com,resources=sleepinfos/finalizers,verbs=update
@@ -109,7 +111,7 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 	now := r.Clock.Now()
 
-	isToExecute, nextSchedule, requeueAfter, err := r.getNextSchedule(sleepInfoData, now, 1)
+	isToExecute, nextSchedule, requeueAfter, err := r.getNextSchedule(sleepInfoData, now, sleepDelta)
 	if err != nil {
 		log.Error(err, "unable to update deployment with 0 replicas")
 		return ctrl.Result{}, err
@@ -154,7 +156,7 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			}
 		}
 
-		log.Info("deployment not present in namespace")
+		log.WithValues("requeueAfter", requeueAfter).Info("deployment not present in namespace")
 		return ctrl.Result{
 			RequeueAfter: requeueAfter,
 		}, nil
