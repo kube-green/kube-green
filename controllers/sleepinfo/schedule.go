@@ -7,7 +7,8 @@ import (
 	"github.com/robfig/cron/v3"
 )
 
-func (r *SleepInfoReconciler) getNextSchedule(data SleepInfoData, now time.Time) (bool, time.Time, time.Duration, error) {
+func (r *SleepInfoReconciler) getNextSchedule(data SleepInfoData, now time.Time, scheduleDeltaSeconds int64) (bool, time.Time, time.Duration, error) {
+	scheduleDelta := time.Duration(scheduleDeltaSeconds) * time.Second
 	sched, err := getCronParsed(data.CurrentOperationSchedule)
 	if err != nil {
 		return false, time.Time{}, 0, fmt.Errorf("current schedule not valid: %s", err)
@@ -15,18 +16,18 @@ func (r *SleepInfoReconciler) getNextSchedule(data SleepInfoData, now time.Time)
 
 	lastSchedule := data.LastSchedule
 
-	// subtract 1 second because if now is after current schedule of some ms we skip
+	// subtract delta seconds because if now is after current schedule we skip
 	// the current schedule
-	var earliestTime time.Time = now.Add(-1 * time.Second)
+	var earliestTime time.Time = now.Add(-scheduleDelta)
 	if !lastSchedule.IsZero() {
 		earliestTime = lastSchedule
 	}
 	nextSchedule := sched.Next(earliestTime)
 
-	if earliestTime == lastSchedule && nextSchedule.Before(now) && !isTimeInDelta(nextSchedule, now, 1*time.Second) {
-		nextSchedule = sched.Next(now.Add(-1 * time.Second))
+	if earliestTime == lastSchedule && nextSchedule.Before(now) && !isTimeInDelta(nextSchedule, now, scheduleDelta) {
+		nextSchedule = sched.Next(now.Add(-scheduleDelta))
 	}
-	isToExecute := isTimeInDelta(now, nextSchedule, 1*time.Second)
+	isToExecute := isTimeInDelta(now, nextSchedule, scheduleDelta)
 
 	var requeueAfter time.Duration
 	if isToExecute {
@@ -34,7 +35,7 @@ func (r *SleepInfoReconciler) getNextSchedule(data SleepInfoData, now time.Time)
 		if err != nil {
 			return false, time.Time{}, 0, fmt.Errorf("next op schedule not valid: %s", err)
 		}
-		nextSchedule = nextOpSched.Next(now.Add(1 * time.Second))
+		nextSchedule = nextOpSched.Next(now.Add(scheduleDelta))
 	}
 	requeueAfter = getRequeueAfter(nextSchedule, now)
 	r.Log.Info("is time to execute", "execute", isToExecute, "next", nextSchedule, "last", lastSchedule, "now", now)

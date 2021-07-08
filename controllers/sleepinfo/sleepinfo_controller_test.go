@@ -23,7 +23,7 @@ import (
 var _ = Describe("SleepInfo Controller", func() {
 	const (
 		sleepInfoName = "sleep-name"
-		mockNow       = "2021-03-23T20:05:20.555Z"
+		mockNow       = "2021-03-23T20:01:20.555Z"
 	)
 
 	var (
@@ -58,9 +58,7 @@ var _ = Describe("SleepInfo Controller", func() {
 
 		By("is requeued correctly", func() {
 			Expect(result).Should(Equal(ctrl.Result{
-				// 39445 is the difference between mocked now and next minute
-				// (the next scheduled time), in milliseconds
-				RequeueAfter: 39445 * time.Millisecond,
+				RequeueAfter: sleepRequeue(mockNow),
 			}))
 		})
 
@@ -82,7 +80,7 @@ var _ = Describe("SleepInfo Controller", func() {
 			Expect(len(deployments)).To(Equal(0))
 		})
 
-		By("without deployments, secret is not written", func() {
+		By("without deployments, secret written with only last schedule", func() {
 			secret, err := sleepInfoReconciler.getSecret(ctx, getSecretName(sleepInfoName), namespace)
 			Expect(err).To(BeNil())
 			Expect(secret).NotTo(BeNil())
@@ -101,9 +99,8 @@ var _ = Describe("SleepInfo Controller", func() {
 
 		By("is requeued correctly to next SLEEP", func() {
 			Expect(result).Should(Equal(ctrl.Result{
-				// 121000 is the difference between mocked now and next uneven minute
-				// (the next scheduled time for wake up), in milliseconds
-				RequeueAfter: 121000 * time.Millisecond,
+				// sleep is: now + next wake up + next sleep
+				RequeueAfter: wakeUpRequeue(sleepScheduleTime) + sleepRequeue("2021-03-23T20:20:00.000Z"),
 			}))
 		})
 
@@ -269,7 +266,7 @@ var _ = Describe("SleepInfo Controller", func() {
 
 	It("reconcile - with deployments", func() {
 		namespace := "multiple-deployments"
-		req, originalDeployments := setupNamespaceWithDeployments(ctx, sleepInfoName, namespace, sleepInfoReconciler)
+		req, originalDeployments := setupNamespaceWithDeployments(ctx, sleepInfoName, namespace, sleepInfoReconciler, mockNow)
 
 		assertContextInfo := AssertOperation{
 			testLogger:          testLogger,
@@ -280,14 +277,14 @@ var _ = Describe("SleepInfo Controller", func() {
 			originalDeployments: originalDeployments,
 		}
 
-		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T20:05:59.000Z").withRequeue(61))
-		assertCorrectWakeUpOperation(assertContextInfo.withSchedule("2021-03-23T20:07:00.100Z").withRequeue(59.9))
-		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T20:08:00.000Z").withRequeue(60))
+		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T20:05:59.000Z").withRequeue(14*60 + 1))
+		assertCorrectWakeUpOperation(assertContextInfo.withSchedule("2021-03-23T20:19:50.100Z").withRequeue(45*60 + 9.9))
+		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T21:05:00.000Z").withRequeue(15 * 60))
 	})
 
 	It("reconcile - deploy between sleep and wake up", func() {
 		namespace := "deploy-between-sleep-and-wake-up"
-		req, originalDeployments := setupNamespaceWithDeployments(ctx, sleepInfoName, namespace, sleepInfoReconciler)
+		req, originalDeployments := setupNamespaceWithDeployments(ctx, sleepInfoName, namespace, sleepInfoReconciler, mockNow)
 
 		assertContextInfo := AssertOperation{
 			testLogger:          testLogger,
@@ -298,7 +295,7 @@ var _ = Describe("SleepInfo Controller", func() {
 			originalDeployments: originalDeployments,
 		}
 
-		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T20:05:59.000Z").withRequeue(61))
+		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T20:05:59.000Z").withRequeue(14*60 + 1))
 
 		By("re deploy", func() {
 			_, err := upsertDeployments(ctx, namespace, true)
@@ -313,12 +310,12 @@ var _ = Describe("SleepInfo Controller", func() {
 			}
 		})
 
-		assertCorrectWakeUpOperation(assertContextInfo.withSchedule("2021-03-23T20:07:00.000Z").withRequeue(60))
+		assertCorrectWakeUpOperation(assertContextInfo.withSchedule("2021-03-23T20:20:00.000Z").withRequeue(45 * 60))
 	})
 
 	It("reconcile - change single deployment replicas between sleep and wake up", func() {
 		namespace := "change-replicas-between-sleep-and-wake-up"
-		req, originalDeployments := setupNamespaceWithDeployments(ctx, sleepInfoName, namespace, sleepInfoReconciler)
+		req, originalDeployments := setupNamespaceWithDeployments(ctx, sleepInfoName, namespace, sleepInfoReconciler, mockNow)
 
 		assertContextInfo := AssertOperation{
 			testLogger:          testLogger,
@@ -328,7 +325,7 @@ var _ = Describe("SleepInfo Controller", func() {
 			sleepInfoName:       sleepInfoName,
 			originalDeployments: originalDeployments,
 		}
-		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T20:05:59.000Z").withRequeue(61))
+		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T20:05:59.000Z").withRequeue(14*60 + 1))
 
 		By("re deploy a single deployment", func() {
 			deployments, err := listDeployments(ctx, namespace)
@@ -345,12 +342,12 @@ var _ = Describe("SleepInfo Controller", func() {
 			Expect(*updatedDeployment.Spec.Replicas).To(Equal(int32(0)))
 		})
 
-		assertCorrectWakeUpOperation(assertContextInfo.withSchedule("2021-03-23T20:07:00.000Z").withRequeue(60))
+		assertCorrectWakeUpOperation(assertContextInfo.withSchedule("2021-03-23T20:20:00.000Z").withRequeue(45 * 60))
 	})
 
 	It("reconcile - twice consecutive sleep operation", func() {
 		namespace := "twice-sleep"
-		req, originalDeployments := setupNamespaceWithDeployments(ctx, sleepInfoName, namespace, sleepInfoReconciler)
+		req, originalDeployments := setupNamespaceWithDeployments(ctx, sleepInfoName, namespace, sleepInfoReconciler, mockNow)
 
 		assertContextInfo := AssertOperation{
 			testLogger:          testLogger,
@@ -360,18 +357,18 @@ var _ = Describe("SleepInfo Controller", func() {
 			sleepInfoName:       sleepInfoName,
 			originalDeployments: originalDeployments,
 		}
-		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T20:05:59.000Z").withRequeue(61))
+		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T20:05:59.000Z").withRequeue(14*60 + 1))
 		assertCorrectSleepOperation(
 			assertContextInfo.
-				withSchedule("2021-03-23T20:08:00.000Z").
+				withSchedule("2021-03-23T21:05:00.000Z").
 				withExpectedSchedule("2021-03-23T20:05:59Z").
-				withRequeue(60),
+				withRequeue(15 * 60),
 		)
 	})
 
 	It("reconcile - only sleep, wake up set to nil", func() {
 		namespace := "without-wake-up"
-		req, originalDeployments := setupNamespaceWithDeployments(ctx, sleepInfoName, namespace, sleepInfoReconciler, SetupOptions{
+		req, originalDeployments := setupNamespaceWithDeployments(ctx, sleepInfoName, namespace, sleepInfoReconciler, mockNow, SetupOptions{
 			UnsetWakeUpTime: true,
 		})
 
@@ -383,8 +380,8 @@ var _ = Describe("SleepInfo Controller", func() {
 			sleepInfoName:       sleepInfoName,
 			originalDeployments: originalDeployments,
 		}
-		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T20:05:59.000Z").withRequeue(121))
-		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T20:08:00.000Z").withRequeue(120))
+		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T20:05:59.000Z").withRequeue(59*60 + 1))
+		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T21:05:00.000Z").withRequeue(60 * 60))
 
 		By("re deploy", func() {
 			_, err := upsertDeployments(ctx, namespace, true)
@@ -399,7 +396,7 @@ var _ = Describe("SleepInfo Controller", func() {
 			}
 		})
 
-		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T20:10:00.000Z").withRequeue(120))
+		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T22:04:00.000Z").withRequeue(61 * 60))
 	})
 
 	It("reconcile - sleep info not present in namespace", func() {
@@ -432,7 +429,7 @@ var _ = Describe("SleepInfo Controller", func() {
 		}
 		sleepInfoReconciler = SleepInfoReconciler{
 			Clock: mockClock{
-				now: "2021-03-23T20:06:00.000Z",
+				now: "2021-03-23T20:05:59.999Z",
 			},
 			Client: k8sClient,
 			Log:    testLogger,
@@ -440,24 +437,22 @@ var _ = Describe("SleepInfo Controller", func() {
 		result, err := sleepInfoReconciler.Reconcile(ctx, req)
 		Expect(err).NotTo(HaveOccurred())
 
-		By("is requeued after correct duration", func() {
-			Expect(result).Should(Equal(ctrl.Result{
-				// 60000 is the difference between mocked now and next minute
-				// (the next scheduled time), in milliseconds
-				RequeueAfter: 60000 * time.Millisecond,
-			}))
-		})
-
 		By("replicas are set to 0 to all deployments", func() {
 			deployments, err := listDeployments(ctx, namespace)
 			Expect(err).NotTo(HaveOccurred())
 			assertAllReplicasSetToZero(deployments, originalDeployments)
 		})
+
+		By("is requeued after correct duration", func() {
+			Expect(result).Should(Equal(ctrl.Result{
+				RequeueAfter: wakeUpRequeue("2021-03-23T20:05:59.999Z"),
+			}))
+		})
 	})
 
 	It("reconcile - create deployment between sleep and wake up", func() {
 		namespace := "create-deployment-between-sleep-and-wake-up"
-		req, originalDeployments := setupNamespaceWithDeployments(ctx, sleepInfoName, namespace, sleepInfoReconciler)
+		req, originalDeployments := setupNamespaceWithDeployments(ctx, sleepInfoName, namespace, sleepInfoReconciler, mockNow)
 
 		assertContextInfo := AssertOperation{
 			testLogger:          testLogger,
@@ -468,7 +463,7 @@ var _ = Describe("SleepInfo Controller", func() {
 			originalDeployments: originalDeployments,
 		}
 
-		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T20:05:59.000Z").withRequeue(61))
+		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T20:05:59.000Z").withRequeue(14*60 + 1))
 
 		createdServiceName := "service-new"
 		By("create deployment", func() {
@@ -524,7 +519,7 @@ var _ = Describe("SleepInfo Controller", func() {
 			}
 		})
 
-		assertCorrectWakeUpOperation(assertContextInfo.withSchedule("2021-03-23T20:07:00.000Z").withRequeue(60))
+		assertCorrectWakeUpOperation(assertContextInfo.withSchedule("2021-03-23T20:20:00.000Z").withRequeue(45 * 60))
 	})
 })
 
@@ -888,7 +883,7 @@ type SetupOptions struct {
 	UnsetWakeUpTime bool
 }
 
-func setupNamespaceWithDeployments(ctx context.Context, sleepInfoName, namespace string, reconciler SleepInfoReconciler, opts ...SetupOptions) (ctrl.Request, []appsv1.Deployment) {
+func setupNamespaceWithDeployments(ctx context.Context, sleepInfoName, namespace string, reconciler SleepInfoReconciler, now string, opts ...SetupOptions) (ctrl.Request, []appsv1.Deployment) {
 	var unsetWakeUpTime bool
 	if len(opts) != 0 {
 		unsetWakeUpTime = opts[0].UnsetWakeUpTime
@@ -910,9 +905,7 @@ func setupNamespaceWithDeployments(ctx context.Context, sleepInfoName, namespace
 
 	By("is requeued after correct duration", func() {
 		Expect(result).Should(Equal(ctrl.Result{
-			// 39445 is the difference between mocked now and next minute
-			// (the next scheduled time), in milliseconds
-			RequeueAfter: 39445 * time.Millisecond,
+			RequeueAfter: sleepRequeue(now),
 		}))
 	})
 
@@ -945,8 +938,8 @@ func createSleepInfo(ctx context.Context, sleepInfoName, namespace string, unset
 		},
 		Spec: kubegreenv1alpha1.SleepInfoSpec{
 			Weekdays:   "*",
-			SleepTime:  "*:*/2",    // every even minute
-			WakeUpTime: "*:1-59/2", // every uneven minute
+			SleepTime:  "*:05", // every 5 minute
+			WakeUpTime: "*:20", // every 20 minute
 		},
 	}
 	if unsetWakeUpTime {
@@ -966,6 +959,24 @@ func createSleepInfo(ctx context.Context, sleepInfoName, namespace string, unset
 	}, timeout, interval).Should(BeTrue())
 
 	return *createdSleepInfo
+}
+
+func sleepRequeue(now string) time.Duration {
+	parsedTime, _ := time.Parse(time.RFC3339, now)
+	hour := parsedTime.Hour()
+	if parsedTime.Minute() > 5 {
+		hour += 1
+	}
+	return time.Duration((time.Date(2021, time.March, 23, hour, 5, 0, 0, time.UTC).UnixNano() - parsedTime.UnixNano()))
+}
+
+func wakeUpRequeue(now string) time.Duration {
+	parsedTime, _ := time.Parse(time.RFC3339, now)
+	hour := parsedTime.Hour()
+	if parsedTime.Minute() > 20 {
+		hour += 1
+	}
+	return time.Duration((time.Date(2021, time.March, 23, hour, 20, 0, 0, time.UTC).UnixNano() - parsedTime.UnixNano()))
 }
 
 func findDeployByName(deployments []appsv1.Deployment, nameToFind string) *appsv1.Deployment {

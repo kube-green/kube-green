@@ -1,9 +1,7 @@
 package controllers
 
 import (
-	"bytes"
 	"fmt"
-	"io"
 	"time"
 
 	. "github.com/onsi/ginkgo"
@@ -12,9 +10,7 @@ import (
 )
 
 var _ = Describe("Test Schedule", func() {
-	buffer := bytes.Buffer{}
-	writer := io.Writer(&buffer)
-	testLogger := zap.New(zap.WriteTo(writer), zap.UseDevMode(true))
+	testLogger := zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true))
 
 	sleepInfoReconciler := SleepInfoReconciler{
 		Client: k8sClient,
@@ -29,10 +25,11 @@ var _ = Describe("Test Schedule", func() {
 	}
 
 	tests := []struct {
-		name     string
-		now      string
-		data     SleepInfoData
-		expected expected
+		name                 string
+		now                  string
+		data                 SleepInfoData
+		scheduleDeltaSeconds int64
+		expected             expected
 	}{
 		{
 			name: "fails if current schedule is invalid",
@@ -294,12 +291,104 @@ var _ = Describe("Test Schedule", func() {
 				requeueAfter: 13 * time.Hour,
 			},
 		},
+		{
+			name: "no last schedule, is time to execute [now -60s] - delta 60s",
+			now:  "2021-03-23T20:05:00.000Z",
+			data: SleepInfoData{
+				CurrentOperationSchedule: "6 * * * *",
+				NextOperationSchedule:    "10 * * * *",
+			},
+			expected: expected{
+				isToExecute:  true,
+				nextSchedule: "2021-03-23T20:10:00Z",
+				requeueAfter: 5 * time.Minute,
+			},
+			scheduleDeltaSeconds: 60,
+		},
+		{
+			name: "no last schedule, is time to execute [now +60s] - delta 60s",
+			now:  "2021-03-23T20:06:59.999Z",
+			data: SleepInfoData{
+				CurrentOperationSchedule: "6 * * * *",
+				NextOperationSchedule:    "10 * * * *",
+			},
+			expected: expected{
+				isToExecute:  true,
+				nextSchedule: "2021-03-23T20:10:00Z",
+				requeueAfter: 3*time.Minute + 1*time.Millisecond,
+			},
+			scheduleDeltaSeconds: 60,
+		},
+		{
+			name: "last schedule (+60s), is time to execute [now -60s] - delta 60s",
+			now:  "2021-03-23T20:05:00.000Z",
+			data: SleepInfoData{
+				CurrentOperationSchedule: "6 * * * *",
+				NextOperationSchedule:    "10 * * * *",
+				LastSchedule:             getTime("2021-03-23T19:10:00.000Z").Add(60 * time.Second),
+			},
+			expected: expected{
+				isToExecute:  true,
+				nextSchedule: "2021-03-23T20:10:00Z",
+				requeueAfter: 5 * time.Minute,
+			},
+			scheduleDeltaSeconds: 60,
+		},
+		{
+			name: "last schedule (-60s), is time to execute [now +60s] - delta 60s",
+			now:  "2021-03-23T20:07:00.000Z",
+			data: SleepInfoData{
+				CurrentOperationSchedule: "6 * * * *",
+				NextOperationSchedule:    "10 * * * *",
+				LastSchedule:             getTime("2021-03-23T19:10:00.000Z").Add(-60 * time.Second),
+			},
+			expected: expected{
+				isToExecute:  true,
+				nextSchedule: "2021-03-23T20:10:00Z",
+				requeueAfter: 3 * time.Minute,
+			},
+			scheduleDeltaSeconds: 60,
+		},
+		{
+			name: "last schedule, is time to execute [now +60s] - delta 60s",
+			now:  "2021-03-23T20:06:00.000Z",
+			data: SleepInfoData{
+				CurrentOperationSchedule: "6 * * * *",
+				NextOperationSchedule:    "10 * * * *",
+				LastSchedule:             getTime("2021-03-23T19:10:00.000Z"),
+			},
+			expected: expected{
+				isToExecute:  true,
+				nextSchedule: "2021-03-23T20:10:00Z",
+				requeueAfter: 4 * time.Minute,
+			},
+			scheduleDeltaSeconds: 60,
+		},
+		{
+			name: "last schedule (at least one operation skipped), is time to execute [now -60s]",
+			now:  "2021-03-23T20:05:59.999Z",
+			data: SleepInfoData{
+				CurrentOperationSchedule: "5 * * * *",
+				NextOperationSchedule:    "10 * * * *",
+				LastSchedule:             getTime("2021-03-23T18:05:00.000Z"),
+			},
+			expected: expected{
+				isToExecute:  true,
+				nextSchedule: "2021-03-23T20:10:00Z",
+				requeueAfter: 4*time.Minute + 1*time.Millisecond,
+			},
+			scheduleDeltaSeconds: 60,
+		},
 	}
 
 	for _, test := range tests {
 		test := test //necessary to ensure the correct value is passed to the closure
 		It(test.name, func() {
-			isToExecute, nextSchedule, requeueAfter, err := sleepInfoReconciler.getNextSchedule(test.data, getTime(test.now))
+			scheduleDeltaSeconds := test.scheduleDeltaSeconds
+			if scheduleDeltaSeconds == 0 {
+				scheduleDeltaSeconds = 1
+			}
+			isToExecute, nextSchedule, requeueAfter, err := sleepInfoReconciler.getNextSchedule(test.data, getTime(test.now), scheduleDeltaSeconds)
 
 			expected := test.expected
 			if expected.err != "" {
