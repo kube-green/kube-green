@@ -36,6 +36,22 @@ spec:
           spec:
             description: SleepInfoSpec defines the desired state of SleepInfo
             properties:
+              excludeRef:
+                description: ExcludeRef define the resource to exclude from the sleep.
+                items:
+                  properties:
+                    apiVersion:
+                      type: string
+                    kind:
+                      type: string
+                    name:
+                      type: string
+                  required:
+                  - apiVersion
+                  - kind
+                  - name
+                  type: object
+                type: array
               sleepAt:
                 description: "Hours:Minutes \n Accept cron schedule for both hour
                   and minute. For example, *:*/2 is set to configure a run every even

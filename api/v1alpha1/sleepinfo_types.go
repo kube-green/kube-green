@@ -14,6 +14,12 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
+type ExcludeRef struct {
+	ApiVersion string `json:"apiVersion"`
+	Kind       string `json:"kind"`
+	Name       string `json:"name"`
+}
+
 // SleepInfoSpec defines the desired state of SleepInfo
 type SleepInfoSpec struct {
 	// Weekdays are in cron notation.
@@ -37,6 +43,9 @@ type SleepInfoSpec struct {
 	// For example, for the Italy time zone set Europe/Rome.
 	// +optional
 	TimeZone string `json:"timeZone,omitempty"`
+	// ExcludeRef define the resource to exclude from the sleep.
+	// +optional
+	ExcludeRef []ExcludeRef `json:"excludeRef,omitempty"`
 }
 
 // SleepInfoStatus defines the observed state of SleepInfo
@@ -72,6 +81,10 @@ func (s SleepInfo) GetWakeUpSchedule() (string, error) {
 		return "", nil
 	}
 	return s.getScheduleFromWeekdayAndTime(s.Spec.WakeUpTime)
+}
+
+func (s SleepInfo) GetExcludeRef() []ExcludeRef {
+	return s.Spec.ExcludeRef
 }
 
 func (s SleepInfo) getScheduleFromWeekdayAndTime(hourAndMinute string) (string, error) {
