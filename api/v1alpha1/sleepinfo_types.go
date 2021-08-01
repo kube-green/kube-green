@@ -15,9 +15,14 @@ import (
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
 type ExcludeRef struct {
+	// ApiVersion of the kubernetes resources.
+	// Supported api version is "apps/v1".
 	ApiVersion string `json:"apiVersion"`
-	Kind       string `json:"kind"`
-	Name       string `json:"name"`
+	// Kind of the kubernetes resources of the specific version.
+	// Supported kind is "Deployment".
+	Kind string `json:"kind"`
+	// Name which identify the kubernetes resource.
+	Name string `json:"name"`
 }
 
 // SleepInfoSpec defines the desired state of SleepInfo

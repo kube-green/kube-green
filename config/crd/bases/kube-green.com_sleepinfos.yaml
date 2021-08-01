@@ -41,10 +41,15 @@ spec:
                 items:
                   properties:
                     apiVersion:
+                      description: ApiVersion of the kubernetes resources. Supported
+                        api version is "apps/v1".
                       type: string
                     kind:
+                      description: Kind of the kubernetes resources of the specific
+                        version. Supported kind is "Deployment".
                       type: string
                     name:
+                      description: Name which identify the kubernetes resource.
                       type: string
                   required:
                   - apiVersion
