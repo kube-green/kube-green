@@ -817,7 +817,7 @@ func assertCorrectSleepOperation(assert AssertOperation) {
 	result, err := sleepInfoReconciler.Reconcile(assert.ctx, assert.req)
 	Expect(err).NotTo(HaveOccurred())
 
-	By("sleep replicas are set to 0 to all deployments", func() {
+	By("replicas are set to 0 to all deployments set to sleep", func() {
 		deployments, err := listDeployments(assert.ctx, assert.namespace)
 		Expect(err).NotTo(HaveOccurred())
 		if len(assert.excludedDeployment) == 0 {
