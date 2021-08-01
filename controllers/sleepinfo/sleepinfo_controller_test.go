@@ -45,7 +45,7 @@ var _ = Describe("SleepInfo Controller", func() {
 
 	namespace := "zero-deployments"
 	It("reconcile - zero deployments", func() {
-		createdSleepInfo := createSleepInfo(ctx, sleepInfoName, namespace, false)
+		createdSleepInfo := createSleepInfo(ctx, sleepInfoName, namespace, SetupOptions{})
 
 		req := reconcile.Request{
 			NamespacedName: types.NamespacedName{
@@ -266,7 +266,7 @@ var _ = Describe("SleepInfo Controller", func() {
 
 	It("reconcile - with deployments", func() {
 		namespace := "multiple-deployments"
-		req, originalDeployments := setupNamespaceWithDeployments(ctx, sleepInfoName, namespace, sleepInfoReconciler, mockNow)
+		req, originalDeployments := setupNamespaceWithDeployments(ctx, sleepInfoName, namespace, sleepInfoReconciler, mockNow, SetupOptions{})
 
 		assertContextInfo := AssertOperation{
 			testLogger:          testLogger,
@@ -284,7 +284,7 @@ var _ = Describe("SleepInfo Controller", func() {
 
 	It("reconcile - deploy between sleep and wake up", func() {
 		namespace := "deploy-between-sleep-and-wake-up"
-		req, originalDeployments := setupNamespaceWithDeployments(ctx, sleepInfoName, namespace, sleepInfoReconciler, mockNow)
+		req, originalDeployments := setupNamespaceWithDeployments(ctx, sleepInfoName, namespace, sleepInfoReconciler, mockNow, SetupOptions{})
 
 		assertContextInfo := AssertOperation{
 			testLogger:          testLogger,
@@ -315,7 +315,7 @@ var _ = Describe("SleepInfo Controller", func() {
 
 	It("reconcile - change single deployment replicas between sleep and wake up", func() {
 		namespace := "change-replicas-between-sleep-and-wake-up"
-		req, originalDeployments := setupNamespaceWithDeployments(ctx, sleepInfoName, namespace, sleepInfoReconciler, mockNow)
+		req, originalDeployments := setupNamespaceWithDeployments(ctx, sleepInfoName, namespace, sleepInfoReconciler, mockNow, SetupOptions{})
 
 		assertContextInfo := AssertOperation{
 			testLogger:          testLogger,
@@ -347,7 +347,7 @@ var _ = Describe("SleepInfo Controller", func() {
 
 	It("reconcile - twice consecutive sleep operation", func() {
 		namespace := "twice-sleep"
-		req, originalDeployments := setupNamespaceWithDeployments(ctx, sleepInfoName, namespace, sleepInfoReconciler, mockNow)
+		req, originalDeployments := setupNamespaceWithDeployments(ctx, sleepInfoName, namespace, sleepInfoReconciler, mockNow, SetupOptions{})
 
 		assertContextInfo := AssertOperation{
 			testLogger:          testLogger,
@@ -417,7 +417,7 @@ var _ = Describe("SleepInfo Controller", func() {
 
 	It("reconcile - sleepinfo deployed when should be triggered", func() {
 		namespace := "immediately-triggered"
-		createSleepInfo(ctx, sleepInfoName, namespace, false)
+		createSleepInfo(ctx, sleepInfoName, namespace, SetupOptions{})
 		originalDeployments, err := upsertDeployments(ctx, namespace, false)
 		Expect(err).NotTo(HaveOccurred())
 
@@ -452,7 +452,7 @@ var _ = Describe("SleepInfo Controller", func() {
 
 	It("reconcile - create deployment between sleep and wake up", func() {
 		namespace := "create-deployment-between-sleep-and-wake-up"
-		req, originalDeployments := setupNamespaceWithDeployments(ctx, sleepInfoName, namespace, sleepInfoReconciler, mockNow)
+		req, originalDeployments := setupNamespaceWithDeployments(ctx, sleepInfoName, namespace, sleepInfoReconciler, mockNow, SetupOptions{})
 
 		assertContextInfo := AssertOperation{
 			testLogger:          testLogger,
@@ -520,6 +520,38 @@ var _ = Describe("SleepInfo Controller", func() {
 		})
 
 		assertCorrectWakeUpOperation(assertContextInfo.withSchedule("2021-03-23T20:20:00.000Z").withRequeue(45 * 60))
+	})
+
+	It("reconcile - with deployments to exclude", func() {
+		namespace := "multiple-deployments-exclude"
+		req, originalDeployments := setupNamespaceWithDeployments(ctx, sleepInfoName, namespace, sleepInfoReconciler, mockNow, SetupOptions{
+			ExcludeRef: []kubegreenv1alpha1.ExcludeRef{
+				{
+					ApiVersion: "apps/v1",
+					Kind:       "Deployment",
+					Name:       "service-1",
+				},
+				{
+					ApiVersion: "apps/v1",
+					Kind:       "deployment",
+					Name:       "zero-replicas",
+				},
+			},
+		})
+
+		assertContextInfo := AssertOperation{
+			testLogger:          testLogger,
+			ctx:                 ctx,
+			req:                 req,
+			namespace:           namespace,
+			sleepInfoName:       sleepInfoName,
+			originalDeployments: originalDeployments,
+			excludedDeployment:  []string{"service-1", "zero-replicas"},
+		}
+
+		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T20:05:59.000Z").withRequeue(14*60 + 1))
+		assertCorrectWakeUpOperation(assertContextInfo.withSchedule("2021-03-23T20:19:50.100Z").withRequeue(45*60 + 9.9))
+		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T21:05:00.000Z").withRequeue(15 * 60))
 	})
 })
 
@@ -749,6 +781,7 @@ type AssertOperation struct {
 	sleepInfoName       string
 	originalDeployments []appsv1.Deployment
 	scheduleTime        string
+	excludedDeployment  []string
 	// optional - default is equal to scheduleTime
 	expectedScheduleTime string
 	expectedNextRequeue  time.Duration
@@ -784,10 +817,21 @@ func assertCorrectSleepOperation(assert AssertOperation) {
 	result, err := sleepInfoReconciler.Reconcile(assert.ctx, assert.req)
 	Expect(err).NotTo(HaveOccurred())
 
-	By("replicas are set to 0 to all deployments", func() {
+	By("replicas are set to 0 to all deployments set to sleep", func() {
 		deployments, err := listDeployments(assert.ctx, assert.namespace)
 		Expect(err).NotTo(HaveOccurred())
-		assertAllReplicasSetToZero(deployments, assert.originalDeployments)
+		if len(assert.excludedDeployment) == 0 {
+			assertAllReplicasSetToZero(deployments, assert.originalDeployments)
+		} else {
+			for _, deployment := range deployments {
+				if contains(assert.excludedDeployment, deployment.Name) {
+					originalDeployment := findDeployByName(assert.originalDeployments, deployment.Name)
+					Expect(*deployment.Spec.Replicas).To(Equal(*originalDeployment.Spec.Replicas))
+					continue
+				}
+				Expect(*deployment.Spec.Replicas).To(Equal(int32(0)))
+			}
+		}
 	})
 
 	By("secret is correctly set", func() {
@@ -797,7 +841,7 @@ func assertCorrectSleepOperation(assert AssertOperation) {
 
 		var originalReplicas []OriginalDeploymentReplicas
 		for _, deployment := range assert.originalDeployments {
-			if *deployment.Spec.Replicas == 0 {
+			if *deployment.Spec.Replicas == 0 || contains(assert.excludedDeployment, deployment.Name) {
 				continue
 			}
 			originalReplicas = append(originalReplicas, OriginalDeploymentReplicas{
@@ -880,15 +924,12 @@ func assertCorrectWakeUpOperation(assert AssertOperation) {
 }
 
 type SetupOptions struct {
+	ExcludeRef      []kubegreenv1alpha1.ExcludeRef
 	UnsetWakeUpTime bool
 }
 
-func setupNamespaceWithDeployments(ctx context.Context, sleepInfoName, namespace string, reconciler SleepInfoReconciler, now string, opts ...SetupOptions) (ctrl.Request, []appsv1.Deployment) {
-	var unsetWakeUpTime bool
-	if len(opts) != 0 {
-		unsetWakeUpTime = opts[0].UnsetWakeUpTime
-	}
-	createSleepInfo(ctx, sleepInfoName, namespace, unsetWakeUpTime)
+func setupNamespaceWithDeployments(ctx context.Context, sleepInfoName, namespace string, reconciler SleepInfoReconciler, now string, opts SetupOptions) (ctrl.Request, []appsv1.Deployment) {
+	createSleepInfo(ctx, sleepInfoName, namespace, opts)
 
 	By("create deployments")
 	originalDeployments, err := upsertDeployments(ctx, namespace, false)
@@ -920,7 +961,7 @@ func setupNamespaceWithDeployments(ctx context.Context, sleepInfoName, namespace
 	return req, originalDeployments
 }
 
-func createSleepInfo(ctx context.Context, sleepInfoName, namespace string, unsetWakeUpTime bool) kubegreenv1alpha1.SleepInfo {
+func createSleepInfo(ctx context.Context, sleepInfoName, namespace string, opts SetupOptions) kubegreenv1alpha1.SleepInfo {
 	var (
 		timeout  = time.Second * 10
 		interval = time.Millisecond * 250
@@ -942,8 +983,11 @@ func createSleepInfo(ctx context.Context, sleepInfoName, namespace string, unset
 			WakeUpTime: "*:20", // every 20 minute
 		},
 	}
-	if unsetWakeUpTime {
+	if opts.UnsetWakeUpTime {
 		sleepInfo.Spec.WakeUpTime = ""
+	}
+	if len(opts.ExcludeRef) != 0 {
+		sleepInfo.Spec.ExcludeRef = opts.ExcludeRef
 	}
 
 	Expect(k8sClient.Create(ctx, sleepInfo)).Should(Succeed())
@@ -986,4 +1030,13 @@ func findDeployByName(deployments []appsv1.Deployment, nameToFind string) *appsv
 		}
 	}
 	return nil
+}
+
+func contains(s []string, v string) bool {
+	for _, a := range s {
+		if a == v {
+			return true
+		}
+	}
+	return false
 }

@@ -7,3 +7,7 @@ spec:
   sleepAt: "20:00"
   wakeUpAt: "08:00"
   timeZone: "Europe/Rome"
+  excludeRef:
+    - apiVersion: "apps/v1"
+      kind:       Deployment
+      name:       api-gateway

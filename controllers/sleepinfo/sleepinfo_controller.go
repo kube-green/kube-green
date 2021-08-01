@@ -132,6 +132,7 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, err
 	}
 	log.V(1).Info("deployments in namespace", "number of deployment", len(deploymentList))
+	deploymentList = filterExcludedDeployment(deploymentList, sleepInfo)
 
 	if err := r.handleSleepInfoStatus(ctx, now, sleepInfo, sleepInfoData, deploymentList); err != nil {
 		log.Error(err, "unable to update sleepInfo status")
@@ -397,4 +398,25 @@ func (r SleepInfoReconciler) upsertSecret(
 		logger.Info("secret updated")
 	}
 	return nil
+}
+
+func getExcludedDeploymentName(sleepInfo *kubegreenv1alpha1.SleepInfo) map[string]bool {
+	excludedDeploymentName := map[string]bool{}
+	for _, exclusion := range sleepInfo.GetExcludeRef() {
+		if exclusion.Kind == "Deployment" && exclusion.ApiVersion == "apps/v1" {
+			excludedDeploymentName[exclusion.Name] = true
+		}
+	}
+	return excludedDeploymentName
+}
+
+func filterExcludedDeployment(deploymentList []appsv1.Deployment, sleepInfo *kubegreenv1alpha1.SleepInfo) []appsv1.Deployment {
+	excludedDeploymentName := getExcludedDeploymentName(sleepInfo)
+	filteredList := []appsv1.Deployment{}
+	for _, deployment := range deploymentList {
+		if !excludedDeploymentName[deployment.Name] {
+			filteredList = append(filteredList, deployment)
+		}
+	}
+	return filteredList
 }
