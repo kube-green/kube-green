@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
-- improved parallel reconciliation: now are run 10 parallel reconciliation workflow and are run all flow in the minute around the schedule
+- improved parallel reconciliation: now run 10 parallel reconciliation workflow and the flows in the minute around the schedule
 
 ## v0.1.0 - 03-05-2021
 
