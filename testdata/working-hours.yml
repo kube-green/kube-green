@@ -4,7 +4,7 @@ metadata:
   name: working-hours
 spec:
   weekdays: "1-5"
-  sleepAt: "21:25"
+  sleepAt: "20:00"
   wakeUpAt: "08:00"
   timeZone: "Europe/Rome"
   excludeRef:
