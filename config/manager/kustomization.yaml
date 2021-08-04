@@ -13,4 +13,4 @@ kind: Kustomization
 images:
 - name: controller
   newName: davidebianchi/kube-green
-  newTag: 0.1.0
+  newTag: 0.2.0
