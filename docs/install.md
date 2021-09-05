@@ -2,8 +2,6 @@
 
 ## Prerequisite
 
-### On the cluster
-
 To successfully install *kube-green*, in the cluster must be installed a cert-manager. If it is not already installed installed, [click here](https://cert-manager.io/docs/installation/#default-static-install).
 
 ## Change default configuration
