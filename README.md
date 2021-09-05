@@ -29,7 +29,7 @@ The use of this operator is very simple. Once installed on the cluster, configur
 
 ### SleepInfo
 
-In the namespace where you want to enable kube-green, apply the SleepInfo CRD.
+In the namespace where you want to enable *kube-green*, apply the SleepInfo CRD.
 An example of CRD is accessible [at this link](testdata/working-hours.yml)
 
 The SleepInfo spec contains:
