@@ -1,0 +1,12 @@
+apiVersion: kube-green.com/v1alpha1
+kind: SleepInfo
+metadata:
+  name: working-hours-no-wakeup
+spec:
+  excludeRef:
+  - apiVersion: apps/v1
+    kind: Deployment
+    name: api-gateway
+  sleepAt: "20:00"
+  timeZone: Europe/Rome
+  weekdays: 1-5
