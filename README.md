@@ -2,44 +2,43 @@
 [![Test and build][test-and-build-svg]](test-and-build)
 [![Coverage Status][coverage-badge]](coverage)
 
-# Kube Green
+# kube-green
 
-How many development or demo namespaces remain active on weekends or beyond
-business hours?  
+How many development or demo namespaces remain active on weekends or beyond business hours?  
 This is an unnecessary waste of resources and money.
 
-Kube Green was born with the aim of finding ways to avoid this kind of waste of
-resources.
+*kube-green* was born with the aim of finding ways to avoid this kind of waste of resources.
 
-If you have some other ideas on how to improve our development on kubernetes,
-please open an issue so we can integrate Kube Green features!
+If you have some other ideas on how to improve our development on kubernetes, please open an issue so we can integrate *kube-green* features!
 
-## Deploy
+## Install
 
-To install Kube Green in the cluster, clone the repository and run
+To install *kube-green* in the cluster, clone the repository and run
 
 ```sh
 make deploy
 ```
 
-This will create a new namespace, kube-green, which contains the pod of the decorator.
+This will create a new namespace, *kube-green*, which contains the pod of the operator.
+
+For further information about the installation, [see here](docs/install.md)
 
 ## Usage
 
-The use of this operator is very simple.
+The use of this operator is very simple. Once installed on the cluster, configure the desired CRD to make it works.
 
 ### SleepInfo
 
-In the namespace where you want to enable Kube Green, apply the SleepInfo CRD.
-An example of CRD is accessible [at this link](./testdata/working-hours.yml)
+In the namespace where you want to enable kube-green, apply the SleepInfo CRD.
+An example of CRD is accessible [at this link](testdata/working-hours.yml)
 
 The SleepInfo spec contains:
 
 * **weekdays**: day of the week. `*` is every day, `1` is monday, `1-5` is from monday to friday
 * **sleepAt**: time in hours and minutes (HH:mm)when deployments replicas should be set to 0. Valid values are, for example, 19:00or `*:*` for every minute and every hour.
-* **wakeUpAt**: time in hours and minutes (HH:mm)when deployments replicas should be set restored. Valid values are, for example, 19:00or `*:*` for every minute and every hour
-* **timeZone**: time zone in IANA specification. For example for italian hour, set `Europe/Rome`
-* **excluldeRef**: an array of object containing the resource to exclude from sleep. It contains:
+* **wakeUpAt** (*optional*): time in hours and minutes (HH:mm) when deployments replicas should be restored. Valid values are, for example, 19:00or `*:*` for every minute and every hour. If wake up value is not set, pod in namespace will not be restored. So, you will need to deploy the initial namespace configuration to restore it.
+* **timeZone** (*optional*): time zone in IANA specification. For example for italian hour, set `Europe/Rome`
+* **excluldeRef** (*optional*): an array of object containing the resource to exclude from sleep. It contains:
   * **apiVersion**: version of the resource. Now it is supported *"apps/v1"*
   * **kind**: the kind of resource. Now it is supported *"Deployment"*
   * **name**: the name of the resource.
@@ -62,6 +61,10 @@ spec:
       name:       api-gateway
 ```
 
+#### Lifecycle
+
+TODO
+
 ## Uninstall
 
 To uninstall the operator from the cluster, run:
@@ -69,6 +72,8 @@ To uninstall the operator from the cluster, run:
 ```sh
 make undeploy
 ```
+
+> :warning: If you run undeploy command, the namespace of kube-green (by default `kube-green`), will be deleted.
 
 ## Versioning
 
