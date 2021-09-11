@@ -2,7 +2,11 @@
 [![Test and build][test-and-build-svg]](test-and-build)
 [![Coverage Status][coverage-badge]](coverage)
 
-# kube-green
+
+<div align="center">
+  <img src="https://github.com/davidebianchi/kube-green/raw/main/logo/logo.png" width="200" >
+</div>
+
 
 How many development or demo namespaces remain active on weekends or beyond business hours?  
 This is an unnecessary waste of resources and money.
