@@ -4,7 +4,7 @@
 
 
 <div align="center">
-  <img src="https://github.com/davidebianchi/kube-green/raw/main/logo/logo.png" width="200" >
+  <img src="https://github.com/davidebianchi/kube-green/raw/main/logo/logo.png" width="250" >
 </div>
 
 
