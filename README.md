@@ -55,7 +55,7 @@ kind: SleepInfo
 metadata:
   name: working-hours
 spec:
-  weekday: "1-5"
+  weekdays: "1-5"
   sleepAt: "20:00"
   wakeUpAt: "08:00"
   timeZone: "Europe/Rome"
