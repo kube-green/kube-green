@@ -4,15 +4,27 @@
 
 To successfully install *kube-green*, in the cluster must be installed a cert-manager. If it is not already installed installed, [click here](https://cert-manager.io/docs/installation/#default-static-install).
 
-> :warning: Once installed, *kube-green* uses webhook to check the SleepInfo validation, exposed on port 9443. So, if you have a firewall rule which close port 9443, you must open it otherwise it would not possible to add SleepInfo CRD.
-
 ## Change default configuration
 
 You can change default configuration changing the config file.
 
 For example, to deploy the controller in another namespace, change the file [kustomization.yaml](../config/default/kustomization.yaml) with the desired value.
 
-## Usage with kind
+## Install 
+
+To install kube-green in the cluster, clone the repository and run
+
+```sh
+make deploy
+```
+
+This will create a new namespace, *kube-green*, which contains the pod of the operator.
+
+Once installed, *kube-green* uses webhook (exposed on port 9443) to check that SleepInfo is valid. So, if you have a firewall rule which close port 9443, you must open it (or change the exposed port by configuration) otherwise it would not possible to add SleepInfo CRD.
+
+---
+
+## Tutorial - Usage with kind
 
 You could try *kube-green* locally, to test how it works.
 
