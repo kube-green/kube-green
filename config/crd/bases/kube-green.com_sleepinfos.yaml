@@ -62,6 +62,10 @@ spec:
                   and minute. For example, *:*/2 is set to configure a run every even
                   minute."
                 type: string
+              suspendCronjob:
+                description: If SuspendCronjob is set to true, on sleep the cronjob
+                  of the namespace will be suspended.
+                type: boolean
               timeZone:
                 description: Time zone to set the schedule, in IANA time zone identifier.
                   It is not required, default to UTC. For example, for the Italy time
