@@ -2,7 +2,7 @@
 Copyright 2021.
 */
 
-package controllers
+package sleepinfo
 
 import (
 	"context"
@@ -63,6 +63,7 @@ type SleepInfoData struct {
 	OriginalDeploymentsReplicas map[string]int32 `json:"originalDeploymentReplicas"`
 	CurrentOperationSchedule    string           `json:"-"`
 	NextOperationSchedule       string           `json:"-"`
+	SuspendCronjobs             bool             `json:"-"`
 }
 
 func (s SleepInfoData) isWakeUpOperation() bool {
@@ -85,7 +86,7 @@ var sleepDelta int64 = 60
 // move the current state of the cluster closer to the desired state.
 //
 // For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.7.2/pkg/reconcile
+// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.10.1/pkg/reconcile
 func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.WithValues("sleepinfo", req.NamespacedName)
 
@@ -210,30 +211,6 @@ func (r *SleepInfoReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func (r *SleepInfoReconciler) getDeploymentsByNamespace(ctx context.Context, namespace string) ([]appsv1.Deployment, error) {
-	listOptions := &client.ListOptions{
-		Namespace: namespace,
-		Limit:     500,
-	}
-	deployments := appsv1.DeploymentList{}
-	if err := r.Client.List(ctx, &deployments, listOptions); err != nil {
-		return deployments.Items, client.IgnoreNotFound(err)
-	}
-	return deployments.Items, nil
-}
-
-func (r *SleepInfoReconciler) getSecret(ctx context.Context, secretName, namespaceName string) (*v1.Secret, error) {
-	secret := &v1.Secret{}
-	err := r.Client.Get(ctx, client.ObjectKey{
-		Namespace: namespaceName,
-		Name:      secretName,
-	}, secret)
-	if err != nil {
-		return nil, err
-	}
-	return secret, nil
-}
-
 func (r *SleepInfoReconciler) getSleepInfo(ctx context.Context, req ctrl.Request) (*kubegreenv1alpha1.SleepInfo, error) {
 	sleepInfo := &kubegreenv1alpha1.SleepInfo{}
 	if err := r.Client.Get(ctx, req.NamespacedName, sleepInfo); err != nil {
@@ -262,17 +239,17 @@ func getSleepInfoData(secret *v1.Secret, sleepInfo *kubegreenv1alpha1.SleepInfo)
 		return SleepInfoData{}, err
 	}
 
-	secretData := SleepInfoData{
+	sleepInfoData := SleepInfoData{
 		CurrentOperationType:     sleepOperation,
 		CurrentOperationSchedule: sleepSchedule,
 		NextOperationSchedule:    wakeUpSchedule,
 	}
 	if wakeUpSchedule == "" {
-		secretData.NextOperationSchedule = sleepSchedule
+		sleepInfoData.NextOperationSchedule = sleepSchedule
 	}
 
 	if secret == nil || secret.Data == nil {
-		return secretData, nil
+		return sleepInfoData, nil
 	}
 
 	data := secret.Data
@@ -285,28 +262,24 @@ func getSleepInfoData(secret *v1.Secret, sleepInfo *kubegreenv1alpha1.SleepInfo)
 		for _, replicaInfo := range originalDeploymentsReplicas {
 			originalDeploymentsReplicasData[replicaInfo.Name] = replicaInfo.Replicas
 		}
-		secretData.OriginalDeploymentsReplicas = originalDeploymentsReplicasData
+		sleepInfoData.OriginalDeploymentsReplicas = originalDeploymentsReplicasData
 	}
 
 	lastSchedule, err := time.Parse(time.RFC3339, string(data[lastScheduleKey]))
 	if err != nil {
 		return SleepInfoData{}, fmt.Errorf("fails to parse %s: %s", lastScheduleKey, err)
 	}
-	secretData.LastSchedule = lastSchedule
+	sleepInfoData.LastSchedule = lastSchedule
 
 	lastOperation := string(data[lastOperationKey])
 
 	if lastOperation == sleepOperation && wakeUpSchedule != "" {
-		secretData.CurrentOperationSchedule = wakeUpSchedule
-		secretData.NextOperationSchedule = sleepSchedule
-		secretData.CurrentOperationType = wakeUpOperation
+		sleepInfoData.CurrentOperationSchedule = wakeUpSchedule
+		sleepInfoData.NextOperationSchedule = sleepSchedule
+		sleepInfoData.CurrentOperationType = wakeUpOperation
 	}
 
-	return secretData, nil
-}
-
-func getSecretName(name string) string {
-	return fmt.Sprintf("sleepinfo-%s", name)
+	return sleepInfoData, nil
 }
 
 // handleSleepInfoStatus handles operator status
@@ -324,99 +297,4 @@ func (r SleepInfoReconciler) handleSleepInfoStatus(
 		sleepInfo.Status.OperationType = ""
 	}
 	return r.Status().Update(ctx, sleepInfo)
-}
-
-func (r SleepInfoReconciler) upsertSecret(
-	ctx context.Context,
-	logger logr.Logger,
-	now time.Time,
-	secretName, namespace string,
-	secret *v1.Secret,
-	sleepInfoData SleepInfoData,
-	deploymentList []appsv1.Deployment,
-) error {
-	logger.Info("update secret")
-
-	var newSecret = &v1.Secret{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Secret",
-			APIVersion: "v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      secretName,
-			Namespace: namespace,
-		},
-		Data: make(map[string][]byte),
-	}
-	if secret != nil {
-		newSecret = secret.DeepCopy()
-	}
-	if newSecret.StringData == nil {
-		newSecret.StringData = map[string]string{}
-	}
-	newSecret.StringData[lastScheduleKey] = now.Format(time.RFC3339)
-	newSecret.StringData[lastOperationKey] = sleepInfoData.CurrentOperationType
-	if len(deploymentList) == 0 {
-		delete(newSecret.StringData, lastOperationKey)
-	}
-
-	if len(deploymentList) != 0 && sleepInfoData.isSleepOperation() {
-		originalDeploymentsReplicas := []OriginalDeploymentReplicas{}
-		for _, deployment := range deploymentList {
-			replica, ok := sleepInfoData.OriginalDeploymentsReplicas[deployment.Name]
-			originalReplicas := *deployment.Spec.Replicas
-			if ok && replica != 0 {
-				originalReplicas = replica
-			}
-			if originalReplicas == 0 {
-				continue
-			}
-			originalDeploymentsReplicas = append(originalDeploymentsReplicas, OriginalDeploymentReplicas{
-				Name:     deployment.Name,
-				Replicas: originalReplicas,
-			})
-		}
-		originalReplicasToSave, err := json.Marshal(originalDeploymentsReplicas)
-		if err != nil {
-			return err
-		}
-		newSecret.Data[replicasBeforeSleepKey] = originalReplicasToSave
-	}
-	if sleepInfoData.isWakeUpOperation() {
-		delete(newSecret.Data, replicasBeforeSleepKey)
-	}
-
-	if secret == nil {
-		if err := r.Client.Create(ctx, newSecret); err != nil {
-			return err
-		}
-		logger.Info("secret created")
-	} else {
-		if err := r.Client.Update(ctx, newSecret); err != nil {
-			return err
-		}
-		logger.Info("secret updated")
-	}
-	return nil
-}
-
-func getExcludedDeploymentName(sleepInfo *kubegreenv1alpha1.SleepInfo) map[string]bool {
-	excludedDeploymentName := map[string]bool{}
-	for _, exclusion := range sleepInfo.GetExcludeRef() {
-		if exclusion.Kind == "Deployment" && exclusion.ApiVersion == "apps/v1" {
-			excludedDeploymentName[exclusion.Name] = true
-		}
-	}
-	return excludedDeploymentName
-}
-
-func filterExcludedDeployment(deploymentList []appsv1.Deployment, sleepInfo *kubegreenv1alpha1.SleepInfo) []appsv1.Deployment {
-	excludedDeploymentName := getExcludedDeploymentName(sleepInfo)
-	filteredList := []appsv1.Deployment{}
-	for _, deployment := range deploymentList {
-		if !excludedDeploymentName[deployment.Name] {
-			filteredList = append(filteredList, deployment)
-		}
-	}
-	return filteredList
 }
