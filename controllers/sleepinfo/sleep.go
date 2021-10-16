@@ -8,10 +8,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func (r *SleepInfoReconciler) handleSleep(logger logr.Logger, ctx context.Context, deploymentList []appsv1.Deployment) error {
-	logger.Info("handle sleep operation", "number of deployments", len(deploymentList))
-	err := r.updateDeploymentsWithZeroReplicas(ctx, deploymentList)
-	if err != nil {
+func (r *SleepInfoReconciler) handleSleep(logger logr.Logger, ctx context.Context, resoures Resources) error {
+	logger.Info("handle sleep operation", "number of deployments", len(resoures.Deployments))
+	if err := r.updateDeploymentsWithZeroReplicas(ctx, resoures.Deployments); err != nil {
 		logger.Error(err, "fails to update deployments")
 		return err
 	}

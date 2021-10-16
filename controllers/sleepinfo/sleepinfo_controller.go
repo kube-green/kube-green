@@ -74,6 +74,10 @@ func (s SleepInfoData) isSleepOperation() bool {
 	return s.CurrentOperationType == sleepOperation
 }
 
+type Resources struct {
+	Deployments []appsv1.Deployment
+}
+
 var sleepDelta int64 = 60
 
 //+kubebuilder:rbac:groups=kube-green.com,resources=sleepinfos,verbs=get;list;watch;create;update;patch;delete
@@ -171,16 +175,20 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		}, nil
 	}
 
+	resources := Resources{
+		Deployments: deploymentList,
+	}
+
 	switch {
 	case sleepInfoData.isSleepOperation():
-		if err := r.handleSleep(log, ctx, deploymentList); err != nil {
+		if err := r.handleSleep(log, ctx, resources); err != nil {
 			log.Error(err, "fails to handle sleep")
 			return ctrl.Result{
 				Requeue: true,
 			}, err
 		}
 	case sleepInfoData.isWakeUpOperation():
-		if err := r.handleWakeUp(log, ctx, deploymentList, sleepInfoData); err != nil {
+		if err := r.handleWakeUp(log, ctx, resources, sleepInfoData); err != nil {
 			log.Error(err, "fails to handle wake up")
 			return ctrl.Result{
 				Requeue: true,
