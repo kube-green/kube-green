@@ -24,7 +24,7 @@ jobs:
       - name: Run tests
         run: make test
       - name: Vet and Build
-        run: make manager
+        run: make
       - name: Send the coverage output
         uses: shogo82148/actions-goveralls@v1
         with:
