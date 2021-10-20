@@ -130,13 +130,11 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 	scheduleLog.WithValues("last schedule", now, "status", sleepInfo.Status).Info("last schedule value")
 
-	deploymentList, err := r.getDeploymentsByNamespace(ctx, req.Namespace)
+	deploymentList, err := r.getDeploymentsList(ctx, req.Namespace, sleepInfo)
 	if err != nil {
 		log.Error(err, "fails to fetch deployments")
 		return ctrl.Result{}, err
 	}
-	log.V(1).Info("deployments in namespace", "number of deployment", len(deploymentList))
-	deploymentList = filterExcludedDeployment(deploymentList, sleepInfo)
 
 	if err := r.handleSleepInfoStatus(ctx, now, sleepInfo, sleepInfoData, deploymentList); err != nil {
 		log.Error(err, "unable to update sleepInfo status")
@@ -218,18 +216,6 @@ func (r *SleepInfoReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func (r *SleepInfoReconciler) getDeploymentsByNamespace(ctx context.Context, namespace string) ([]appsv1.Deployment, error) {
-	listOptions := &client.ListOptions{
-		Namespace: namespace,
-		Limit:     500,
-	}
-	deployments := appsv1.DeploymentList{}
-	if err := r.Client.List(ctx, &deployments, listOptions); err != nil {
-		return deployments.Items, client.IgnoreNotFound(err)
-	}
-	return deployments.Items, nil
-}
-
 func (r *SleepInfoReconciler) getSecret(ctx context.Context, secretName, namespaceName string) (*v1.Secret, error) {
 	secret := &v1.Secret{}
 	err := r.Client.Get(ctx, client.ObjectKey{
@@ -270,17 +256,17 @@ func getSleepInfoData(secret *v1.Secret, sleepInfo *kubegreenv1alpha1.SleepInfo)
 		return SleepInfoData{}, err
 	}
 
-	secretData := SleepInfoData{
+	sleepInfoData := SleepInfoData{
 		CurrentOperationType:     sleepOperation,
 		CurrentOperationSchedule: sleepSchedule,
 		NextOperationSchedule:    wakeUpSchedule,
 	}
 	if wakeUpSchedule == "" {
-		secretData.NextOperationSchedule = sleepSchedule
+		sleepInfoData.NextOperationSchedule = sleepSchedule
 	}
 
 	if secret == nil || secret.Data == nil {
-		return secretData, nil
+		return sleepInfoData, nil
 	}
 
 	data := secret.Data
@@ -293,24 +279,24 @@ func getSleepInfoData(secret *v1.Secret, sleepInfo *kubegreenv1alpha1.SleepInfo)
 		for _, replicaInfo := range originalDeploymentsReplicas {
 			originalDeploymentsReplicasData[replicaInfo.Name] = replicaInfo.Replicas
 		}
-		secretData.OriginalDeploymentsReplicas = originalDeploymentsReplicasData
+		sleepInfoData.OriginalDeploymentsReplicas = originalDeploymentsReplicasData
 	}
 
 	lastSchedule, err := time.Parse(time.RFC3339, string(data[lastScheduleKey]))
 	if err != nil {
 		return SleepInfoData{}, fmt.Errorf("fails to parse %s: %s", lastScheduleKey, err)
 	}
-	secretData.LastSchedule = lastSchedule
+	sleepInfoData.LastSchedule = lastSchedule
 
 	lastOperation := string(data[lastOperationKey])
 
 	if lastOperation == sleepOperation && wakeUpSchedule != "" {
-		secretData.CurrentOperationSchedule = wakeUpSchedule
-		secretData.NextOperationSchedule = sleepSchedule
-		secretData.CurrentOperationType = wakeUpOperation
+		sleepInfoData.CurrentOperationSchedule = wakeUpSchedule
+		sleepInfoData.NextOperationSchedule = sleepSchedule
+		sleepInfoData.CurrentOperationType = wakeUpOperation
 	}
 
-	return secretData, nil
+	return sleepInfoData, nil
 }
 
 func getSecretName(name string) string {
@@ -406,25 +392,4 @@ func (r SleepInfoReconciler) upsertSecret(
 		logger.Info("secret updated")
 	}
 	return nil
-}
-
-func getExcludedDeploymentName(sleepInfo *kubegreenv1alpha1.SleepInfo) map[string]bool {
-	excludedDeploymentName := map[string]bool{}
-	for _, exclusion := range sleepInfo.GetExcludeRef() {
-		if exclusion.Kind == "Deployment" && exclusion.ApiVersion == "apps/v1" {
-			excludedDeploymentName[exclusion.Name] = true
-		}
-	}
-	return excludedDeploymentName
-}
-
-func filterExcludedDeployment(deploymentList []appsv1.Deployment, sleepInfo *kubegreenv1alpha1.SleepInfo) []appsv1.Deployment {
-	excludedDeploymentName := getExcludedDeploymentName(sleepInfo)
-	filteredList := []appsv1.Deployment{}
-	for _, deployment := range deploymentList {
-		if !excludedDeploymentName[deployment.Name] {
-			filteredList = append(filteredList, deployment)
-		}
-	}
-	return filteredList
 }
