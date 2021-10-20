@@ -2,7 +2,7 @@
 Copyright 2021.
 */
 
-package controllers
+package sleepinfo
 
 import (
 	"context"
