@@ -3,10 +3,10 @@ package sleepinfo
 import (
 	"context"
 	"errors"
-	"testing"
 
 	"github.com/davidebianchi/kube-green/api/v1alpha1"
-	"github.com/stretchr/testify/require"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -16,8 +16,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
-func TestDeployments(t *testing.T) {
-	var testLogger = zap.New(zap.UseDevMode(true))
+var _ = Describe("Test Schedule", func() {
+	testLogger := zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true))
 
 	namespace := "my-namespace"
 	deployment1 := getDeploymentMock(mockDeploymentSpec{
@@ -97,26 +97,27 @@ func TestDeployments(t *testing.T) {
 	}
 
 	for _, dt := range listDeploymentsTests {
-		t.Run(dt.name, func(t *testing.T) {
+		test := dt //necessary to ensure the correct value is passed to the closure
+		It(test.name, func() {
 			r := SleepInfoReconciler{
-				Client: dt.client,
+				Client: test.client,
 				Log:    testLogger,
 			}
 			sleepInfo := emptySleepInfo
-			if dt.sleepInfo != nil {
-				sleepInfo = dt.sleepInfo
+			if test.sleepInfo != nil {
+				sleepInfo = test.sleepInfo
 			}
 
 			listOfDeployments, err := r.getDeploymentsList(context.Background(), namespace, sleepInfo)
-			if dt.throws {
-				require.EqualError(t, err, "error during list")
+			if test.throws {
+				Expect(err).To(MatchError("error during list"))
 			} else {
-				require.NoError(t, err)
+				Expect(err).To(BeNil())
 			}
-			require.Equal(t, dt.expected, listOfDeployments)
+			Expect(listOfDeployments).To(Equal(test.expected))
 		})
 	}
-}
+})
 
 type mockDeploymentSpec struct {
 	namespace string
