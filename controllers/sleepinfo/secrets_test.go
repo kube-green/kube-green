@@ -103,6 +103,10 @@ func TestUpsertSecrets(t *testing.T) {
 	}
 
 	t.Run("insert and update secret - sleep and wake up", func(t *testing.T) {
+		resources := Resources{
+			Deployments: deployList,
+		}
+
 		client := &testutil.PossiblyErroringFakeCtrlRuntimeClient{
 			Client: fake.
 				NewClientBuilder().
@@ -117,7 +121,7 @@ func TestUpsertSecrets(t *testing.T) {
 			CurrentOperationType: sleepOperation,
 		}
 
-		err := r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, nil, sleepInfoData, deployList)
+		err := r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, nil, sleepInfoData, resources)
 		require.NoError(t, err)
 
 		secret, err := r.getSecret(context.Background(), secretName, namespace)
@@ -145,7 +149,7 @@ func TestUpsertSecrets(t *testing.T) {
 				CurrentOperationType: wakeUpOperation,
 				LastSchedule:         now,
 			}
-			err := r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, secret, sleepInfoData, deployList)
+			err := r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, secret, sleepInfoData, resources)
 			require.NoError(t, err)
 
 			secret, err := r.getSecret(context.Background(), secretName, namespace)
@@ -182,8 +186,11 @@ func TestUpsertSecrets(t *testing.T) {
 		sleepInfoData := SleepInfoData{
 			CurrentOperationType: sleepOperation,
 		}
+		resources := Resources{
+			Deployments: deployList,
+		}
 
-		err := r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, nil, sleepInfoData, deployList)
+		err := r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, nil, sleepInfoData, resources)
 		require.NoError(t, err)
 
 		secret, err := r.getSecret(context.Background(), secretName, namespace)
@@ -220,7 +227,11 @@ func TestUpsertSecrets(t *testing.T) {
 				name:      "new-deployment",
 				replicas:  &replicas1,
 			}))
-			err := r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, secret, sleepInfoData, updatedDeployList)
+			resources := Resources{
+				Deployments: updatedDeployList,
+			}
+
+			err := r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, secret, sleepInfoData, resources)
 			require.NoError(t, err)
 
 			secret, err := r.getSecret(context.Background(), secretName, namespace)
@@ -258,7 +269,7 @@ func TestUpsertSecrets(t *testing.T) {
 			CurrentOperationType: sleepOperation,
 		}
 
-		err := r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, nil, sleepInfoData, []appsv1.Deployment{})
+		err := r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, nil, sleepInfoData, Resources{})
 		require.NoError(t, err)
 
 		secret, err := r.getSecret(context.Background(), secretName, namespace)
@@ -304,7 +315,7 @@ func TestUpsertSecrets(t *testing.T) {
 			CurrentOperationType: sleepOperation,
 		}
 
-		err := r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, existentSecret, sleepInfoData, []appsv1.Deployment{})
+		err := r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, existentSecret, sleepInfoData, Resources{})
 		require.NoError(t, err)
 
 		secret, err := r.getSecret(context.Background(), secretName, namespace)
@@ -339,8 +350,11 @@ func TestUpsertSecrets(t *testing.T) {
 		sleepInfoData := SleepInfoData{
 			CurrentOperationType: sleepOperation,
 		}
+		resources := Resources{
+			Deployments: deployList,
+		}
 
-		err := r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, nil, sleepInfoData, deployList)
+		err := r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, nil, sleepInfoData, resources)
 		require.EqualError(t, err, "error during create")
 	})
 
@@ -368,8 +382,11 @@ func TestUpsertSecrets(t *testing.T) {
 		sleepInfoData := SleepInfoData{
 			CurrentOperationType: sleepOperation,
 		}
+		resources := Resources{
+			Deployments: deployList,
+		}
 
-		err := r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, existentSecret, sleepInfoData, deployList)
+		err := r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, existentSecret, sleepInfoData, resources)
 		require.EqualError(t, err, "error during update")
 	})
 }

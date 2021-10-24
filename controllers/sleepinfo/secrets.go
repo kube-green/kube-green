@@ -36,7 +36,7 @@ func (r SleepInfoReconciler) upsertSecret(
 	secretName, namespace string,
 	secret *v1.Secret,
 	sleepInfoData SleepInfoData,
-	deploymentList []appsv1.Deployment,
+	resources Resources,
 ) error {
 	logger.Info("update secret")
 
@@ -49,34 +49,17 @@ func (r SleepInfoReconciler) upsertSecret(
 			Name:      secretName,
 			Namespace: namespace,
 		},
-		Data: make(map[string][]byte),
-	}
-	if newSecret.StringData == nil {
-		newSecret.StringData = map[string]string{}
+		Data:       map[string][]byte{},
+		StringData: map[string]string{},
 	}
 	newSecret.StringData[lastScheduleKey] = now.Format(time.RFC3339)
 	newSecret.StringData[lastOperationKey] = sleepInfoData.CurrentOperationType
-	if len(deploymentList) == 0 {
+	if !resources.hasResources() {
 		delete(newSecret.StringData, lastOperationKey)
 	}
 
-	if len(deploymentList) != 0 && sleepInfoData.isSleepOperation() {
-		originalDeploymentsReplicas := []OriginalDeploymentReplicas{}
-		for _, deployment := range deploymentList {
-			replica, ok := sleepInfoData.OriginalDeploymentsReplicas[deployment.Name]
-			originalReplicas := *deployment.Spec.Replicas
-			if ok && replica != 0 {
-				originalReplicas = replica
-			}
-			if originalReplicas == 0 {
-				continue
-			}
-			originalDeploymentsReplicas = append(originalDeploymentsReplicas, OriginalDeploymentReplicas{
-				Name:     deployment.Name,
-				Replicas: originalReplicas,
-			})
-		}
-		originalReplicasToSave, err := json.Marshal(originalDeploymentsReplicas)
+	if resources.hasResources() && sleepInfoData.isSleepOperation() {
+		originalReplicasToSave, err := getOriginalReplicasToSave(resources.Deployments, sleepInfoData)
 		if err != nil {
 			return err
 		}
@@ -95,4 +78,23 @@ func (r SleepInfoReconciler) upsertSecret(
 		logger.Info("secret updated")
 	}
 	return nil
+}
+
+func getOriginalReplicasToSave(deployList []appsv1.Deployment, sleepInfoData SleepInfoData) ([]byte, error) {
+	originalDeploymentsReplicas := []OriginalDeploymentReplicas{}
+	for _, deployment := range deployList {
+		replica, ok := sleepInfoData.OriginalDeploymentsReplicas[deployment.Name]
+		originalReplicas := *deployment.Spec.Replicas
+		if ok && replica != 0 {
+			originalReplicas = replica
+		}
+		if originalReplicas == 0 {
+			continue
+		}
+		originalDeploymentsReplicas = append(originalDeploymentsReplicas, OriginalDeploymentReplicas{
+			Name:     deployment.Name,
+			Replicas: originalReplicas,
+		})
+	}
+	return json.Marshal(originalDeploymentsReplicas)
 }

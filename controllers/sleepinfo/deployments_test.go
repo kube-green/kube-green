@@ -16,7 +16,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
-func TestSchedule(t *testing.T) {
+func TestDeploymentList(t *testing.T) {
 	testLogger := zap.New(zap.UseDevMode(true))
 
 	namespace := "my-namespace"

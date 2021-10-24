@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -74,10 +73,6 @@ func (s SleepInfoData) isSleepOperation() bool {
 	return s.CurrentOperationType == sleepOperation
 }
 
-type Resources struct {
-	Deployments []appsv1.Deployment
-}
-
 var sleepDelta int64 = 60
 
 //+kubebuilder:rbac:groups=kube-green.com,resources=sleepinfos,verbs=get;list;watch;create;update;patch;delete
@@ -136,16 +131,26 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		log.Error(err, "fails to fetch deployments")
 		return ctrl.Result{}, err
 	}
+	cronJobList, err := r.getCronJobList(ctx, req.Namespace, sleepInfo)
+	if err != nil {
+		log.Error(err, "fails to fetch cronjobs")
+		return ctrl.Result{}, err
+	}
 
-	if err := r.handleSleepInfoStatus(ctx, now, sleepInfo, sleepInfoData, deploymentList); err != nil {
+	resources := Resources{
+		Deployments: deploymentList,
+		CronJobs:    cronJobList,
+	}
+
+	if err := r.handleSleepInfoStatus(ctx, now, sleepInfo, sleepInfoData, resources); err != nil {
 		log.Error(err, "unable to update sleepInfo status")
 		return ctrl.Result{}, err
 	}
 	log.V(1).Info("update status info")
 
 	logSecret := log.WithValues("secret", secretName)
-	if len(deploymentList) == 0 {
-		if err = r.upsertSecret(ctx, log, now, secretName, req.Namespace, secret, sleepInfoData, deploymentList); err != nil {
+	if !resources.hasResources() {
+		if err = r.upsertSecret(ctx, log, now, secretName, req.Namespace, secret, sleepInfoData, resources); err != nil {
 			logSecret.Error(err, "fails to update secret")
 			return ctrl.Result{
 				Requeue: true,
@@ -166,15 +171,11 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		}, nil
 	}
 
-	if err = r.upsertSecret(ctx, log, now, secretName, req.Namespace, secret, sleepInfoData, deploymentList); err != nil {
+	if err = r.upsertSecret(ctx, log, now, secretName, req.Namespace, secret, sleepInfoData, resources); err != nil {
 		logSecret.Error(err, "fails to update secret")
 		return ctrl.Result{
 			Requeue: true,
 		}, nil
-	}
-
-	resources := Resources{
-		Deployments: deploymentList,
 	}
 
 	switch {
@@ -294,12 +295,12 @@ func (r SleepInfoReconciler) handleSleepInfoStatus(
 	now time.Time,
 	currentSleepInfo *kubegreenv1alpha1.SleepInfo,
 	sleepInfoData SleepInfoData,
-	deploymentList []appsv1.Deployment,
+	resources Resources,
 ) error {
 	sleepInfo := currentSleepInfo.DeepCopy()
 	sleepInfo.Status.LastScheduleTime = metav1.NewTime(now)
 	sleepInfo.Status.OperationType = sleepInfoData.CurrentOperationType
-	if len(deploymentList) == 0 {
+	if !resources.hasResources() {
 		sleepInfo.Status.OperationType = ""
 	}
 	return r.Status().Update(ctx, sleepInfo)
