@@ -40,6 +40,16 @@ func (p *PossiblyErroringFakeCtrlRuntimeClient) Update(ctx context.Context, obj 
 	return p.Client.Update(ctx, obj, opts...)
 }
 
+func (p *PossiblyErroringFakeCtrlRuntimeClient) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
+	if p.ShouldError {
+		return errors.New("error during patch")
+	}
+	if secret, ok := obj.(*v1.Secret); ok {
+		convertSecretStringData(secret)
+	}
+	return p.Client.Patch(ctx, obj, patch, opts...)
+}
+
 func convertSecretStringData(secret *v1.Secret) {
 	// From v1.Secret types:
 	// StringData is provided as a write-only input field for convenience.
