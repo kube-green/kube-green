@@ -1,4 +1,4 @@
-package controllers
+package sleepinfo
 
 import (
 	"context"
@@ -8,9 +8,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func (r *SleepInfoReconciler) handleSleep(logger logr.Logger, ctx context.Context, deploymentList []appsv1.Deployment) error {
-	logger.Info("handle sleep operation", "number of deployments", len(deploymentList))
-	err := r.updateDeploymentsWithZeroReplicas(ctx, deploymentList)
+func (r *SleepInfoReconciler) handleSleep(logger logr.Logger, ctx context.Context, resources Resources) error {
+	logger.Info("handle sleep operation", "number of deployments", len(resources.Deployments))
+	err := r.updateDeploymentsWithZeroReplicas(ctx, resources.Deployments)
 	if err != nil {
 		logger.Error(err, "fails to update deployments")
 		return err

@@ -1,4 +1,4 @@
-package controllers
+package sleepinfo
 
 import (
 	"fmt"

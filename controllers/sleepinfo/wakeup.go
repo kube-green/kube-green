@@ -1,4 +1,4 @@
-package controllers
+package sleepinfo
 
 import (
 	"context"
@@ -9,9 +9,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func (r *SleepInfoReconciler) handleWakeUp(logger logr.Logger, ctx context.Context, deploymentList []appsv1.Deployment, sleepInfoData SleepInfoData) error {
-	logger.Info("handle wake up operation", "number of deployments", len(deploymentList))
-	err := r.wakeUpDeploymentReplicas(logger, ctx, deploymentList, sleepInfoData)
+func (r *SleepInfoReconciler) handleWakeUp(logger logr.Logger, ctx context.Context, resources Resources, sleepInfoData SleepInfoData) error {
+	logger.Info("handle wake up operation", "number of deployments", len(resources.Deployments))
+	err := r.wakeUpDeploymentReplicas(logger, ctx, resources.Deployments, sleepInfoData)
 	if err != nil {
 		return err
 	}
