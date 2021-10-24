@@ -1,7 +1,6 @@
-[![Go Report Card][go-report-svg]](go-report-card)
-[![Test and build][test-and-build-svg]](test-and-build)
-[![Coverage Status][coverage-badge]](coverage)
-
+[![Go Report Card][go-report-svg]][go-report-card]
+[![Test and build][test-and-build-svg]][test-and-build]
+[![Coverage Status][coverage-badge]][coverage]
 
 <div align="center">
   <img src="https://github.com/davidebianchi/kube-green/raw/main/logo/logo.png" width="250" >

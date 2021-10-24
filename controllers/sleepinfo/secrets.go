@@ -51,9 +51,6 @@ func (r SleepInfoReconciler) upsertSecret(
 		},
 		Data: make(map[string][]byte),
 	}
-	if secret != nil {
-		newSecret = secret.DeepCopy()
-	}
 	if newSecret.StringData == nil {
 		newSecret.StringData = map[string]string{}
 	}
@@ -84,9 +81,6 @@ func (r SleepInfoReconciler) upsertSecret(
 			return err
 		}
 		newSecret.Data[replicasBeforeSleepKey] = originalReplicasToSave
-	}
-	if sleepInfoData.isWakeUpOperation() {
-		delete(newSecret.Data, replicasBeforeSleepKey)
 	}
 
 	if secret == nil {

@@ -131,13 +131,11 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 	scheduleLog.WithValues("last schedule", now, "status", sleepInfo.Status).Info("last schedule value")
 
-	deploymentList, err := r.getDeploymentsByNamespace(ctx, req.Namespace)
+	deploymentList, err := r.getDeploymentsList(ctx, req.Namespace, sleepInfo)
 	if err != nil {
 		log.Error(err, "fails to fetch deployments")
 		return ctrl.Result{}, err
 	}
-	log.V(1).Info("deployments in namespace", "number of deployment", len(deploymentList))
-	deploymentList = filterExcludedDeployment(deploymentList, sleepInfo)
 
 	if err := r.handleSleepInfoStatus(ctx, now, sleepInfo, sleepInfoData, deploymentList); err != nil {
 		log.Error(err, "unable to update sleepInfo status")

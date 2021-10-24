@@ -10,7 +10,6 @@ import (
 )
 
 func (r *SleepInfoReconciler) handleWakeUp(logger logr.Logger, ctx context.Context, resources Resources, sleepInfoData SleepInfoData) error {
-
 	logger.Info("handle wake up operation", "number of deployments", len(resources.Deployments))
 	err := r.wakeUpDeploymentReplicas(logger, ctx, resources.Deployments, sleepInfoData)
 	if err != nil {
