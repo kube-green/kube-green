@@ -2,6 +2,7 @@ package sleepinfo
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -14,7 +15,66 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
-func TestSecrets(t *testing.T) {
+func TestGetSecret(t *testing.T) {
+	testLogger := zap.New(zap.UseDevMode(true))
+	secretName := "secret-name"
+	namespace := "my-namespace"
+
+	t.Run("get secret correctly", func(t *testing.T) {
+		client := &testutil.PossiblyErroringFakeCtrlRuntimeClient{
+			Client: fake.
+				NewClientBuilder().
+				WithRuntimeObjects(getSecret(mockSecretSpec{
+					namespace:       namespace,
+					name:            secretName,
+					resourceVersion: "11",
+					data: map[string][]byte{
+						"foo": []byte("bar"),
+					},
+				})).
+				Build(),
+		}
+		r := SleepInfoReconciler{
+			Client: client,
+			Log:    testLogger,
+		}
+
+		secret, err := r.getSecret(context.Background(), secretName, namespace)
+		require.NoError(t, err)
+		require.Equal(t, &v1.Secret{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "Secret",
+				APIVersion: "v1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:            secretName,
+				Namespace:       namespace,
+				ResourceVersion: "11",
+			},
+			Data: map[string][]byte{
+				"foo": []byte("bar"),
+			},
+		}, secret)
+	})
+
+	t.Run("secret not found", func(t *testing.T) {
+		client := &testutil.PossiblyErroringFakeCtrlRuntimeClient{
+			Client: fake.
+				NewClientBuilder().
+				Build(),
+		}
+		r := SleepInfoReconciler{
+			Client: client,
+			Log:    testLogger,
+		}
+
+		secret, err := r.getSecret(context.Background(), secretName, namespace)
+		require.EqualError(t, err, fmt.Sprintf("secrets \"%s\" not found", secretName))
+		require.Nil(t, secret)
+	})
+}
+
+func TestUpsertSecrets(t *testing.T) {
 	testLogger := zap.New(zap.UseDevMode(true))
 
 	now := time.Now()
@@ -73,9 +133,9 @@ func TestSecrets(t *testing.T) {
 				ResourceVersion: "1",
 			},
 			Data: map[string][]byte{
-				"operation-type":      []byte(sleepOperation),
-				"scheduled-at":        []byte(now.Format(time.RFC3339)),
-				"deployment-replicas": []byte(`[{"name":"deployment1","replicas":1},{"name":"deployment2","replicas":4}]`),
+				lastOperationKey:       []byte(sleepOperation),
+				lastScheduleKey:        []byte(now.Format(time.RFC3339)),
+				replicasBeforeSleepKey: []byte(`[{"name":"deployment1","replicas":1},{"name":"deployment2","replicas":4}]`),
 			},
 		}, secret)
 
@@ -101,8 +161,8 @@ func TestSecrets(t *testing.T) {
 					ResourceVersion: "2",
 				},
 				Data: map[string][]byte{
-					"operation-type": []byte(wakeUpOperation),
-					"scheduled-at":   []byte(now.Format(time.RFC3339)),
+					lastOperationKey: []byte(wakeUpOperation),
+					lastScheduleKey:  []byte(now.Format(time.RFC3339)),
 				},
 			}, secret)
 		})
@@ -139,9 +199,9 @@ func TestSecrets(t *testing.T) {
 				ResourceVersion: "1",
 			},
 			Data: map[string][]byte{
-				"operation-type":      []byte(sleepOperation),
-				"scheduled-at":        []byte(now.Format(time.RFC3339)),
-				"deployment-replicas": []byte(`[{"name":"deployment1","replicas":1},{"name":"deployment2","replicas":4}]`),
+				lastOperationKey:       []byte(sleepOperation),
+				lastScheduleKey:        []byte(now.Format(time.RFC3339)),
+				replicasBeforeSleepKey: []byte(`[{"name":"deployment1","replicas":1},{"name":"deployment2","replicas":4}]`),
 			},
 		}, secret)
 
@@ -214,7 +274,7 @@ func TestSecrets(t *testing.T) {
 				ResourceVersion: "1",
 			},
 			Data: map[string][]byte{
-				"scheduled-at": []byte(now.Format(time.RFC3339)),
+				lastScheduleKey: []byte(now.Format(time.RFC3339)),
 			},
 		}, secret)
 	})
