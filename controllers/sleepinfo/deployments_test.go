@@ -2,9 +2,10 @@ package sleepinfo
 
 import (
 	"context"
-	"errors"
+	"testing"
 
 	"github.com/davidebianchi/kube-green/api/v1alpha1"
+	"github.com/davidebianchi/kube-green/controllers/internal/testutil"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
@@ -16,8 +17,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
-var _ = Describe("Test Schedule", func() {
-	testLogger := zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true))
+func TestSchedule(t *testing.T) {
+	testLogger := zap.New(zap.UseDevMode(true))
 
 	namespace := "my-namespace"
 	deployment1 := getDeploymentMock(mockDeploymentSpec{
@@ -51,9 +52,9 @@ var _ = Describe("Test Schedule", func() {
 		},
 		{
 			name: "fails to list deployments",
-			client: &possiblyErroringFakeCtrlRuntimeClient{
+			client: &testutil.PossiblyErroringFakeCtrlRuntimeClient{
 				Client:      fake.NewClientBuilder().Build(),
-				shouldError: true,
+				ShouldError: true,
 			},
 			throws: true,
 		},
@@ -96,8 +97,7 @@ var _ = Describe("Test Schedule", func() {
 		},
 	}
 
-	for _, dt := range listDeploymentsTests {
-		test := dt //necessary to ensure the correct value is passed to the closure
+	for _, test := range listDeploymentsTests {
 		It(test.name, func() {
 			r := SleepInfoReconciler{
 				Client: test.client,
@@ -117,11 +117,12 @@ var _ = Describe("Test Schedule", func() {
 			Expect(listOfDeployments).To(Equal(test.expected))
 		})
 	}
-})
+}
 
 type mockDeploymentSpec struct {
 	namespace string
 	name      string
+	replicas  *int32
 }
 
 func getDeploymentMock(opts mockDeploymentSpec) appsv1.Deployment {
@@ -140,18 +141,7 @@ func getDeploymentMock(opts mockDeploymentSpec) appsv1.Deployment {
 					},
 				},
 			},
+			Replicas: opts.replicas,
 		},
 	}
-}
-
-type possiblyErroringFakeCtrlRuntimeClient struct {
-	client.Client
-	shouldError bool
-}
-
-func (p *possiblyErroringFakeCtrlRuntimeClient) List(ctx context.Context, dpl client.ObjectList, opts ...client.ListOption) error {
-	if p.shouldError {
-		return errors.New("error during list")
-	}
-	return p.Client.List(ctx, dpl, opts...)
 }
