@@ -6,8 +6,7 @@ import (
 
 	"github.com/davidebianchi/kube-green/api/v1alpha1"
 	"github.com/davidebianchi/kube-green/controllers/internal/testutil"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
+	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -98,7 +97,7 @@ func TestSchedule(t *testing.T) {
 	}
 
 	for _, test := range listDeploymentsTests {
-		It(test.name, func() {
+		t.Run(test.name, func(t *testing.T) {
 			r := SleepInfoReconciler{
 				Client: test.client,
 				Log:    testLogger,
@@ -110,26 +109,28 @@ func TestSchedule(t *testing.T) {
 
 			listOfDeployments, err := r.getDeploymentsList(context.Background(), namespace, sleepInfo)
 			if test.throws {
-				Expect(err).To(MatchError("error during list"))
+				require.EqualError(t, err, "error during list")
 			} else {
-				Expect(err).To(BeNil())
+				require.NoError(t, err)
 			}
-			Expect(listOfDeployments).To(Equal(test.expected))
+			require.Equal(t, test.expected, listOfDeployments)
 		})
 	}
 }
 
 type mockDeploymentSpec struct {
-	namespace string
-	name      string
-	replicas  *int32
+	namespace       string
+	name            string
+	replicas        *int32
+	resourceVersion string
 }
 
 func getDeploymentMock(opts mockDeploymentSpec) appsv1.Deployment {
 	return appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      opts.name,
-			Namespace: opts.namespace,
+			Name:            opts.name,
+			Namespace:       opts.namespace,
+			ResourceVersion: opts.resourceVersion,
 		},
 		Spec: appsv1.DeploymentSpec{
 			Template: v1.PodTemplateSpec{
