@@ -149,14 +149,13 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	log.V(1).Info("update status info")
 
 	logSecret := log.WithValues("secret", secretName)
+	if err = r.upsertSecret(ctx, log, now, secretName, req.Namespace, secret, sleepInfoData, resources); err != nil {
+		logSecret.Error(err, "fails to update secret")
+		return ctrl.Result{
+			Requeue: true,
+		}, nil
+	}
 	if !resources.hasResources() {
-		if err = r.upsertSecret(ctx, log, now, secretName, req.Namespace, secret, sleepInfoData, resources); err != nil {
-			logSecret.Error(err, "fails to update secret")
-			return ctrl.Result{
-				Requeue: true,
-			}, nil
-		}
-
 		if sleepInfoData.isSleepOperation() {
 			requeueAfter, err = skipWakeUpIfSleepNotPerformed(sleepInfoData.CurrentOperationSchedule, nextSchedule, now)
 			if err != nil {
@@ -168,13 +167,6 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		log.WithValues("requeueAfter", requeueAfter).Info("deployment not present in namespace")
 		return ctrl.Result{
 			RequeueAfter: requeueAfter,
-		}, nil
-	}
-
-	if err = r.upsertSecret(ctx, log, now, secretName, req.Namespace, secret, sleepInfoData, resources); err != nil {
-		logSecret.Error(err, "fails to update secret")
-		return ctrl.Result{
-			Requeue: true,
 		}, nil
 	}
 
