@@ -6,12 +6,10 @@ package sleepinfo
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/go-logr/logr"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -23,10 +21,11 @@ import (
 )
 
 const (
-	lastScheduleKey               = "scheduled-at"
-	lastOperationKey              = "operation-type"
-	replicasBeforeSleepKey        = "deployment-replicas"
-	replicasBeforeSleepAnnotation = "sleepinfo.kube-green.com/replicas-before-sleep"
+	lastScheduleKey                = "scheduled-at"
+	lastOperationKey               = "operation-type"
+	replicasBeforeSleepKey         = "deployment-replicas"
+	suspendedCronJobBeforeSleepKey = "original-cronjobs"
+	replicasBeforeSleepAnnotation  = "sleepinfo.kube-green.com/replicas-before-sleep"
 
 	sleepOperation  = "SLEEP"
 	wakeUpOperation = "WAKE_UP"
@@ -56,6 +55,10 @@ type OriginalDeploymentReplicas struct {
 	Name     string `json:"name"`
 	Replicas int32  `json:"replicas"`
 }
+type OriginalSuspendedCronJob struct {
+	Name    string `json:"name"`
+	Suspend bool   `json:"suspend"`
+}
 type SleepInfoData struct {
 	LastSchedule                time.Time        `json:"lastSchedule"`
 	CurrentOperationType        string           `json:"operationType"`
@@ -80,6 +83,7 @@ var sleepDelta int64 = 60
 //+kubebuilder:rbac:groups=kube-green.com,resources=sleepinfos/finalizers,verbs=update
 //+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=batch,resources=cronjob,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -104,7 +108,7 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		log.Error(err, "unable to fetch namespace", "namespaceName", req.Namespace)
 		return ctrl.Result{}, err
 	}
-	sleepInfoData, err := getSleepInfoData(secret, sleepInfo)
+	sleepInfoData, err := getSleepInfoData(sleepInfoSecret{Secret: secret}, sleepInfo)
 	if err != nil {
 		log.Error(err, "unable to get secret data")
 		return ctrl.Result{}, err
@@ -228,7 +232,7 @@ func skipWakeUpIfSleepNotPerformed(currentOperationCronSchedule string, nextSche
 	return requeueAfter, nil
 }
 
-func getSleepInfoData(secret *v1.Secret, sleepInfo *kubegreenv1alpha1.SleepInfo) (SleepInfoData, error) {
+func getSleepInfoData(secret sleepInfoSecret, sleepInfo *kubegreenv1alpha1.SleepInfo) (SleepInfoData, error) {
 	sleepSchedule, err := sleepInfo.GetSleepSchedule()
 	if err != nil {
 		return SleepInfoData{}, err
@@ -242,35 +246,29 @@ func getSleepInfoData(secret *v1.Secret, sleepInfo *kubegreenv1alpha1.SleepInfo)
 		CurrentOperationType:     sleepOperation,
 		CurrentOperationSchedule: sleepSchedule,
 		NextOperationSchedule:    wakeUpSchedule,
+		SuspendCronjobs:          sleepInfo.IsCronjobsToSuspend(),
 	}
 	if wakeUpSchedule == "" {
 		sleepInfoData.NextOperationSchedule = sleepSchedule
 	}
 
-	if secret == nil || secret.Data == nil {
+	if secret.Secret == nil || secret.Data == nil {
 		return sleepInfoData, nil
 	}
 
-	data := secret.Data
-	originalDeploymentsReplicas := []OriginalDeploymentReplicas{}
-	if data[replicasBeforeSleepKey] != nil {
-		if err := json.Unmarshal(data[replicasBeforeSleepKey], &originalDeploymentsReplicas); err != nil {
-			return SleepInfoData{}, err
-		}
-		originalDeploymentsReplicasData := map[string]int32{}
-		for _, replicaInfo := range originalDeploymentsReplicas {
-			originalDeploymentsReplicasData[replicaInfo.Name] = replicaInfo.Replicas
-		}
-		sleepInfoData.OriginalDeploymentsReplicas = originalDeploymentsReplicasData
+	originalDeploymentReplicas, err := secret.getOriginalDeploymentReplicas()
+	if err != nil {
+		return SleepInfoData{}, err
 	}
+	sleepInfoData.OriginalDeploymentsReplicas = originalDeploymentReplicas
 
-	lastSchedule, err := time.Parse(time.RFC3339, string(data[lastScheduleKey]))
+	lastSchedule, err := time.Parse(time.RFC3339, secret.getLastSchedule())
 	if err != nil {
 		return SleepInfoData{}, fmt.Errorf("fails to parse %s: %s", lastScheduleKey, err)
 	}
 	sleepInfoData.LastSchedule = lastSchedule
 
-	lastOperation := string(data[lastOperationKey])
+	lastOperation := secret.getLastOperation()
 
 	if lastOperation == sleepOperation && wakeUpSchedule != "" {
 		sleepInfoData.CurrentOperationSchedule = wakeUpSchedule

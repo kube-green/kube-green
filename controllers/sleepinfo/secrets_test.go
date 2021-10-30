@@ -9,6 +9,7 @@ import (
 	"github.com/davidebianchi/kube-green/controllers/internal/testutil"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -83,6 +84,7 @@ func TestUpsertSecrets(t *testing.T) {
 	var replicas1 int32 = 1
 	var replicas4 int32 = 4
 	var replicas0 int32 = 0
+	var boolFalse bool = false
 
 	deployList := []appsv1.Deployment{
 		getDeploymentMock(mockDeploymentSpec{
@@ -101,78 +103,23 @@ func TestUpsertSecrets(t *testing.T) {
 			replicas:  &replicas0,
 		}),
 	}
+	cronjobList := []batchv1.CronJob{
+		getCronJobMock(mockCronJobSpec{
+			name:            "cj1",
+			namespace:       namespace,
+			resourceVersion: "12",
+			schedule:        "* * * * *",
+		}),
+		getCronJobMock(mockCronJobSpec{
+			name:            "cj-suspended",
+			namespace:       namespace,
+			resourceVersion: "1",
+			schedule:        "* * * * *",
+			suspend:         &boolFalse,
+		}),
+	}
 
-	t.Run("insert and update secret - sleep and wake up", func(t *testing.T) {
-		resources := Resources{
-			Deployments: deployList,
-		}
-
-		client := &testutil.PossiblyErroringFakeCtrlRuntimeClient{
-			Client: fake.
-				NewClientBuilder().
-				Build(),
-		}
-
-		r := SleepInfoReconciler{
-			Client: client,
-			Log:    testLogger,
-		}
-		sleepInfoData := SleepInfoData{
-			CurrentOperationType: sleepOperation,
-		}
-
-		err := r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, nil, sleepInfoData, resources)
-		require.NoError(t, err)
-
-		secret, err := r.getSecret(context.Background(), secretName, namespace)
-		require.NoError(t, err)
-		require.Equal(t, &v1.Secret{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "Secret",
-				APIVersion: "v1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:            secretName,
-				Namespace:       namespace,
-				ResourceVersion: "1",
-			},
-			Data: map[string][]byte{
-				lastOperationKey:       []byte(sleepOperation),
-				lastScheduleKey:        []byte(now.Format(time.RFC3339)),
-				replicasBeforeSleepKey: []byte(`[{"name":"deployment1","replicas":1},{"name":"deployment2","replicas":4}]`),
-			},
-		}, secret)
-
-		t.Run("update existent secret - wake up", func(t *testing.T) {
-			now := now.Add(10 * time.Minute)
-			sleepInfoData := SleepInfoData{
-				CurrentOperationType: wakeUpOperation,
-				LastSchedule:         now,
-			}
-			err := r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, secret, sleepInfoData, resources)
-			require.NoError(t, err)
-
-			secret, err := r.getSecret(context.Background(), secretName, namespace)
-			require.NoError(t, err)
-			require.Equal(t, &v1.Secret{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "Secret",
-					APIVersion: "v1",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:            secretName,
-					Namespace:       namespace,
-					ResourceVersion: "2",
-				},
-				Data: map[string][]byte{
-					lastOperationKey: []byte(wakeUpOperation),
-					lastScheduleKey:  []byte(now.Format(time.RFC3339)),
-				},
-			}, secret)
-		})
-	})
-
-	t.Run("insert and update secret - only wake up", func(t *testing.T) {
+	t.Run("only sleep twice - deployment released from first to second run", func(t *testing.T) {
 		client := &testutil.PossiblyErroringFakeCtrlRuntimeClient{
 			Client: fake.
 				NewClientBuilder().
@@ -212,7 +159,7 @@ func TestUpsertSecrets(t *testing.T) {
 			},
 		}, secret)
 
-		t.Run("update existent secret - new deploy to sleep", func(t *testing.T) {
+		t.Run("update existent secret - new sleep", func(t *testing.T) {
 			now := now.Add(10 * time.Minute)
 			sleepInfoData := SleepInfoData{
 				CurrentOperationType: sleepOperation,
@@ -255,7 +202,7 @@ func TestUpsertSecrets(t *testing.T) {
 		})
 	})
 
-	t.Run("insert new secret - operation sleep 0 deployments", func(t *testing.T) {
+	t.Run("insert new secret - operation sleep 0 deployments and cronjobs", func(t *testing.T) {
 		client := &testutil.PossiblyErroringFakeCtrlRuntimeClient{
 			Client: fake.
 				NewClientBuilder().
@@ -267,6 +214,7 @@ func TestUpsertSecrets(t *testing.T) {
 		}
 		sleepInfoData := SleepInfoData{
 			CurrentOperationType: sleepOperation,
+			SuspendCronjobs:      true,
 		}
 
 		err := r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, nil, sleepInfoData, Resources{})
@@ -290,7 +238,7 @@ func TestUpsertSecrets(t *testing.T) {
 		}, secret)
 	})
 
-	t.Run("update secret - operation sleep and 0 deployments", func(t *testing.T) {
+	t.Run("update secret - operation sleep and 0 deployments and cronjobs", func(t *testing.T) {
 		existentSecret := getSecret(mockSecretSpec{
 			namespace:       namespace,
 			name:            secretName,
@@ -313,6 +261,7 @@ func TestUpsertSecrets(t *testing.T) {
 		}
 		sleepInfoData := SleepInfoData{
 			CurrentOperationType: sleepOperation,
+			SuspendCronjobs:      true,
 		}
 
 		err := r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, existentSecret, sleepInfoData, Resources{})
@@ -388,6 +337,240 @@ func TestUpsertSecrets(t *testing.T) {
 
 		err := r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, existentSecret, sleepInfoData, resources)
 		require.EqualError(t, err, "error during update")
+	})
+
+	sleepAndWakeupTests := []struct {
+		name                        string
+		resources                   Resources
+		suspendCronjobs             bool
+		expectedDeploymentsReplicas string
+		expectedOriginalCronjobs    string
+	}{
+		{
+			name: "save deployment info to secret - suspend cronjob disabled",
+			resources: Resources{
+				Deployments: deployList,
+				CronJobs:    cronjobList,
+			},
+			expectedDeploymentsReplicas: `[{"name":"deployment1","replicas":1},{"name":"deployment2","replicas":4}]`,
+		},
+		{
+			name: "save cronjobs and deployments info to secret",
+			resources: Resources{
+				Deployments: deployList,
+				CronJobs:    cronjobList,
+			},
+			suspendCronjobs:             true,
+			expectedDeploymentsReplicas: `[{"name":"deployment1","replicas":1},{"name":"deployment2","replicas":4}]`,
+			expectedOriginalCronjobs:    `[{"name":"cj1","suspend":false}]`,
+		},
+		{
+			name: "save only cronjobs info to secret",
+			resources: Resources{
+				CronJobs: cronjobList,
+			},
+			suspendCronjobs:             true,
+			expectedDeploymentsReplicas: `[]`,
+			expectedOriginalCronjobs:    `[{"name":"cj1","suspend":false}]`,
+		},
+		{
+			name: "save deployments info to secret - suspend cronjob enabled",
+			resources: Resources{
+				Deployments: deployList,
+			},
+			suspendCronjobs:             true,
+			expectedDeploymentsReplicas: `[{"name":"deployment1","replicas":1},{"name":"deployment2","replicas":4}]`,
+			expectedOriginalCronjobs:    `[]`,
+		},
+	}
+	for _, test := range sleepAndWakeupTests {
+		t.Run(fmt.Sprintf("insert and update secret sleep + wakeup - %s", test.name), func(t *testing.T) {
+			client := &testutil.PossiblyErroringFakeCtrlRuntimeClient{
+				Client: fake.
+					NewClientBuilder().
+					Build(),
+			}
+			r := SleepInfoReconciler{
+				Client: client,
+				Log:    testLogger,
+			}
+			sleepInfoData := SleepInfoData{
+				CurrentOperationType: sleepOperation,
+				SuspendCronjobs:      test.suspendCronjobs,
+			}
+
+			err := r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, nil, sleepInfoData, test.resources)
+			require.NoError(t, err)
+
+			secret, err := r.getSecret(context.Background(), secretName, namespace)
+			require.NoError(t, err)
+
+			expectedData := map[string][]byte{
+				lastOperationKey:       []byte(sleepOperation),
+				lastScheduleKey:        []byte(now.Format(time.RFC3339)),
+				replicasBeforeSleepKey: []byte(test.expectedDeploymentsReplicas),
+			}
+			if test.expectedOriginalCronjobs != "" {
+				expectedData[suspendedCronJobBeforeSleepKey] = []byte(test.expectedOriginalCronjobs)
+			}
+			require.Equal(t, &v1.Secret{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Secret",
+					APIVersion: "v1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:            secretName,
+					Namespace:       namespace,
+					ResourceVersion: "1",
+				},
+				Data: expectedData,
+			}, secret)
+
+			t.Run("update existent secret - wake up", func(t *testing.T) {
+				now := now.Add(10 * time.Minute)
+				sleepInfoData := SleepInfoData{
+					CurrentOperationType: wakeUpOperation,
+					LastSchedule:         now,
+				}
+				err := r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, secret, sleepInfoData, test.resources)
+				require.NoError(t, err)
+
+				secret, err := r.getSecret(context.Background(), secretName, namespace)
+				require.NoError(t, err)
+				require.Equal(t, &v1.Secret{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Secret",
+						APIVersion: "v1",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:            secretName,
+						Namespace:       namespace,
+						ResourceVersion: "2",
+					},
+					Data: map[string][]byte{
+						lastOperationKey: []byte(wakeUpOperation),
+						lastScheduleKey:  []byte(now.Format(time.RFC3339)),
+					},
+				}, secret)
+			})
+		})
+	}
+}
+
+func TestSleepInfoSecret(t *testing.T) {
+	secretName := "secret-name"
+	namespace := "my-namespace"
+	savedSecretReplicas := []byte(`[{"name":"deployment1","replicas":1},{"name":"deployment2","replicas":4},{"name":"replicas-not-saved"},{}]`)
+	savedSecretCronJobs := []byte(`[{"name":"cj1","suspend":false},{}]`)
+	schedule := time.Now().Format(time.RFC3339)
+	operation := sleepOperation
+	s := sleepInfoSecret{
+		Secret: getSecret(mockSecretSpec{
+			namespace: namespace,
+			name:      secretName,
+			data: map[string][]byte{
+				replicasBeforeSleepKey:         savedSecretReplicas,
+				suspendedCronJobBeforeSleepKey: savedSecretCronJobs,
+				lastScheduleKey:                []byte(schedule),
+				lastOperationKey:               []byte(sleepOperation),
+			},
+		}),
+	}
+
+	t.Run("getOriginalDeploymentReplicas", func(t *testing.T) {
+		originalDeploymentsReplicas, err := s.getOriginalDeploymentReplicas()
+		require.NoError(t, err)
+		require.Equal(t, map[string]int32{
+			"deployment1":        1,
+			"deployment2":        4,
+			"replicas-not-saved": 0,
+		}, originalDeploymentsReplicas)
+	})
+
+	t.Run("getOriginalCronJobSuspendedState", func(t *testing.T) {
+		cronJobSuspendedState, err := s.getOriginalCronJobSuspendedState()
+		require.NoError(t, err)
+		require.Equal(t, map[string]bool{
+			"cj1": false,
+		}, cronJobSuspendedState)
+	})
+
+	t.Run("getLastSchedule", func(t *testing.T) {
+		lastSchedule := s.getLastSchedule()
+
+		require.Equal(t, schedule, lastSchedule)
+	})
+
+	t.Run("getLastOperation", func(t *testing.T) {
+		lastOperation := s.getLastOperation()
+
+		require.Equal(t, operation, lastOperation)
+	})
+
+	t.Run("fails to get original deployment replicas - invalid json", func(t *testing.T) {
+		s := sleepInfoSecret{
+			Secret: getSecret(mockSecretSpec{
+				namespace: namespace,
+				name:      secretName,
+				data: map[string][]byte{
+					replicasBeforeSleepKey: []byte(`[`),
+				},
+			}),
+		}
+
+		originalDeploymentsReplicas, err := s.getOriginalDeploymentReplicas()
+		require.EqualError(t, err, "unexpected end of JSON input")
+		require.Nil(t, originalDeploymentsReplicas)
+	})
+
+	t.Run("fails to get original cronjob suspended state - invalid json", func(t *testing.T) {
+		s := sleepInfoSecret{
+			Secret: getSecret(mockSecretSpec{
+				namespace: namespace,
+				name:      secretName,
+				data: map[string][]byte{
+					suspendedCronJobBeforeSleepKey: []byte(`[`),
+				},
+			}),
+		}
+
+		originalDeploymentsReplicas, err := s.getOriginalCronJobSuspendedState()
+		require.EqualError(t, err, "unexpected end of JSON input")
+		require.Nil(t, originalDeploymentsReplicas)
+	})
+
+	t.Run("empty secret", func(t *testing.T) {
+		s := sleepInfoSecret{
+			Secret: nil,
+		}
+
+		require.Empty(t, s.getLastOperation())
+		require.Empty(t, s.getLastSchedule())
+		originalCronjob, err := s.getOriginalCronJobSuspendedState()
+		require.NoError(t, err)
+		require.Empty(t, originalCronjob)
+		originalDeployment, err := s.getOriginalDeploymentReplicas()
+		require.NoError(t, err)
+		require.Empty(t, originalDeployment)
+	})
+
+	t.Run("empty keys in secret", func(t *testing.T) {
+		s := sleepInfoSecret{
+			Secret: getSecret(mockSecretSpec{
+				name:      secretName,
+				namespace: namespace,
+				data:      nil,
+			}),
+		}
+
+		require.Empty(t, s.getLastOperation())
+		require.Empty(t, s.getLastSchedule())
+		originalCronjob, err := s.getOriginalCronJobSuspendedState()
+		require.NoError(t, err)
+		require.Empty(t, originalCronjob)
+		originalDeployment, err := s.getOriginalDeploymentReplicas()
+		require.NoError(t, err)
+		require.Empty(t, originalDeployment)
 	})
 }
 

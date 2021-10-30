@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -53,9 +54,8 @@ func (r SleepInfoReconciler) upsertSecret(
 		StringData: map[string]string{},
 	}
 	newSecret.StringData[lastScheduleKey] = now.Format(time.RFC3339)
-	newSecret.StringData[lastOperationKey] = sleepInfoData.CurrentOperationType
-	if !resources.hasResources() {
-		delete(newSecret.StringData, lastOperationKey)
+	if resources.hasResources() {
+		newSecret.StringData[lastOperationKey] = sleepInfoData.CurrentOperationType
 	}
 
 	if resources.hasResources() && sleepInfoData.isSleepOperation() {
@@ -64,6 +64,14 @@ func (r SleepInfoReconciler) upsertSecret(
 			return err
 		}
 		newSecret.Data[replicasBeforeSleepKey] = originalReplicasToSave
+
+		if sleepInfoData.SuspendCronjobs {
+			suspendedCroJobToSave, err := getOriginalCronJobSuspendStatusToSave(resources.CronJobs, sleepInfoData)
+			if err != nil {
+				return err
+			}
+			newSecret.Data[suspendedCronJobBeforeSleepKey] = suspendedCroJobToSave
+		}
 	}
 
 	if secret == nil {
@@ -97,4 +105,75 @@ func getOriginalReplicasToSave(deployList []appsv1.Deployment, sleepInfoData Sle
 		})
 	}
 	return json.Marshal(originalDeploymentsReplicas)
+}
+
+func getOriginalCronJobSuspendStatusToSave(cronJobsList []batchv1.CronJob, sleepInfoData SleepInfoData) ([]byte, error) {
+	suspendendCronJobs := []OriginalSuspendedCronJob{}
+	for _, cronJob := range cronJobsList {
+		if cronJob.Spec.Suspend != nil && !*cronJob.Spec.Suspend {
+			continue
+		}
+		suspendendCronJobs = append(suspendendCronJobs, OriginalSuspendedCronJob{
+			Name: cronJob.Name,
+		})
+	}
+	return json.Marshal(suspendendCronJobs)
+}
+
+type sleepInfoSecret struct {
+	*v1.Secret
+}
+
+func (s sleepInfoSecret) getOriginalDeploymentReplicas() (map[string]int32, error) {
+	if s.Secret == nil {
+		return map[string]int32{}, nil
+	}
+	data := s.Data
+	originalDeploymentsReplicas := []OriginalDeploymentReplicas{}
+	originalDeploymentsReplicasData := map[string]int32{}
+	if data[replicasBeforeSleepKey] != nil {
+		if err := json.Unmarshal(data[replicasBeforeSleepKey], &originalDeploymentsReplicas); err != nil {
+			return nil, err
+		}
+		for _, replicaInfo := range originalDeploymentsReplicas {
+			if replicaInfo.Name != "" {
+				originalDeploymentsReplicasData[replicaInfo.Name] = replicaInfo.Replicas
+			}
+		}
+	}
+	return originalDeploymentsReplicasData, nil
+}
+
+func (s sleepInfoSecret) getOriginalCronJobSuspendedState() (map[string]bool, error) {
+	if s.Secret == nil {
+		return map[string]bool{}, nil
+	}
+	data := s.Data
+	originalSuspendedCronJob := []OriginalSuspendedCronJob{}
+	if data[suspendedCronJobBeforeSleepKey] != nil {
+		if err := json.Unmarshal(data[suspendedCronJobBeforeSleepKey], &originalSuspendedCronJob); err != nil {
+			return nil, err
+		}
+	}
+	originalSuspendedCronjobData := map[string]bool{}
+	for _, cronJob := range originalSuspendedCronJob {
+		if cronJob.Name != "" {
+			originalSuspendedCronjobData[cronJob.Name] = cronJob.Suspend
+		}
+	}
+	return originalSuspendedCronjobData, nil
+}
+
+func (s sleepInfoSecret) getLastSchedule() string {
+	if s.Secret == nil {
+		return ""
+	}
+	return string(s.Data[lastScheduleKey])
+}
+
+func (s sleepInfoSecret) getLastOperation() string {
+	if s.Secret == nil {
+		return ""
+	}
+	return string(s.Data[lastOperationKey])
 }
