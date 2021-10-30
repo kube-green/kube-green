@@ -51,31 +51,6 @@ type Clock interface {
 	Now() time.Time
 }
 
-type OriginalDeploymentReplicas struct {
-	Name     string `json:"name"`
-	Replicas int32  `json:"replicas"`
-}
-type OriginalSuspendedCronJob struct {
-	Name    string `json:"name"`
-	Suspend bool   `json:"suspend"`
-}
-type SleepInfoData struct {
-	LastSchedule                time.Time        `json:"lastSchedule"`
-	CurrentOperationType        string           `json:"operationType"`
-	OriginalDeploymentsReplicas map[string]int32 `json:"originalDeploymentReplicas"`
-	CurrentOperationSchedule    string           `json:"-"`
-	NextOperationSchedule       string           `json:"-"`
-	SuspendCronjobs             bool             `json:"-"`
-}
-
-func (s SleepInfoData) isWakeUpOperation() bool {
-	return s.CurrentOperationType == wakeUpOperation
-}
-
-func (s SleepInfoData) isSleepOperation() bool {
-	return s.CurrentOperationType == sleepOperation
-}
-
 var sleepDelta int64 = 60
 
 //+kubebuilder:rbac:groups=kube-green.com,resources=sleepinfos,verbs=get;list;watch;create;update;patch;delete
@@ -214,14 +189,6 @@ func (r *SleepInfoReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func (r *SleepInfoReconciler) getSleepInfo(ctx context.Context, req ctrl.Request) (*kubegreenv1alpha1.SleepInfo, error) {
-	sleepInfo := &kubegreenv1alpha1.SleepInfo{}
-	if err := r.Client.Get(ctx, req.NamespacedName, sleepInfo); err != nil {
-		return nil, err
-	}
-	return sleepInfo, nil
-}
-
 func skipWakeUpIfSleepNotPerformed(currentOperationCronSchedule string, nextSchedule, now time.Time) (time.Duration, error) {
 	nextOpSched, err := getCronParsed(currentOperationCronSchedule)
 	if err != nil {
@@ -230,53 +197,6 @@ func skipWakeUpIfSleepNotPerformed(currentOperationCronSchedule string, nextSche
 	requeueAfter := getRequeueAfter(nextOpSched.Next(nextSchedule), now)
 
 	return requeueAfter, nil
-}
-
-func getSleepInfoData(secret sleepInfoSecret, sleepInfo *kubegreenv1alpha1.SleepInfo) (SleepInfoData, error) {
-	sleepSchedule, err := sleepInfo.GetSleepSchedule()
-	if err != nil {
-		return SleepInfoData{}, err
-	}
-	wakeUpSchedule, err := sleepInfo.GetWakeUpSchedule()
-	if err != nil {
-		return SleepInfoData{}, err
-	}
-
-	sleepInfoData := SleepInfoData{
-		CurrentOperationType:     sleepOperation,
-		CurrentOperationSchedule: sleepSchedule,
-		NextOperationSchedule:    wakeUpSchedule,
-		SuspendCronjobs:          sleepInfo.IsCronjobsToSuspend(),
-	}
-	if wakeUpSchedule == "" {
-		sleepInfoData.NextOperationSchedule = sleepSchedule
-	}
-
-	if secret.Secret == nil || secret.Data == nil {
-		return sleepInfoData, nil
-	}
-
-	originalDeploymentReplicas, err := secret.getOriginalDeploymentReplicas()
-	if err != nil {
-		return SleepInfoData{}, err
-	}
-	sleepInfoData.OriginalDeploymentsReplicas = originalDeploymentReplicas
-
-	lastSchedule, err := time.Parse(time.RFC3339, secret.getLastSchedule())
-	if err != nil {
-		return SleepInfoData{}, fmt.Errorf("fails to parse %s: %s", lastScheduleKey, err)
-	}
-	sleepInfoData.LastSchedule = lastSchedule
-
-	lastOperation := secret.getLastOperation()
-
-	if lastOperation == sleepOperation && wakeUpSchedule != "" {
-		sleepInfoData.CurrentOperationSchedule = wakeUpSchedule
-		sleepInfoData.NextOperationSchedule = sleepSchedule
-		sleepInfoData.CurrentOperationType = wakeUpOperation
-	}
-
-	return sleepInfoData, nil
 }
 
 // handleSleepInfoStatus handles operator status

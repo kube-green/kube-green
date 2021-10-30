@@ -120,6 +120,15 @@ func getOriginalCronJobSuspendStatusToSave(cronJobsList []batchv1.CronJob, sleep
 	return json.Marshal(suspendendCronJobs)
 }
 
+type OriginalDeploymentReplicas struct {
+	Name     string `json:"name"`
+	Replicas int32  `json:"replicas"`
+}
+type OriginalSuspendedCronJob struct {
+	Name    string `json:"name"`
+	Suspend bool   `json:"suspend"`
+}
+
 type sleepInfoSecret struct {
 	*v1.Secret
 }
