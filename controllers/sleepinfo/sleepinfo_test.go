@@ -119,6 +119,9 @@ func TestGetSleepInfoData(t *testing.T) {
 					"deployment2":        4,
 					"replicas-not-saved": 0,
 				},
+				OriginalCronJobSuspendState: map[string]bool{
+					"cj1": false,
+				},
 				LastSchedule: schedule.Truncate(time.Second),
 			},
 		},

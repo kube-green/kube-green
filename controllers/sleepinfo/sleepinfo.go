@@ -19,12 +19,13 @@ func (r *SleepInfoReconciler) getSleepInfo(ctx context.Context, req ctrl.Request
 }
 
 type SleepInfoData struct {
-	LastSchedule                time.Time        `json:"lastSchedule"`
-	CurrentOperationType        string           `json:"operationType"`
-	OriginalDeploymentsReplicas map[string]int32 `json:"originalDeploymentReplicas"`
-	CurrentOperationSchedule    string           `json:"-"`
-	NextOperationSchedule       string           `json:"-"`
-	SuspendCronjobs             bool             `json:"-"`
+	LastSchedule                time.Time
+	CurrentOperationType        string
+	OriginalDeploymentsReplicas map[string]int32
+	OriginalCronJobSuspendState map[string]bool
+	CurrentOperationSchedule    string
+	NextOperationSchedule       string
+	SuspendCronjobs             bool
 }
 
 func (s SleepInfoData) isWakeUpOperation() bool {
@@ -65,6 +66,12 @@ func getSleepInfoData(secret sleepInfoSecret, sleepInfo *kubegreenv1alpha1.Sleep
 		return SleepInfoData{}, err
 	}
 	sleepInfoData.OriginalDeploymentsReplicas = originalDeploymentReplicas
+
+	originalCronJobSuspendedState, err := secret.getOriginalCronJobSuspendedState()
+	if err != nil {
+		return SleepInfoData{}, err
+	}
+	sleepInfoData.OriginalCronJobSuspendState = originalCronJobSuspendedState
 
 	lastSchedule, err := time.Parse(time.RFC3339, secret.getLastSchedule())
 	if err != nil {
