@@ -2,7 +2,6 @@ package sleepinfo
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -834,31 +833,31 @@ func assertCorrectSleepOperation(assert AssertOperation) {
 		}
 	})
 
-	By("secret is correctly set", func() {
-		secret, err := sleepInfoReconciler.getSecret(assert.ctx, getSecretName(assert.sleepInfoName), assert.namespace)
-		Expect(err).NotTo(HaveOccurred())
-		secretData := secret.Data
+	// By("secret is correctly set", func() {
+	// 	secret, err := sleepInfoReconciler.getSecret(assert.ctx, getSecretName(assert.sleepInfoName), assert.namespace)
+	// 	Expect(err).NotTo(HaveOccurred())
+	// 	secretData := secret.Data
 
-		var originalReplicas []OriginalDeploymentReplicas
-		for _, deployment := range assert.originalDeployments {
-			if *deployment.Spec.Replicas == 0 || contains(assert.excludedDeployment, deployment.Name) {
-				continue
-			}
-			originalReplicas = append(originalReplicas, OriginalDeploymentReplicas{
-				Name:     deployment.Name,
-				Replicas: *deployment.Spec.Replicas,
-			})
-		}
-		var expectedReplicas = []byte{}
-		expectedReplicas, err = json.Marshal(originalReplicas)
-		Expect(err).NotTo(HaveOccurred())
+	// 	var originalReplicas []OriginalDeploymentReplicas
+	// 	for _, deployment := range assert.originalDeployments {
+	// 		if *deployment.Spec.Replicas == 0 || contains(assert.excludedDeployment, deployment.Name) {
+	// 			continue
+	// 		}
+	// 		originalReplicas = append(originalReplicas, OriginalDeploymentReplicas{
+	// 			Name:     deployment.Name,
+	// 			Replicas: *deployment.Spec.Replicas,
+	// 		})
+	// 	}
+	// 	var expectedReplicas = []byte{}
+	// 	expectedReplicas, err = json.Marshal(originalReplicas)
+	// 	Expect(err).NotTo(HaveOccurred())
 
-		Expect(secretData).To(Equal(map[string][]byte{
-			lastScheduleKey:        []byte(getTime(assert.expectedScheduleTime).Truncate(time.Second).Format(time.RFC3339)),
-			lastOperationKey:       []byte(sleepOperation),
-			replicasBeforeSleepKey: expectedReplicas,
-		}))
-	})
+	// 	Expect(secretData).To(Equal(map[string][]byte{
+	// 		lastScheduleKey:        []byte(getTime(assert.expectedScheduleTime).Truncate(time.Second).Format(time.RFC3339)),
+	// 		lastOperationKey:       []byte(sleepOperation),
+	// 		replicasBeforeSleepKey: expectedReplicas,
+	// 	}))
+	// })
 
 	By("sleepinfo status updated correctly", func() {
 		sleepInfo, err := sleepInfoReconciler.getSleepInfo(assert.ctx, assert.req)

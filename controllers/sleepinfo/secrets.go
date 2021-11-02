@@ -2,12 +2,10 @@ package sleepinfo
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/go-logr/logr"
-	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -36,7 +34,7 @@ func (r SleepInfoReconciler) upsertSecret(
 	secretName, namespace string,
 	secret *v1.Secret,
 	sleepInfoData SleepInfoData,
-	deploymentList []appsv1.Deployment,
+	resources Resources,
 ) error {
 	logger.Info("update secret")
 
@@ -49,38 +47,21 @@ func (r SleepInfoReconciler) upsertSecret(
 			Name:      secretName,
 			Namespace: namespace,
 		},
-		Data: make(map[string][]byte),
-	}
-	if newSecret.StringData == nil {
-		newSecret.StringData = map[string]string{}
+		Data:       make(map[string][]byte),
+		StringData: make(map[string]string),
 	}
 	newSecret.StringData[lastScheduleKey] = now.Format(time.RFC3339)
-	newSecret.StringData[lastOperationKey] = sleepInfoData.CurrentOperationType
-	if len(deploymentList) == 0 {
-		delete(newSecret.StringData, lastOperationKey)
+	if resources.hasResources() {
+		newSecret.StringData[lastOperationKey] = sleepInfoData.CurrentOperationType
 	}
 
-	if len(deploymentList) != 0 && sleepInfoData.isSleepOperation() {
-		originalDeploymentsReplicas := []OriginalDeploymentReplicas{}
-		for _, deployment := range deploymentList {
-			replica, ok := sleepInfoData.OriginalDeploymentsReplicas[deployment.Name]
-			originalReplicas := *deployment.Spec.Replicas
-			if ok && replica != 0 {
-				originalReplicas = replica
-			}
-			if originalReplicas == 0 {
-				continue
-			}
-			originalDeploymentsReplicas = append(originalDeploymentsReplicas, OriginalDeploymentReplicas{
-				Name:     deployment.Name,
-				Replicas: originalReplicas,
-			})
-		}
-		originalReplicasToSave, err := json.Marshal(originalDeploymentsReplicas)
+	if resources.hasResources() && sleepInfoData.IsSleepOperation() {
+		data, err := resources.getOriginalResourceInfoToSave(sleepInfoData)
 		if err != nil {
+			logger.Error(err, "failed to get original resource info to save")
 			return err
 		}
-		newSecret.Data[replicasBeforeSleepKey] = originalReplicasToSave
+		newSecret.Data = data
 	}
 
 	if secret == nil {
@@ -95,4 +76,22 @@ func (r SleepInfoReconciler) upsertSecret(
 		logger.Info("secret updated")
 	}
 	return nil
+}
+
+type sleepInfoSecret struct {
+	*v1.Secret
+}
+
+func (s sleepInfoSecret) getLastSchedule() string {
+	if s.Secret == nil {
+		return ""
+	}
+	return string(s.Data[lastScheduleKey])
+}
+
+func (s sleepInfoSecret) getLastOperation() string {
+	if s.Secret == nil {
+		return ""
+	}
+	return string(s.Data[lastOperationKey])
 }

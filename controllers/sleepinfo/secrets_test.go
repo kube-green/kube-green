@@ -6,9 +6,11 @@ import (
 	"testing"
 	"time"
 
+	kubegreenv1alpha1 "github.com/davidebianchi/kube-green/api/v1alpha1"
 	"github.com/davidebianchi/kube-green/controllers/internal/testutil"
+	"github.com/davidebianchi/kube-green/controllers/sleepinfo/deployments"
+	"github.com/davidebianchi/kube-green/controllers/sleepinfo/resource"
 	"github.com/stretchr/testify/require"
-	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -84,28 +86,27 @@ func TestUpsertSecrets(t *testing.T) {
 	var replicas4 int32 = 4
 	var replicas0 int32 = 0
 
-	deployList := []appsv1.Deployment{
-		getDeploymentMock(mockDeploymentSpec{
-			name:      "deployment1",
-			namespace: namespace,
-			replicas:  &replicas1,
-		}),
-		getDeploymentMock(mockDeploymentSpec{
-			name:      "deployment2",
-			namespace: namespace,
-			replicas:  &replicas4,
-		}),
-		getDeploymentMock(mockDeploymentSpec{
-			name:      "deployment3",
-			namespace: namespace,
-			replicas:  &replicas0,
-		}),
-	}
+	d1 := deployments.GetMock(deployments.MockSpec{
+		Name:      "deployment1",
+		Namespace: namespace,
+		Replicas:  &replicas1,
+	})
+	d2 := deployments.GetMock(deployments.MockSpec{
+		Name:      "deployment2",
+		Namespace: namespace,
+		Replicas:  &replicas4,
+	})
+	d3 := deployments.GetMock(deployments.MockSpec{
+		Name:      "deployment3",
+		Namespace: namespace,
+		Replicas:  &replicas0,
+	})
 
 	t.Run("insert and update secret - sleep and wake up", func(t *testing.T) {
 		client := &testutil.PossiblyErroringFakeCtrlRuntimeClient{
 			Client: fake.
 				NewClientBuilder().
+				WithRuntimeObjects(&d1, &d2, &d3).
 				Build(),
 		}
 
@@ -116,8 +117,14 @@ func TestUpsertSecrets(t *testing.T) {
 		sleepInfoData := SleepInfoData{
 			CurrentOperationType: sleepOperation,
 		}
+		resources, err := NewResources(context.Background(), resource.ResourceClient{
+			Client:    client,
+			Log:       testLogger,
+			SleepInfo: &kubegreenv1alpha1.SleepInfo{},
+		}, namespace, sleepInfoData)
+		require.NoError(t, err)
 
-		err := r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, nil, sleepInfoData, deployList)
+		err = r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, nil, sleepInfoData, resources)
 		require.NoError(t, err)
 
 		secret, err := r.getSecret(context.Background(), secretName, namespace)
@@ -145,7 +152,8 @@ func TestUpsertSecrets(t *testing.T) {
 				CurrentOperationType: wakeUpOperation,
 				LastSchedule:         now,
 			}
-			err := r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, secret, sleepInfoData, deployList)
+
+			err = r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, secret, sleepInfoData, resources)
 			require.NoError(t, err)
 
 			secret, err := r.getSecret(context.Background(), secretName, namespace)
@@ -172,6 +180,7 @@ func TestUpsertSecrets(t *testing.T) {
 		client := &testutil.PossiblyErroringFakeCtrlRuntimeClient{
 			Client: fake.
 				NewClientBuilder().
+				WithRuntimeObjects(&d1, &d2, &d3).
 				Build(),
 		}
 
@@ -182,8 +191,14 @@ func TestUpsertSecrets(t *testing.T) {
 		sleepInfoData := SleepInfoData{
 			CurrentOperationType: sleepOperation,
 		}
+		resources, err := NewResources(context.Background(), resource.ResourceClient{
+			Client:    client,
+			Log:       testLogger,
+			SleepInfo: &kubegreenv1alpha1.SleepInfo{},
+		}, namespace, sleepInfoData)
+		require.NoError(t, err)
 
-		err := r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, nil, sleepInfoData, deployList)
+		err = r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, nil, sleepInfoData, resources)
 		require.NoError(t, err)
 
 		secret, err := r.getSecret(context.Background(), secretName, namespace)
@@ -215,12 +230,25 @@ func TestUpsertSecrets(t *testing.T) {
 					"deployment2": 4,
 				},
 			}
-			updatedDeployList := append(deployList, getDeploymentMock(mockDeploymentSpec{
-				namespace: namespace,
-				name:      "new-deployment",
-				replicas:  &replicas1,
-			}))
-			err := r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, secret, sleepInfoData, updatedDeployList)
+			d4 := deployments.GetMock(deployments.MockSpec{
+				Namespace: namespace,
+				Name:      "new-deployment",
+				Replicas:  &replicas1,
+			})
+			client := &testutil.PossiblyErroringFakeCtrlRuntimeClient{
+				Client: fake.
+					NewClientBuilder().
+					WithRuntimeObjects(&d1, &d2, &d3, &d4).
+					Build(),
+			}
+			resources, err := NewResources(context.Background(), resource.ResourceClient{
+				Client:    client,
+				Log:       testLogger,
+				SleepInfo: &kubegreenv1alpha1.SleepInfo{},
+			}, namespace, sleepInfoData)
+			require.NoError(t, err)
+
+			err = r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, secret, sleepInfoData, resources)
 			require.NoError(t, err)
 
 			secret, err := r.getSecret(context.Background(), secretName, namespace)
@@ -257,8 +285,14 @@ func TestUpsertSecrets(t *testing.T) {
 		sleepInfoData := SleepInfoData{
 			CurrentOperationType: sleepOperation,
 		}
+		resources, err := NewResources(context.Background(), resource.ResourceClient{
+			Client:    client,
+			Log:       testLogger,
+			SleepInfo: &kubegreenv1alpha1.SleepInfo{},
+		}, namespace, sleepInfoData)
+		require.NoError(t, err)
 
-		err := r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, nil, sleepInfoData, []appsv1.Deployment{})
+		err = r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, nil, sleepInfoData, resources)
 		require.NoError(t, err)
 
 		secret, err := r.getSecret(context.Background(), secretName, namespace)
@@ -303,8 +337,14 @@ func TestUpsertSecrets(t *testing.T) {
 		sleepInfoData := SleepInfoData{
 			CurrentOperationType: sleepOperation,
 		}
+		resources, err := NewResources(context.Background(), resource.ResourceClient{
+			Client:    client,
+			Log:       testLogger,
+			SleepInfo: &kubegreenv1alpha1.SleepInfo{},
+		}, namespace, sleepInfoData)
+		require.NoError(t, err)
 
-		err := r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, existentSecret, sleepInfoData, []appsv1.Deployment{})
+		err = r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, existentSecret, sleepInfoData, resources)
 		require.NoError(t, err)
 
 		secret, err := r.getSecret(context.Background(), secretName, namespace)
@@ -339,8 +379,17 @@ func TestUpsertSecrets(t *testing.T) {
 		sleepInfoData := SleepInfoData{
 			CurrentOperationType: sleepOperation,
 		}
+		resources, err := NewResources(context.Background(), resource.ResourceClient{
+			Client: fake.
+				NewClientBuilder().
+				WithRuntimeObjects(&d1, &d2, &d3).
+				Build(),
+			Log:       testLogger,
+			SleepInfo: &kubegreenv1alpha1.SleepInfo{},
+		}, namespace, sleepInfoData)
+		require.NoError(t, err)
 
-		err := r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, nil, sleepInfoData, deployList)
+		err = r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, nil, sleepInfoData, resources)
 		require.EqualError(t, err, "error during create")
 	})
 
@@ -368,8 +417,17 @@ func TestUpsertSecrets(t *testing.T) {
 		sleepInfoData := SleepInfoData{
 			CurrentOperationType: sleepOperation,
 		}
+		resources, err := NewResources(context.Background(), resource.ResourceClient{
+			Client: fake.
+				NewClientBuilder().
+				WithRuntimeObjects(&d1, &d2, &d3).
+				Build(),
+			Log:       testLogger,
+			SleepInfo: &kubegreenv1alpha1.SleepInfo{},
+		}, namespace, sleepInfoData)
+		require.NoError(t, err)
 
-		err := r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, existentSecret, sleepInfoData, deployList)
+		err = r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, existentSecret, sleepInfoData, resources)
 		require.EqualError(t, err, "error during update")
 	})
 }
