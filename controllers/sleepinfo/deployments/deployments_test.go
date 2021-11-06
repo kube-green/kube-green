@@ -52,8 +52,10 @@ func TestNewResource(t *testing.T) {
 		{
 			name: "fails to list deployments",
 			client: &testutil.PossiblyErroringFakeCtrlRuntimeClient{
-				Client:      fake.NewClientBuilder().Build(),
-				ShouldError: true,
+				Client: fake.NewClientBuilder().Build(),
+				ShouldError: func(method testutil.Method, obj runtime.Object) bool {
+					return method == testutil.List
+				},
 			},
 			throws: true,
 		},
@@ -224,21 +226,24 @@ func TestSleep(t *testing.T) {
 		}, list)
 	})
 
-	// t.Run("fails to patch deployment", func(t *testing.T) {
-	// 	fakeClient := &testutil.PossiblyErroringFakeCtrlRuntimeClient{
-	// 		Client:      c,
-	// 		ShouldError: true,
-	// 	}
+	t.Run("fails to patch deployment", func(t *testing.T) {
+		c := fake.NewClientBuilder().WithRuntimeObjects(&d1, &d2, &dZeroReplicas).Build()
+		fakeClient := &testutil.PossiblyErroringFakeCtrlRuntimeClient{
+			Client: c,
+			ShouldError: func(method testutil.Method, obj runtime.Object) bool {
+				return method == testutil.Patch
+			},
+		}
 
-	// 	resource, err := NewResource(ctx, resource.ResourceClient{
-	// 		Client:    fakeClient,
-	// 		Log:       testLogger,
-	// 		SleepInfo: emptySleepInfo,
-	// 	}, namespace, map[string]int32{})
-	// 	require.NoError(t, err)
+		resource, err := NewResource(ctx, resource.ResourceClient{
+			Client:    fakeClient,
+			Log:       testLogger,
+			SleepInfo: emptySleepInfo,
+		}, namespace, map[string]int32{})
+		require.NoError(t, err)
 
-	// 	require.EqualError(t, resource.Sleep(ctx), "error during patch")
-	// })
+		require.EqualError(t, resource.Sleep(ctx), "error during patch")
+	})
 
 	t.Run("not fails if deployments not found", func(t *testing.T) {
 		fakeClient := &testutil.PossiblyErroringFakeCtrlRuntimeClient{

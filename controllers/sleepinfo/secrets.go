@@ -77,21 +77,3 @@ func (r SleepInfoReconciler) upsertSecret(
 	}
 	return nil
 }
-
-type sleepInfoSecret struct {
-	*v1.Secret
-}
-
-func (s sleepInfoSecret) getLastSchedule() string {
-	if s.Secret == nil {
-		return ""
-	}
-	return string(s.Data[lastScheduleKey])
-}
-
-func (s sleepInfoSecret) getLastOperation() string {
-	if s.Secret == nil {
-		return ""
-	}
-	return string(s.Data[lastOperationKey])
-}

@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
@@ -370,7 +371,9 @@ func TestUpsertSecrets(t *testing.T) {
 			Client: fake.
 				NewClientBuilder().
 				Build(),
-			ShouldError: true,
+			ShouldError: func(method testutil.Method, obj runtime.Object) bool {
+				return method != testutil.List
+			},
 		}
 		r := SleepInfoReconciler{
 			Client: client,
@@ -408,7 +411,9 @@ func TestUpsertSecrets(t *testing.T) {
 				NewClientBuilder().
 				WithRuntimeObjects(existentSecret).
 				Build(),
-			ShouldError: true,
+			ShouldError: func(method testutil.Method, obj runtime.Object) bool {
+				return method != testutil.List
+			},
 		}
 		r := SleepInfoReconciler{
 			Client: client,

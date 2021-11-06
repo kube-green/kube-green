@@ -2,6 +2,7 @@ package sleepinfo
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/davidebianchi/kube-green/api/v1alpha1"
@@ -10,7 +11,8 @@ import (
 	"github.com/davidebianchi/kube-green/controllers/sleepinfo/resource"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -81,7 +83,6 @@ func TestResourcesSleep(t *testing.T) {
 		Replicas:        &replica0,
 		ResourceVersion: "1",
 	})
-	c := fake.NewClientBuilder().WithRuntimeObjects(&d1, &d2, &dZeroReplicas).Build()
 
 	listOptions := &client.ListOptions{
 		Namespace: namespace,
@@ -90,15 +91,14 @@ func TestResourcesSleep(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("update deploy to have zero replicas", func(t *testing.T) {
-		fakeClient := &testutil.PossiblyErroringFakeCtrlRuntimeClient{
-			Client: c,
-		}
+		c := fake.NewClientBuilder().WithRuntimeObjects(&d1, &d2, &dZeroReplicas).Build()
 
 		resources, err := NewResources(ctx, resource.ResourceClient{
 			Log:       testLogger,
-			Client:    fakeClient,
+			Client:    c,
 			SleepInfo: &v1alpha1.SleepInfo{},
 		}, namespace, SleepInfoData{})
+		require.NoError(t, err)
 
 		err = resources.sleep(ctx)
 		require.NoError(t, err)
@@ -107,7 +107,7 @@ func TestResourcesSleep(t *testing.T) {
 		err = c.List(context.Background(), &list, listOptions)
 		require.NoError(t, err)
 		require.Equal(t, appsv1.DeploymentList{
-			TypeMeta: v1.TypeMeta{
+			TypeMeta: metav1.TypeMeta{
 				Kind:       "DeploymentList",
 				APIVersion: "apps/v1",
 			},
@@ -129,20 +129,25 @@ func TestResourcesSleep(t *testing.T) {
 		}, list)
 	})
 
-	// t.Run("fails to sleep", func(t *testing.T) {
-	// 	fakeClient := &testutil.PossiblyErroringFakeCtrlRuntimeClient{
-	// 		Client:      c,
-	// 		ShouldError: true,
-	// 	}
+	t.Run("fails to sleep", func(t *testing.T) {
+		c := fake.NewClientBuilder().WithRuntimeObjects(&d1, &d2, &dZeroReplicas).Build()
 
-	// 	resources, err := NewResources(ctx, resource.ResourceClient{
-	// 		Log:       testLogger,
-	// 		Client:    fakeClient,
-	// 		SleepInfo: &v1alpha1.SleepInfo{},
-	// 	}, namespace, SleepInfoData{})
-	// 	require.NoError(t, err)
+		fakeClient := testutil.PossiblyErroringFakeCtrlRuntimeClient{
+			Client: c,
+			ShouldError: func(method testutil.Method, obj runtime.Object) bool {
+				fmt.Printf("fooo %v %v \n", method, testutil.Patch)
+				return method == testutil.Patch
+			},
+		}
 
-	// 	err = resources.sleep(ctx)
-	// 	require.EqualError(t, err, "error during patch")
-	// })
+		resources, err := NewResources(ctx, resource.ResourceClient{
+			Log:       testLogger,
+			Client:    fakeClient,
+			SleepInfo: &v1alpha1.SleepInfo{},
+		}, namespace, SleepInfoData{})
+		require.NoError(t, err)
+
+		err = resources.sleep(ctx)
+		require.EqualError(t, err, "error during patch")
+	})
 }
