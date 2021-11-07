@@ -3,7 +3,6 @@ package testutil
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -52,7 +51,6 @@ func (p PossiblyErroringFakeCtrlRuntimeClient) Update(ctx context.Context, obj c
 }
 
 func (p PossiblyErroringFakeCtrlRuntimeClient) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
-	fmt.Print("PATCH")
 	if p.ShouldError != nil && p.ShouldError(Patch, obj) {
 		return errors.New("error during patch")
 	}

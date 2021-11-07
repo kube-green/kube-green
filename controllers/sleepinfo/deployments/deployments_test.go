@@ -178,7 +178,6 @@ func TestSleep(t *testing.T) {
 		ResourceVersion: "1",
 	})
 
-	c := fake.NewClientBuilder().WithRuntimeObjects(&d1, &d2, &dZeroReplicas).Build()
 	ctx := context.Background()
 	emptySleepInfo := &v1alpha1.SleepInfo{}
 	listOptions := &client.ListOptions{
@@ -187,6 +186,7 @@ func TestSleep(t *testing.T) {
 	}
 
 	t.Run("update deploy to have zero replicas", func(t *testing.T) {
+		c := fake.NewClientBuilder().WithRuntimeObjects(&d1, &d2, &dZeroReplicas).Build()
 		fakeClient := &testutil.PossiblyErroringFakeCtrlRuntimeClient{
 			Client: c,
 		}
@@ -246,6 +246,7 @@ func TestSleep(t *testing.T) {
 	})
 
 	t.Run("not fails if deployments not found", func(t *testing.T) {
+		c := fake.NewClientBuilder().WithRuntimeObjects(&d1, &d2, &dZeroReplicas).Build()
 		fakeClient := &testutil.PossiblyErroringFakeCtrlRuntimeClient{
 			Client: c,
 		}
@@ -262,5 +263,179 @@ func TestSleep(t *testing.T) {
 
 		require.NoError(t, resource.Sleep(ctx))
 	})
+}
 
+func TestWakeUp(t *testing.T) {
+	testLogger := zap.New(zap.UseDevMode(true))
+
+	var replica0 int32 = 0
+	var replica1 int32 = 1
+	var replica5 int32 = 5
+	namespace := "my-namespace"
+
+	d1 := GetMock(MockSpec{
+		Namespace:       namespace,
+		Name:            "d1",
+		Replicas:        &replica0,
+		ResourceVersion: "2",
+	})
+	d2 := GetMock(MockSpec{
+		Namespace:       namespace,
+		Name:            "d2",
+		Replicas:        &replica0,
+		ResourceVersion: "1",
+	})
+	dZeroReplicas := GetMock(MockSpec{
+		Namespace:       namespace,
+		Name:            "dZeroReplicas",
+		Replicas:        &replica0,
+		ResourceVersion: "1",
+	})
+	dAfterSleep := GetMock(MockSpec{
+		Namespace:       namespace,
+		Name:            "aftersleep",
+		Replicas:        &replica1,
+		ResourceVersion: "1",
+	})
+
+	ctx := context.Background()
+	emptySleepInfo := &v1alpha1.SleepInfo{}
+	listOptions := &client.ListOptions{
+		Namespace: namespace,
+		Limit:     500,
+	}
+
+	t.Run("wake up deploy", func(t *testing.T) {
+		c := fake.NewClientBuilder().WithRuntimeObjects(&d1, &d2, &dZeroReplicas, &dAfterSleep).Build()
+		r, err := NewResource(ctx, resource.ResourceClient{
+			Client:    c,
+			Log:       testLogger,
+			SleepInfo: emptySleepInfo,
+		}, namespace, map[string]int32{
+			d1.Name: replica1,
+			d2.Name: replica5,
+		})
+		require.NoError(t, err)
+
+		err = r.WakeUp(ctx)
+		require.NoError(t, err)
+
+		list := appsv1.DeploymentList{}
+		err = c.List(context.Background(), &list, listOptions)
+		require.NoError(t, err)
+		require.Equal(t, appsv1.DeploymentList{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "DeploymentList",
+				APIVersion: "apps/v1",
+			},
+			Items: []appsv1.Deployment{
+				dAfterSleep,
+				GetMock(MockSpec{
+					Namespace:       namespace,
+					Name:            "d1",
+					Replicas:        &replica1,
+					ResourceVersion: "3",
+				}),
+				GetMock(MockSpec{
+					Namespace:       namespace,
+					Name:            "d2",
+					Replicas:        &replica5,
+					ResourceVersion: "2",
+				}),
+				dZeroReplicas,
+			},
+		}, list)
+	})
+
+	t.Run("wake up fails", func(t *testing.T) {
+		c := testutil.PossiblyErroringFakeCtrlRuntimeClient{
+			Client: fake.NewClientBuilder().WithRuntimeObjects(&d1).Build(),
+			ShouldError: func(method testutil.Method, obj runtime.Object) bool {
+				return method == testutil.Patch
+			},
+		}
+		r, err := NewResource(ctx, resource.ResourceClient{
+			Client:    c,
+			Log:       testLogger,
+			SleepInfo: emptySleepInfo,
+		}, namespace, map[string]int32{
+			d1.Name: replica1,
+			d2.Name: replica5,
+		})
+		require.NoError(t, err)
+
+		err = r.WakeUp(ctx)
+		require.EqualError(t, err, "error during patch")
+	})
+}
+
+func TestDeploymentOriginalReplicas(t *testing.T) {
+	testLogger := zap.New(zap.UseDevMode(true))
+
+	ctx := context.Background()
+	namespace := "my-namespace"
+	emptySleepInfo := &v1alpha1.SleepInfo{}
+	var replica0 int32 = 0
+	var replica1 int32 = 1
+	var replica5 int32 = 5
+
+	d1 := GetMock(MockSpec{
+		Namespace:       namespace,
+		Name:            "d1",
+		Replicas:        &replica1,
+		ResourceVersion: "2",
+	})
+	d2 := GetMock(MockSpec{
+		Namespace:       namespace,
+		Name:            "d2",
+		Replicas:        &replica5,
+		ResourceVersion: "1",
+	})
+	dZeroReplicas := GetMock(MockSpec{
+		Namespace:       namespace,
+		Name:            "dZeroReplica",
+		Replicas:        &replica0,
+		ResourceVersion: "1",
+	})
+
+	t.Run("save and restore replicas info", func(t *testing.T) {
+		c := fake.NewClientBuilder().WithRuntimeObjects(&d1, &d2, &dZeroReplicas).Build()
+		r, err := NewResource(ctx, resource.ResourceClient{
+			Client:    c,
+			Log:       testLogger,
+			SleepInfo: emptySleepInfo,
+		}, namespace, map[string]int32{
+			d1.Name: replica1,
+			d2.Name: replica5,
+		})
+		require.NoError(t, err)
+
+		res, err := r.GetOriginalInfoToSave()
+		require.NoError(t, err)
+
+		expectedInfoToSave := `[{"name":"d1","replicas":1},{"name":"d2","replicas":5}]`
+		require.JSONEq(t, expectedInfoToSave, string(res))
+
+		t.Run("restore saved info", func(t *testing.T) {
+			infoToSave := []byte(expectedInfoToSave)
+			restoredInfo, err := GetOriginalInfoToRestore(infoToSave)
+			require.NoError(t, err)
+			require.Equal(t, map[string]int32{
+				d1.Name: replica1,
+				d2.Name: replica5,
+			}, restoredInfo)
+		})
+	})
+
+	t.Run("restore info with data nil", func(t *testing.T) {
+		info, err := GetOriginalInfoToRestore(nil)
+		require.Equal(t, map[string]int32{}, info)
+		require.NoError(t, err)
+	})
+
+	t.Run("fails if saved data are not valid json", func(t *testing.T) {
+		info, err := GetOriginalInfoToRestore([]byte(`{}`))
+		require.EqualError(t, err, "json: cannot unmarshal object into Go value of type []deployments.OriginalReplicas")
+		require.Nil(t, info)
+	})
 }
