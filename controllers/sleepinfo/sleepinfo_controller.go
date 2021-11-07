@@ -6,12 +6,10 @@ package sleepinfo
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/go-logr/logr"
-	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -21,6 +19,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	kubegreenv1alpha1 "github.com/davidebianchi/kube-green/api/v1alpha1"
+	"github.com/davidebianchi/kube-green/controllers/sleepinfo/deployments"
+	"github.com/davidebianchi/kube-green/controllers/sleepinfo/resource"
 )
 
 const (
@@ -53,31 +53,7 @@ type Clock interface {
 	Now() time.Time
 }
 
-type OriginalDeploymentReplicas struct {
-	Name     string `json:"name"`
-	Replicas int32  `json:"replicas"`
-}
-type SleepInfoData struct {
-	LastSchedule                time.Time        `json:"lastSchedule"`
-	CurrentOperationType        string           `json:"operationType"`
-	OriginalDeploymentsReplicas map[string]int32 `json:"originalDeploymentReplicas"`
-	CurrentOperationSchedule    string           `json:"-"`
-	NextOperationSchedule       string           `json:"-"`
-}
-
-func (s SleepInfoData) isWakeUpOperation() bool {
-	return s.CurrentOperationType == wakeUpOperation
-}
-
-func (s SleepInfoData) isSleepOperation() bool {
-	return s.CurrentOperationType == sleepOperation
-}
-
 var sleepDelta int64 = 60
-
-type Resources struct {
-	Deployments []appsv1.Deployment
-}
 
 //+kubebuilder:rbac:groups=kube-green.com,resources=sleepinfos,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=kube-green.com,resources=sleepinfos/status,verbs=get;update;patch
@@ -130,28 +106,32 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 	scheduleLog.WithValues("last schedule", now, "status", sleepInfo.Status).Info("last schedule value")
 
-	deploymentList, err := r.getDeploymentsList(ctx, req.Namespace, sleepInfo)
+	resources, err := NewResources(ctx, resource.ResourceClient{
+		Client:    r.Client,
+		SleepInfo: sleepInfo,
+		Log:       log,
+	}, req.Namespace, sleepInfoData)
 	if err != nil {
-		log.Error(err, "fails to fetch deployments")
+		log.Error(err, "fails to get resources")
 		return ctrl.Result{}, err
 	}
 
-	if err := r.handleSleepInfoStatus(ctx, now, sleepInfo, sleepInfoData, deploymentList); err != nil {
+	if err := r.handleSleepInfoStatus(ctx, now, sleepInfo, sleepInfoData.CurrentOperationType, resources); err != nil {
 		log.Error(err, "unable to update sleepInfo status")
 		return ctrl.Result{}, err
 	}
 	log.V(1).Info("update status info")
 
 	logSecret := log.WithValues("secret", secretName)
-	if len(deploymentList) == 0 {
-		if err = r.upsertSecret(ctx, log, now, secretName, req.Namespace, secret, sleepInfoData, deploymentList); err != nil {
+	if !resources.hasResources() {
+		if err = r.upsertSecret(ctx, log, now, secretName, req.Namespace, secret, sleepInfoData, resources); err != nil {
 			logSecret.Error(err, "fails to update secret")
 			return ctrl.Result{
 				Requeue: true,
 			}, nil
 		}
 
-		if sleepInfoData.isSleepOperation() {
+		if sleepInfoData.IsSleepOperation() {
 			requeueAfter, err = skipWakeUpIfSleepNotPerformed(sleepInfoData.CurrentOperationSchedule, nextSchedule, now)
 			if err != nil {
 				log.Error(err, "fails to parse cron - 0 deployment")
@@ -165,27 +145,23 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		}, nil
 	}
 
-	if err = r.upsertSecret(ctx, log, now, secretName, req.Namespace, secret, sleepInfoData, deploymentList); err != nil {
+	if err = r.upsertSecret(ctx, log, now, secretName, req.Namespace, secret, sleepInfoData, resources); err != nil {
 		logSecret.Error(err, "fails to update secret")
 		return ctrl.Result{
 			Requeue: true,
 		}, nil
 	}
 
-	resources := Resources{
-		Deployments: deploymentList,
-	}
-
 	switch {
-	case sleepInfoData.isSleepOperation():
-		if err := r.handleSleep(log, ctx, resources); err != nil {
+	case sleepInfoData.IsSleepOperation():
+		if err := resources.sleep(ctx); err != nil {
 			log.Error(err, "fails to handle sleep")
 			return ctrl.Result{
 				Requeue: true,
 			}, err
 		}
-	case sleepInfoData.isWakeUpOperation():
-		if err := r.handleWakeUp(log, ctx, resources, sleepInfoData); err != nil {
+	case sleepInfoData.IsWakeUpOperation():
+		if err := resources.wakeUp(ctx); err != nil {
 			log.Error(err, "fails to handle wake up")
 			return ctrl.Result{
 				Requeue: true,
@@ -234,6 +210,39 @@ func skipWakeUpIfSleepNotPerformed(currentOperationCronSchedule string, nextSche
 	return requeueAfter, nil
 }
 
+// handleSleepInfoStatus handles operator status
+func (r SleepInfoReconciler) handleSleepInfoStatus(
+	ctx context.Context,
+	now time.Time,
+	currentSleepInfo *kubegreenv1alpha1.SleepInfo,
+	currentOperationType string,
+	resources Resources,
+) error {
+	sleepInfo := currentSleepInfo.DeepCopy()
+	sleepInfo.Status.LastScheduleTime = metav1.NewTime(now)
+	sleepInfo.Status.OperationType = currentOperationType
+	if !resources.hasResources() {
+		sleepInfo.Status.OperationType = ""
+	}
+	return r.Status().Update(ctx, sleepInfo)
+}
+
+type SleepInfoData struct {
+	LastSchedule                time.Time        `json:"lastSchedule"`
+	CurrentOperationType        string           `json:"operationType"`
+	OriginalDeploymentsReplicas map[string]int32 `json:"originalDeploymentReplicas"`
+	CurrentOperationSchedule    string           `json:"-"`
+	NextOperationSchedule       string           `json:"-"`
+}
+
+func (s SleepInfoData) IsWakeUpOperation() bool {
+	return s.CurrentOperationType == wakeUpOperation
+}
+
+func (s SleepInfoData) IsSleepOperation() bool {
+	return s.CurrentOperationType == sleepOperation
+}
+
 func getSleepInfoData(secret *v1.Secret, sleepInfo *kubegreenv1alpha1.SleepInfo) (SleepInfoData, error) {
 	sleepSchedule, err := sleepInfo.GetSleepSchedule()
 	if err != nil {
@@ -256,19 +265,13 @@ func getSleepInfoData(secret *v1.Secret, sleepInfo *kubegreenv1alpha1.SleepInfo)
 	if secret == nil || secret.Data == nil {
 		return sleepInfoData, nil
 	}
-
 	data := secret.Data
-	originalDeploymentsReplicas := []OriginalDeploymentReplicas{}
-	if data[replicasBeforeSleepKey] != nil {
-		if err := json.Unmarshal(data[replicasBeforeSleepKey], &originalDeploymentsReplicas); err != nil {
-			return SleepInfoData{}, err
-		}
-		originalDeploymentsReplicasData := map[string]int32{}
-		for _, replicaInfo := range originalDeploymentsReplicas {
-			originalDeploymentsReplicasData[replicaInfo.Name] = replicaInfo.Replicas
-		}
-		sleepInfoData.OriginalDeploymentsReplicas = originalDeploymentsReplicasData
+
+	originalDeploymentsReplicasData, err := deployments.GetOriginalInfoToRestore(data[replicasBeforeSleepKey])
+	if err != nil {
+		return SleepInfoData{}, err
 	}
+	sleepInfoData.OriginalDeploymentsReplicas = originalDeploymentsReplicasData
 
 	lastSchedule, err := time.Parse(time.RFC3339, string(data[lastScheduleKey]))
 	if err != nil {
@@ -285,21 +288,4 @@ func getSleepInfoData(secret *v1.Secret, sleepInfo *kubegreenv1alpha1.SleepInfo)
 	}
 
 	return sleepInfoData, nil
-}
-
-// handleSleepInfoStatus handles operator status
-func (r SleepInfoReconciler) handleSleepInfoStatus(
-	ctx context.Context,
-	now time.Time,
-	currentSleepInfo *kubegreenv1alpha1.SleepInfo,
-	sleepInfoData SleepInfoData,
-	deploymentList []appsv1.Deployment,
-) error {
-	sleepInfo := currentSleepInfo.DeepCopy()
-	sleepInfo.Status.LastScheduleTime = metav1.NewTime(now)
-	sleepInfo.Status.OperationType = sleepInfoData.CurrentOperationType
-	if len(deploymentList) == 0 {
-		sleepInfo.Status.OperationType = ""
-	}
-	return r.Status().Update(ctx, sleepInfo)
 }

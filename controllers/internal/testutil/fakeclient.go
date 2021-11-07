@@ -5,23 +5,33 @@ import (
 	"errors"
 
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+)
+
+type Method int
+
+const (
+	List = iota
+	Create
+	Update
+	Patch
 )
 
 type PossiblyErroringFakeCtrlRuntimeClient struct {
 	client.Client
-	ShouldError bool
+	ShouldError func(method Method, obj runtime.Object) bool
 }
 
-func (p *PossiblyErroringFakeCtrlRuntimeClient) List(ctx context.Context, dpl client.ObjectList, opts ...client.ListOption) error {
-	if p.ShouldError {
+func (p PossiblyErroringFakeCtrlRuntimeClient) List(ctx context.Context, dpl client.ObjectList, opts ...client.ListOption) error {
+	if p.ShouldError != nil && p.ShouldError(List, dpl) {
 		return errors.New("error during list")
 	}
 	return p.Client.List(ctx, dpl, opts...)
 }
 
-func (p *PossiblyErroringFakeCtrlRuntimeClient) Create(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
-	if p.ShouldError {
+func (p PossiblyErroringFakeCtrlRuntimeClient) Create(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
+	if p.ShouldError != nil && p.ShouldError(Create, obj) {
 		return errors.New("error during create")
 	}
 	if secret, ok := obj.(*v1.Secret); ok {
@@ -30,8 +40,8 @@ func (p *PossiblyErroringFakeCtrlRuntimeClient) Create(ctx context.Context, obj 
 	return p.Client.Create(ctx, obj, opts...)
 }
 
-func (p *PossiblyErroringFakeCtrlRuntimeClient) Update(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
-	if p.ShouldError {
+func (p PossiblyErroringFakeCtrlRuntimeClient) Update(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
+	if p.ShouldError != nil && p.ShouldError(Update, obj) {
 		return errors.New("error during update")
 	}
 	if secret, ok := obj.(*v1.Secret); ok {
@@ -40,8 +50,8 @@ func (p *PossiblyErroringFakeCtrlRuntimeClient) Update(ctx context.Context, obj 
 	return p.Client.Update(ctx, obj, opts...)
 }
 
-func (p *PossiblyErroringFakeCtrlRuntimeClient) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
-	if p.ShouldError {
+func (p PossiblyErroringFakeCtrlRuntimeClient) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
+	if p.ShouldError != nil && p.ShouldError(Patch, obj) {
 		return errors.New("error during patch")
 	}
 	if secret, ok := obj.(*v1.Secret); ok {

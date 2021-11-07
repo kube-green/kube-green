@@ -839,12 +839,16 @@ func assertCorrectSleepOperation(assert AssertOperation) {
 		Expect(err).NotTo(HaveOccurred())
 		secretData := secret.Data
 
-		var originalReplicas []OriginalDeploymentReplicas
+		type ExpectedReplicas struct {
+			Name     string `json:"name"`
+			Replicas int32  `json:"replicas"`
+		}
+		var originalReplicas []ExpectedReplicas
 		for _, deployment := range assert.originalDeployments {
 			if *deployment.Spec.Replicas == 0 || contains(assert.excludedDeployment, deployment.Name) {
 				continue
 			}
-			originalReplicas = append(originalReplicas, OriginalDeploymentReplicas{
+			originalReplicas = append(originalReplicas, ExpectedReplicas{
 				Name:     deployment.Name,
 				Replicas: *deployment.Spec.Replicas,
 			})
