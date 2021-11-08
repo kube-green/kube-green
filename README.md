@@ -6,7 +6,7 @@
   <img src="https://github.com/davidebianchi/kube-green/raw/main/logo/logo.png" width="250" >
 </div>
 
-How many of your dev/preview pods stay on during weekends? Or at night? It's a waste of resources! And money! But fear not, <br/> *kube-green* is here to the rescue.
+How many of your dev/preview pods stay on during weekends? Or at night? It's a waste of resources! And money! But fear not, *kube-green* is here to the rescue.
 
 *kube-green* is a simple k8s addon that automatically shuts down (some of) your resources when you don't need them.
 
