@@ -6,17 +6,15 @@
   <img src="https://github.com/davidebianchi/kube-green/raw/main/logo/logo.png" width="250" >
 </div>
 
+How many of your dev/preview pods stay on during weekends? Or at night? It's a waste of resources! And money! But fear not, <br/> *kube-green* is here to the rescue.
 
-How many development or demo namespaces remain active on weekends or beyond business hours?  
-This is an unnecessary waste of resources and money.
+*kube-green* is a simple k8s addon that automatically shuts down (some of) your resources when you don't need them.
 
-*kube-green* was born with the aim of finding ways to avoid this kind of waste of resources.
-
-If you have some other ideas on how to improve our development on kubernetes, please open an issue so we can integrate *kube-green* features!
+Keep reading to find out how to use it, and if you have ideas on how to improve *kube-green*, open an issue, we'd love to hear them!
 
 ## Install
 
-To install *kube-green* in the cluster, clone the repository and run
+To install *kube-green* just clone this repository and run:
 
 ```sh
 make deploy
