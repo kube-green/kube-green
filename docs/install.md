@@ -104,7 +104,7 @@ kubectl -n sleepme create deploy echo-service-replica-4 --image=davidebianchi/ec
 You should have 6 pods running in the namespace.
 
 ```sh
-kubecttl -n sleepme get pods
+kubectl -n sleepme get pods
 ```
 
 Should output something like:
