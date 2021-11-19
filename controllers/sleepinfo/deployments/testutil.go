@@ -15,6 +15,10 @@ type MockSpec struct {
 
 func GetMock(opts MockSpec) appsv1.Deployment {
 	return appsv1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Deployment",
+			APIVersion: "apps/v1",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            opts.Name,
 			Namespace:       opts.Namespace,
