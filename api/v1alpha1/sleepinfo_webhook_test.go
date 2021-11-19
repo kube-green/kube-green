@@ -33,7 +33,7 @@ var _ = Describe("validate sleep info", func() {
 	}{
 		{
 			name:          "fails - without weekdays",
-			expectedError: "empty weekdays from sleep info configuration",
+			expectedError: "empty weekdays from SleepInfo configuration",
 		},
 		{
 			name:          "fails - without sleep",
@@ -192,7 +192,7 @@ var _ = Describe("validate sleep info", func() {
 				Spec: SleepInfoSpec{},
 			}
 			err := k8sClient.Create(ctx, sleepInfo)
-			Expect(err.Error()).To(Equal("admission webhook \"vsleepinfo.kb.io\" denied the request: empty weekdays from sleep info configuration"))
+			Expect(err.Error()).To(Equal("admission webhook \"vsleepinfo.kb.io\" denied the request: empty weekdays from SleepInfo configuration"))
 		})
 	})
 
@@ -215,7 +215,7 @@ var _ = Describe("validate sleep info", func() {
 			patch := client.MergeFrom(sleepInfo.DeepCopy())
 			sleepInfo.Spec.Weekdays = ""
 			err := k8sClient.Patch(ctx, sleepInfo, patch)
-			Expect(err.Error()).To(Equal("admission webhook \"vsleepinfo.kb.io\" denied the request: empty weekdays from sleep info configuration"))
+			Expect(err.Error()).To(Equal("admission webhook \"vsleepinfo.kb.io\" denied the request: empty weekdays from SleepInfo configuration"))
 		})
 	})
 
@@ -236,7 +236,7 @@ var _ = Describe("validate sleep info", func() {
 
 			sleepInfo.Spec.Weekdays = ""
 			err := k8sClient.Update(ctx, sleepInfo)
-			Expect(err.Error()).To(Equal("admission webhook \"vsleepinfo.kb.io\" denied the request: empty weekdays from sleep info configuration"))
+			Expect(err.Error()).To(Equal("admission webhook \"vsleepinfo.kb.io\" denied the request: empty weekdays from SleepInfo configuration"))
 		})
 	})
 
