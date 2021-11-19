@@ -246,7 +246,7 @@ var _ = Describe("SleepInfo Controller", func() {
 			},
 		}
 		result, err := sleepInfoReconciler.Reconcile(ctx, req)
-		Expect(err.Error()).Should(Equal("empty weekdays from sleep info configuration"))
+		Expect(err.Error()).Should(Equal("empty weekdays from SleepInfo configuration"))
 		Expect(result).Should(Equal(ctrl.Result{}))
 	})
 
