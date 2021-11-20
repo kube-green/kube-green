@@ -56,7 +56,7 @@ func (r SleepInfoReconciler) upsertSecret(
 	}
 
 	if resources.hasResources() && sleepInfoData.IsSleepOperation() {
-		data, err := resources.getOriginalResourceInfoToSave(sleepInfoData)
+		data, err := resources.getOriginalResourceInfoToSave()
 		if err != nil {
 			logger.Error(err, "failed to get original resource info to save")
 			return err

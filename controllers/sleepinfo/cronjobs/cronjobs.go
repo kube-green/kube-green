@@ -15,12 +15,18 @@ type cronjobs struct {
 	resource.ResourceClient
 	data                  []batchv1.CronJob
 	OriginalSuspendStatus OriginalSuspendStatus
+	areToSuspend          bool
 }
 
 func NewResource(ctx context.Context, res resource.ResourceClient, namespace string, originalSuspendStatus map[string]bool) (cronjobs, error) {
 	d := cronjobs{
 		ResourceClient:        res,
 		OriginalSuspendStatus: originalSuspendStatus,
+		areToSuspend:          res.SleepInfo.IsCronjobsToSuspend(),
+		data:                  []batchv1.CronJob{},
+	}
+	if !d.areToSuspend {
+		return d, nil
 	}
 	if err := d.fetch(ctx, namespace); err != nil {
 		return cronjobs{}, err
@@ -81,6 +87,9 @@ type OriginalCronJobStatus struct {
 }
 
 func (c cronjobs) GetOriginalInfoToSave() ([]byte, error) {
+	if !c.areToSuspend {
+		return nil, nil
+	}
 	cronJobsStatus := []OriginalCronJobStatus{}
 	for _, cronJob := range c.data {
 		if cronJob.Spec.Suspend != nil && *cronJob.Spec.Suspend {

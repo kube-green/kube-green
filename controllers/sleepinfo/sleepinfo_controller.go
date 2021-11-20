@@ -19,7 +19,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	kubegreenv1alpha1 "github.com/davidebianchi/kube-green/api/v1alpha1"
-	"github.com/davidebianchi/kube-green/controllers/sleepinfo/deployments"
 	"github.com/davidebianchi/kube-green/controllers/sleepinfo/resource"
 )
 
@@ -27,6 +26,7 @@ const (
 	lastScheduleKey               = "scheduled-at"
 	lastOperationKey              = "operation-type"
 	replicasBeforeSleepKey        = "deployment-replicas"
+	originalCronjobStatusKey      = "cronjobs-info"
 	replicasBeforeSleepAnnotation = "sleepinfo.kube-green.com/replicas-before-sleep"
 
 	sleepOperation  = "SLEEP"
@@ -229,11 +229,12 @@ func (r SleepInfoReconciler) handleSleepInfoStatus(
 }
 
 type SleepInfoData struct {
-	LastSchedule                time.Time        `json:"lastSchedule"`
-	CurrentOperationType        string           `json:"operationType"`
-	OriginalDeploymentsReplicas map[string]int32 `json:"originalDeploymentReplicas"`
-	CurrentOperationSchedule    string           `json:"-"`
-	NextOperationSchedule       string           `json:"-"`
+	LastSchedule                time.Time
+	CurrentOperationType        string
+	OriginalDeploymentsReplicas map[string]int32
+	CurrentOperationSchedule    string
+	NextOperationSchedule       string
+	OriginalCronJobStatus       map[string]bool
 }
 
 func (s SleepInfoData) IsWakeUpOperation() bool {
@@ -268,11 +269,7 @@ func getSleepInfoData(secret *v1.Secret, sleepInfo *kubegreenv1alpha1.SleepInfo)
 	}
 	data := secret.Data
 
-	originalDeploymentsReplicasData, err := deployments.GetOriginalInfoToRestore(data[replicasBeforeSleepKey])
-	if err != nil {
-		return SleepInfoData{}, err
-	}
-	sleepInfoData.OriginalDeploymentsReplicas = originalDeploymentsReplicasData
+	setOriginalResourceInfoToRestoreInSleepInfo(data, &sleepInfoData)
 
 	lastSchedule, err := time.Parse(time.RFC3339, string(data[lastScheduleKey]))
 	if err != nil {

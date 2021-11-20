@@ -45,13 +45,17 @@ func TestCronJobs(t *testing.T) {
 		Namespace: namespace,
 		Suspend:   &suspendFalse,
 	})
-	emptySleepInfo := &v1alpha1.SleepInfo{}
+	sleepInfo := &v1alpha1.SleepInfo{
+		Spec: v1alpha1.SleepInfoSpec{
+			SuspendCronjobs: true,
+		},
+	}
 
 	getNewResource := func(t *testing.T, client client.Client, originalSuspendedCronJob map[string]bool) cronjobs {
 		c, err := NewResource(context.Background(), resource.ResourceClient{
 			Client:    client,
 			Log:       testLogger,
-			SleepInfo: emptySleepInfo,
+			SleepInfo: sleepInfo,
 		}, namespace, originalSuspendedCronJob)
 		require.NoError(t, err)
 
@@ -60,10 +64,11 @@ func TestCronJobs(t *testing.T) {
 
 	t.Run("NewResource", func(t *testing.T) {
 		listCronJobsTests := []struct {
-			name     string
-			client   client.Client
-			expected []batchv1.CronJob
-			throws   bool
+			name      string
+			client    client.Client
+			expected  []batchv1.CronJob
+			sleepInfo *v1alpha1.SleepInfo
+			throws    bool
 		}{
 			{
 				name: "get list of cron jobs",
@@ -71,10 +76,12 @@ func TestCronJobs(t *testing.T) {
 					NewClientBuilder().
 					WithRuntimeObjects([]runtime.Object{&cronJob1, &cronJob2, &cronJobOtherNamespace}...).
 					Build(),
-				expected: []batchv1.CronJob{cronJob1, cronJob2},
+				expected:  []batchv1.CronJob{cronJob1, cronJob2},
+				sleepInfo: sleepInfo,
 			},
 			{
-				name: "fails to list cron job",
+				name:      "fails to list cron job",
+				sleepInfo: sleepInfo,
 				client: &testutil.PossiblyErroringFakeCtrlRuntimeClient{
 					Client: fake.NewClientBuilder().Build(),
 					ShouldError: func(method testutil.Method, obj runtime.Object) bool {
@@ -89,7 +96,17 @@ func TestCronJobs(t *testing.T) {
 					NewClientBuilder().
 					WithRuntimeObjects([]runtime.Object{&cronJobOtherNamespace}...).
 					Build(),
-				expected: []batchv1.CronJob{},
+				sleepInfo: sleepInfo,
+				expected:  []batchv1.CronJob{},
+			},
+			{
+				name: "disabled cronjob suspend",
+				client: fake.
+					NewClientBuilder().
+					WithRuntimeObjects([]runtime.Object{&cronJob1, &cronJob2}...).
+					Build(),
+				sleepInfo: &v1alpha1.SleepInfo{},
+				expected:  []batchv1.CronJob{},
 			},
 		}
 
@@ -98,7 +115,7 @@ func TestCronJobs(t *testing.T) {
 				r := resource.ResourceClient{
 					Client:    test.client,
 					Log:       testLogger,
-					SleepInfo: &v1alpha1.SleepInfo{},
+					SleepInfo: test.sleepInfo,
 				}
 
 				resource, err := NewResource(context.Background(), r, namespace, map[string]bool{})
@@ -204,7 +221,6 @@ func TestCronJobs(t *testing.T) {
 			fakeClient := testutil.PossiblyErroringFakeCtrlRuntimeClient{
 				Client: fake.NewClientBuilder().WithRuntimeObjects(&suspendedCronJob1, &suspendedCronJob2, &suspendedCronJobs).Build(),
 				ShouldError: func(method testutil.Method, obj runtime.Object) bool {
-					fmt.Printf("fooooo %v", method)
 					return method == testutil.Patch
 				},
 			}
