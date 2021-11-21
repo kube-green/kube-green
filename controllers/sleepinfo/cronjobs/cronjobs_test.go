@@ -233,6 +233,14 @@ func TestCronJobs(t *testing.T) {
 	})
 
 	t.Run("GetOriginalInfoToSave", func(t *testing.T) {
+		t.Run("returns nil if not to suspend", func(t *testing.T) {
+			c := getNewResource(t, fake.NewClientBuilder().Build(), nil)
+			c.areToSuspend = false
+			res, err := c.GetOriginalInfoToSave()
+			require.NoError(t, err)
+			require.Nil(t, res)
+		})
+
 		t.Run("without cron jobs", func(t *testing.T) {
 			c := getNewResource(t, fake.NewClientBuilder().Build(), nil)
 			res, err := c.GetOriginalInfoToSave()
