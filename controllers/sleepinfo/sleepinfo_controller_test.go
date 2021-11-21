@@ -6,10 +6,12 @@ import (
 	"time"
 
 	kubegreenv1alpha1 "github.com/davidebianchi/kube-green/api/v1alpha1"
+	"github.com/davidebianchi/kube-green/controllers/sleepinfo/cronjobs"
 	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	core "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -543,6 +545,78 @@ var _ = Describe("SleepInfo Controller", func() {
 		assertCorrectWakeUpOperation(assertContextInfo.withSchedule("2021-03-23T20:19:50.100Z").withRequeue(45*60 + 9.9))
 		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T21:05:00.000Z").withRequeue(15 * 60))
 	})
+
+	It("reconcile - with deployments and cron jobs", func() {
+		namespace := "deployments-cronjobs-suspend"
+		req, originalResources := setupNamespaceWithResources(ctx, sleepInfoName, namespace, sleepInfoReconciler, mockNow, setupOptions{
+			suspendCronjobs: true,
+			insertCronjobs:  true,
+		})
+
+		assertContextInfo := AssertOperation{
+			testLogger:    testLogger,
+			ctx:           ctx,
+			req:           req,
+			namespace:     namespace,
+			sleepInfoName: sleepInfoName,
+
+			originalDeployments: originalResources.deploymentList,
+
+			originalCronJobs: originalResources.cronjobList,
+			suspendCronjobs:  true,
+		}
+
+		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T20:05:59.000Z").withRequeue(14*60 + 1))
+		assertCorrectWakeUpOperation(assertContextInfo.withSchedule("2021-03-23T20:19:50.100Z").withRequeue(45*60 + 9.9))
+		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T21:05:00.000Z").withRequeue(15 * 60))
+	})
+
+	It("reconcile - with deployments - suspend cron jobs active but not cron job in namespace", func() {
+		namespace := "deployments-cron-job-in-namespace"
+		req, originalResources := setupNamespaceWithResources(ctx, sleepInfoName, namespace, sleepInfoReconciler, mockNow, setupOptions{
+			suspendCronjobs: true,
+		})
+
+		assertContextInfo := AssertOperation{
+			testLogger:    testLogger,
+			ctx:           ctx,
+			req:           req,
+			namespace:     namespace,
+			sleepInfoName: sleepInfoName,
+
+			originalDeployments: originalResources.deploymentList,
+
+			suspendCronjobs:  true,
+			originalCronJobs: originalResources.cronjobList,
+		}
+
+		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T20:05:59.000Z").withRequeue(14*60 + 1))
+		assertCorrectWakeUpOperation(assertContextInfo.withSchedule("2021-03-23T20:19:50.100Z").withRequeue(45*60 + 9.9))
+		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T21:05:00.000Z").withRequeue(15 * 60))
+	})
+
+	It("reconcile - with deployments and cron jobs not to suspend", func() {
+		namespace := "deployments-sleep-cronjobs-not-suspend"
+		req, originalResources := setupNamespaceWithResources(ctx, sleepInfoName, namespace, sleepInfoReconciler, mockNow, setupOptions{
+			insertCronjobs: true,
+		})
+
+		assertContextInfo := AssertOperation{
+			testLogger:    testLogger,
+			ctx:           ctx,
+			req:           req,
+			namespace:     namespace,
+			sleepInfoName: sleepInfoName,
+
+			originalDeployments: originalResources.deploymentList,
+
+			originalCronJobs: originalResources.cronjobList,
+		}
+
+		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T20:05:59.000Z").withRequeue(14*60 + 1))
+		assertCorrectWakeUpOperation(assertContextInfo.withSchedule("2021-03-23T20:19:50.100Z").withRequeue(45*60 + 9.9))
+		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T21:05:00.000Z").withRequeue(15 * 60))
+	})
 })
 
 type mockClock struct {
@@ -565,6 +639,16 @@ func assertAllReplicasSetToZero(actualDeployments []appsv1.Deployment, originalD
 	}
 }
 
+func assertAllCronJobsSuspended(actualCronJobs []batchv1.CronJob, originalCronJobs []batchv1.CronJob) {
+	allSuspended := []bool{}
+	for _, cronJob := range actualCronJobs {
+		allSuspended = append(allSuspended, *cronJob.Spec.Suspend)
+	}
+	for _, suspended := range allSuspended {
+		Expect(suspended).To(BeTrue())
+	}
+}
+
 func getTime(mockNowRaw string) time.Time {
 	now, err := time.Parse(time.RFC3339, mockNowRaw)
 	Expect(err).ShouldNot(HaveOccurred())
@@ -572,17 +656,21 @@ func getTime(mockNowRaw string) time.Time {
 }
 
 type AssertOperation struct {
-	testLogger          logr.Logger
-	ctx                 context.Context
-	req                 ctrl.Request
-	namespace           string
-	sleepInfoName       string
-	originalDeployments []appsv1.Deployment
-	scheduleTime        string
-	excludedDeployment  []string
+	testLogger    logr.Logger
+	ctx           context.Context
+	req           ctrl.Request
+	namespace     string
+	sleepInfoName string
+	scheduleTime  string
 	// optional - default is equal to scheduleTime
 	expectedScheduleTime string
 	expectedNextRequeue  time.Duration
+
+	originalDeployments []appsv1.Deployment
+	excludedDeployment  []string
+
+	suspendCronjobs  bool
+	originalCronJobs []batchv1.CronJob
 }
 
 func (a AssertOperation) withSchedule(schedule string) AssertOperation {
@@ -631,6 +719,18 @@ func assertCorrectSleepOperation(assert AssertOperation) {
 		}
 	})
 
+	By("cron jobs are correctly suspended", func() {
+		cronJobs := listCronJobs(assert.ctx, assert.namespace)
+		if assert.suspendCronjobs {
+			assertAllCronJobsSuspended(cronJobs, assert.originalCronJobs)
+		} else {
+			for i, cronJob := range cronJobs {
+				Expect(cronJob.Name).To(Equal(assert.originalCronJobs[i].Name))
+				Expect(isCronJobSuspended(cronJob.Spec.Suspend)).To(Equal(isCronJobSuspended(assert.originalCronJobs[i].Spec.Suspend)))
+			}
+		}
+	})
+
 	By("secret is correctly set", func() {
 		secret, err := sleepInfoReconciler.getSecret(assert.ctx, getSecretName(assert.sleepInfoName), assert.namespace)
 		Expect(err).NotTo(HaveOccurred())
@@ -654,11 +754,30 @@ func assertCorrectSleepOperation(assert AssertOperation) {
 		expectedReplicas, err = json.Marshal(originalReplicas)
 		Expect(err).NotTo(HaveOccurred())
 
-		Expect(secretData).To(Equal(map[string][]byte{
+		expectedSecretData := map[string][]byte{
 			lastScheduleKey:        []byte(getTime(assert.expectedScheduleTime).Truncate(time.Second).Format(time.RFC3339)),
 			lastOperationKey:       []byte(sleepOperation),
 			replicasBeforeSleepKey: expectedReplicas,
-		}))
+		}
+
+		if assert.suspendCronjobs {
+			originalStatus := []cronjobs.OriginalCronJobStatus{}
+			for _, cronJob := range assert.originalCronJobs {
+				if cronJob.Spec.Suspend != nil && *cronJob.Spec.Suspend {
+					continue
+				}
+				originalStatus = append(originalStatus, cronjobs.OriginalCronJobStatus{
+					Name:    cronJob.Name,
+					Suspend: false,
+				})
+			}
+			expectedStatus, err := json.Marshal(originalStatus)
+			Expect(err).NotTo(HaveOccurred())
+
+			expectedSecretData[originalCronjobStatusKey] = expectedStatus
+		}
+
+		Expect(secretData).To(Equal(expectedSecretData))
 	})
 
 	By("sleepinfo status updated correctly", func() {
@@ -694,6 +813,14 @@ func assertCorrectWakeUpOperation(assert AssertOperation) {
 		for _, deployment := range deployments {
 			originalDeployment := findDeployByName(assert.originalDeployments, deployment.Name)
 			Expect(deployment.Spec.Replicas).To(Equal(originalDeployment.Spec.Replicas))
+		}
+	})
+
+	By("cron jobs correctly waked up", func() {
+		cronJobs := listCronJobs(assert.ctx, assert.namespace)
+		for _, cronJob := range cronJobs {
+			originalCronJob := findCronJobByName(assert.originalCronJobs, cronJob.Name)
+			Expect(isCronJobSuspended(cronJob.Spec.Suspend)).To(Equal(isCronJobSuspended(originalCronJob.Spec.Suspend)))
 		}
 	})
 

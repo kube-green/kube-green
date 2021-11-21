@@ -15,6 +15,9 @@ type MockSpec struct {
 }
 
 func GetMock(opts MockSpec) batchv1.CronJob {
+	if opts.Schedule == "" {
+		opts.Schedule = "0 0 1-5 * *"
+	}
 	return batchv1.CronJob{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "CronJob",
@@ -36,8 +39,10 @@ func GetMock(opts MockSpec) batchv1.CronJob {
 				Spec: batchv1.JobSpec{
 					Template: v1.PodTemplateSpec{
 						Spec: v1.PodSpec{
+							RestartPolicy: v1.RestartPolicyNever,
 							Containers: []v1.Container{
 								{
+									Name:  "c1",
 									Image: "my-image",
 								},
 							},

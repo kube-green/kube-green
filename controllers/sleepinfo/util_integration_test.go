@@ -2,14 +2,19 @@ package sleepinfo
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	kubegreenv1alpha1 "github.com/davidebianchi/kube-green/api/v1alpha1"
+	"github.com/davidebianchi/kube-green/controllers/sleepinfo/cronjobs"
+	"github.com/davidebianchi/kube-green/controllers/sleepinfo/deployments"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	core "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -30,6 +35,8 @@ type originalResources struct {
 }
 
 func setupNamespaceWithResources(ctx context.Context, sleepInfoName, namespace string, reconciler SleepInfoReconciler, now string, opts setupOptions) (ctrl.Request, originalResources) {
+	cleanupNamespace(reconciler.Client, namespace)
+
 	createSleepInfo(ctx, sleepInfoName, namespace, opts)
 
 	By("create deployments")
@@ -66,12 +73,13 @@ func setupNamespaceWithResources(ctx context.Context, sleepInfoName, namespace s
 	By("cron jobs not suspended", func() {
 		cronJobsNotChanged := listCronJobs(ctx, namespace)
 		for i, cj := range cronJobsNotChanged {
-			Expect(*cj.Spec.Suspend).To(Equal(*originalCronJobs[i].Spec.Suspend))
+			Expect(isCronJobSuspended(cj.Spec.Suspend)).To(Equal(isCronJobSuspended(originalCronJobs[i].Spec.Suspend)))
 		}
 	})
 
 	return req, originalResources{
 		deploymentList: originalDeployments,
+		cronjobList:    originalCronJobs,
 	}
 }
 
@@ -93,141 +101,29 @@ func upsertDeployments(ctx context.Context, namespace string, updateIfAlreadyCre
 	var oneReplica int32 = 1
 	var zeroReplicas int32 = 0
 	deployments := []appsv1.Deployment{
-		{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "Deployment",
-				APIVersion: "apps/v1",
+		deployments.GetMock(deployments.MockSpec{
+			Name:      "service-1",
+			Namespace: namespace,
+			Replicas:  &threeReplicas,
+		}),
+		deployments.GetMock(deployments.MockSpec{
+			Name:      "service-2",
+			Namespace: namespace,
+			Replicas:  &oneReplica,
+		}),
+		deployments.GetMock(deployments.MockSpec{
+			Name:      "zero-replicas",
+			Namespace: namespace,
+			Replicas:  &zeroReplicas,
+		}),
+		deployments.GetMock(deployments.MockSpec{
+			Name:      "zero-replicas-annotation",
+			Namespace: namespace,
+			Replicas:  &zeroReplicas,
+			PodAnnotations: map[string]string{
+				lastScheduleKey: "2021-03-23T00:00:00.000Z",
 			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "service-1",
-				Namespace: namespace,
-			},
-			Spec: appsv1.DeploymentSpec{
-				Replicas: &threeReplicas,
-				Selector: &metav1.LabelSelector{
-					MatchLabels: map[string]string{
-						"app": "service-1",
-					},
-				},
-				Template: core.PodTemplateSpec{
-					ObjectMeta: metav1.ObjectMeta{
-						Labels: map[string]string{
-							"app": "service-1",
-						},
-					},
-					Spec: core.PodSpec{
-						Containers: []core.Container{
-							{
-								Name:  "c1",
-								Image: "davidebianchi/echo-service",
-							},
-						},
-					},
-				},
-			},
-		},
-		{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "Deployment",
-				APIVersion: "apps/v1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "service-2",
-				Namespace: namespace,
-			},
-			Spec: appsv1.DeploymentSpec{
-				Replicas: &oneReplica,
-				Selector: &metav1.LabelSelector{
-					MatchLabels: map[string]string{
-						"app": "service-2",
-					},
-				},
-				Template: core.PodTemplateSpec{
-					ObjectMeta: metav1.ObjectMeta{
-						Labels: map[string]string{
-							"app": "service-2",
-						},
-					},
-					Spec: core.PodSpec{
-						Containers: []core.Container{
-							{
-								Name:  "c2",
-								Image: "davidebianchi/echo-service",
-							},
-						},
-					},
-				},
-			},
-		},
-		{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "Deployment",
-				APIVersion: "apps/v1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "zero-replicas",
-				Namespace: namespace,
-			},
-			Spec: appsv1.DeploymentSpec{
-				Replicas: &zeroReplicas,
-				Selector: &metav1.LabelSelector{
-					MatchLabels: map[string]string{
-						"app": "zero-replicas",
-					},
-				},
-				Template: core.PodTemplateSpec{
-					ObjectMeta: metav1.ObjectMeta{
-						Labels: map[string]string{
-							"app": "zero-replicas",
-						},
-					},
-					Spec: core.PodSpec{
-						Containers: []core.Container{
-							{
-								Name:  "zero",
-								Image: "davidebianchi/echo-service",
-							},
-						},
-					},
-				},
-			},
-		},
-		{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "Deployment",
-				APIVersion: "apps/v1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "zero-replicas-annotation",
-				Namespace: namespace,
-				Annotations: map[string]string{
-					lastScheduleKey: "2021-03-23T00:00:00.000Z",
-				},
-			},
-			Spec: appsv1.DeploymentSpec{
-				Replicas: &zeroReplicas,
-				Selector: &metav1.LabelSelector{
-					MatchLabels: map[string]string{
-						"app": "zero-replicas-annotation",
-					},
-				},
-				Template: core.PodTemplateSpec{
-					ObjectMeta: metav1.ObjectMeta{
-						Labels: map[string]string{
-							"app": "zero-replicas-annotation",
-						},
-					},
-					Spec: core.PodSpec{
-						Containers: []core.Container{
-							{
-								Name:  "zero",
-								Image: "davidebianchi/echo-service",
-							},
-						},
-					},
-				},
-			},
-		},
+		}),
 	}
 	for _, deployment := range deployments {
 		var deploymentAlreadyExists bool
@@ -339,6 +235,15 @@ func findDeployByName(deployments []appsv1.Deployment, nameToFind string) *appsv
 	return nil
 }
 
+func findCronJobByName(cronJobs []batchv1.CronJob, nameToFind string) *batchv1.CronJob {
+	for _, cronJob := range cronJobs {
+		if cronJob.Name == nameToFind {
+			return cronJob.DeepCopy()
+		}
+	}
+	return nil
+}
+
 func contains(s []string, v string) bool {
 	for _, a := range s {
 		if a == v {
@@ -349,9 +254,86 @@ func contains(s []string, v string) bool {
 }
 
 func upsertCronJobs(ctx context.Context, namespace string, updateIfAlreadyCreated bool) []batchv1.CronJob {
-	return nil
+	suspendTrue := true
+	suspendFalse := false
+	cronJobs := []batchv1.CronJob{
+		cronjobs.GetMock(cronjobs.MockSpec{
+			Name:      "cronjob-1",
+			Namespace: namespace,
+		}),
+		cronjobs.GetMock(cronjobs.MockSpec{
+			Name:      "cronjob-2",
+			Namespace: namespace,
+			Suspend:   &suspendFalse,
+		}),
+		cronjobs.GetMock(cronjobs.MockSpec{
+			Name:      "cronjob-suspended",
+			Namespace: namespace,
+			Suspend:   &suspendTrue,
+		}),
+	}
+	for _, cronJob := range cronJobs {
+		var alreadyExists bool
+		c := batchv1.CronJob{}
+		if updateIfAlreadyCreated {
+			err := k8sClient.Get(ctx, types.NamespacedName{
+				Name:      cronJob.Name,
+				Namespace: namespace,
+			}, &c)
+			if err == nil {
+				alreadyExists = true
+			}
+		}
+		if alreadyExists {
+			patch := client.MergeFrom(c.DeepCopy())
+			c.Spec.Suspend = cronJob.Spec.Suspend
+			if err := k8sClient.Patch(ctx, &c, patch); err != nil {
+				Expect(err).NotTo(HaveOccurred())
+			}
+		} else {
+			if err := k8sClient.Create(ctx, &cronJob); err != nil {
+				Expect(err).NotTo(HaveOccurred())
+			}
+		}
+	}
+	return cronJobs
 }
 
 func listCronJobs(ctx context.Context, namespace string) []batchv1.CronJob {
-	return nil
+	cronJobs := batchv1.CronJobList{}
+	err := k8sClient.List(ctx, &cronJobs, &client.ListOptions{
+		Namespace: namespace,
+	})
+	Expect(err).NotTo(HaveOccurred())
+	return cronJobs.Items
+}
+
+func isCronJobSuspended(suspend *bool) bool {
+	if suspend == nil {
+		return false
+	}
+	return *suspend
+}
+
+func cleanupNamespace(k8sClient client.Client, namespace string) {
+	var (
+		timeout  = time.Second * 10
+		interval = time.Millisecond * 250
+	)
+
+	err := k8sClient.Delete(context.Background(), &v1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: namespace,
+		},
+	})
+	fmt.Printf("Error: %s\n", err)
+	Expect(client.IgnoreNotFound(err)).NotTo(HaveOccurred())
+
+	Eventually(func() bool {
+		err := k8sClient.Get(context.Background(), types.NamespacedName{
+			Name: namespace,
+		}, &v1.Namespace{})
+		fmt.Printf("FOOOOOOO %s", err)
+		return apierrors.IsNotFound(err)
+	}, timeout, interval).Should(BeTrue())
 }
