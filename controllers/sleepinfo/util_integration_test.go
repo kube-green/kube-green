@@ -2,7 +2,6 @@ package sleepinfo
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	kubegreenv1alpha1 "github.com/davidebianchi/kube-green/api/v1alpha1"
@@ -326,14 +325,12 @@ func cleanupNamespace(k8sClient client.Client, namespace string) {
 			Name: namespace,
 		},
 	})
-	fmt.Printf("Error: %s\n", err)
 	Expect(client.IgnoreNotFound(err)).NotTo(HaveOccurred())
 
 	Eventually(func() bool {
 		err := k8sClient.Get(context.Background(), types.NamespacedName{
 			Name: namespace,
 		}, &v1.Namespace{})
-		fmt.Printf("FOOOOOOO %s", err)
 		return apierrors.IsNotFound(err)
 	}, timeout, interval).Should(BeTrue())
 }
