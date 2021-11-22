@@ -21,7 +21,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-// TODO: add tests for cron jobs
 var _ = Describe("SleepInfo Controller", func() {
 	const (
 		sleepInfoName = "sleep-name"
@@ -525,7 +524,7 @@ var _ = Describe("SleepInfo Controller", func() {
 				},
 				{
 					ApiVersion: "apps/v1",
-					Kind:       "deployment",
+					Kind:       "Deployment",
 					Name:       "zero-replicas",
 				},
 			},
@@ -617,6 +616,44 @@ var _ = Describe("SleepInfo Controller", func() {
 		assertCorrectWakeUpOperation(assertContextInfo.withSchedule("2021-03-23T20:19:50.100Z").withRequeue(45*60 + 9.9))
 		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T21:05:00.000Z").withRequeue(15 * 60))
 	})
+
+	It("reconcile - with deployments and cron job to exclude", func() {
+		namespace := "multiple-cronjob-exclude"
+		req, originalResources := setupNamespaceWithResources(ctx, sleepInfoName, namespace, sleepInfoReconciler, mockNow, setupOptions{
+			suspendCronjobs: true,
+			insertCronjobs:  true,
+			excludeRef: []kubegreenv1alpha1.ExcludeRef{
+				{
+					ApiVersion: "apps/v1",
+					Kind:       "Deployment",
+					Name:       "service-1",
+				},
+				{
+					ApiVersion: "batch/v1",
+					Kind:       "CronJob",
+					Name:       "cronjob-2",
+				},
+			},
+		})
+
+		assertContextInfo := AssertOperation{
+			testLogger:          testLogger,
+			ctx:                 ctx,
+			req:                 req,
+			namespace:           namespace,
+			sleepInfoName:       sleepInfoName,
+			originalDeployments: originalResources.deploymentList,
+			excludedDeployment:  []string{"service-1"},
+
+			suspendCronjobs:  true,
+			originalCronJobs: originalResources.cronjobList,
+			excludedCronJob:  []string{"cronjob-2"},
+		}
+
+		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T20:05:59.000Z").withRequeue(14*60 + 1))
+		assertCorrectWakeUpOperation(assertContextInfo.withSchedule("2021-03-23T20:19:50.100Z").withRequeue(45*60 + 9.9))
+		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T21:05:00.000Z").withRequeue(15 * 60))
+	})
 })
 
 type mockClock struct {
@@ -671,6 +708,7 @@ type AssertOperation struct {
 
 	suspendCronjobs  bool
 	originalCronJobs []batchv1.CronJob
+	excludedCronJob  []string
 }
 
 func (a AssertOperation) withSchedule(schedule string) AssertOperation {
@@ -722,11 +760,22 @@ func assertCorrectSleepOperation(assert AssertOperation) {
 	By("cron jobs are correctly suspended", func() {
 		cronJobs := listCronJobs(assert.ctx, assert.namespace)
 		if assert.suspendCronjobs {
-			assertAllCronJobsSuspended(cronJobs, assert.originalCronJobs)
+			if len(assert.excludedCronJob) == 0 {
+				assertAllCronJobsSuspended(cronJobs, assert.originalCronJobs)
+			} else {
+				for _, cronJob := range cronJobs {
+					originalCronJob := findCronJobByName(assert.originalCronJobs, cronJob.Name)
+					if contains(assert.excludedCronJob, cronJob.Name) {
+						Expect(isCronJobSuspended(cronJob.Spec.Suspend)).To(Equal(isCronJobSuspended(originalCronJob.Spec.Suspend)))
+						continue
+					}
+					Expect(isCronJobSuspended(cronJob.Spec.Suspend)).To(BeTrue())
+				}
+			}
 		} else {
-			for i, cronJob := range cronJobs {
-				Expect(cronJob.Name).To(Equal(assert.originalCronJobs[i].Name))
-				Expect(isCronJobSuspended(cronJob.Spec.Suspend)).To(Equal(isCronJobSuspended(assert.originalCronJobs[i].Spec.Suspend)))
+			for _, cronJob := range cronJobs {
+				originalCronJob := findCronJobByName(assert.originalCronJobs, cronJob.Name)
+				Expect(isCronJobSuspended(cronJob.Spec.Suspend)).To(Equal(isCronJobSuspended(originalCronJob.Spec.Suspend)))
 			}
 		}
 	})
@@ -764,6 +813,9 @@ func assertCorrectSleepOperation(assert AssertOperation) {
 			originalStatus := []cronjobs.OriginalCronJobStatus{}
 			for _, cronJob := range assert.originalCronJobs {
 				if cronJob.Spec.Suspend != nil && *cronJob.Spec.Suspend {
+					continue
+				}
+				if contains(assert.excludedCronJob, cronJob.Name) {
 					continue
 				}
 				originalStatus = append(originalStatus, cronjobs.OriginalCronJobStatus{

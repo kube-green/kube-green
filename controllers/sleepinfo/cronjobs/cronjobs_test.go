@@ -74,7 +74,7 @@ func TestCronJobs(t *testing.T) {
 				name: "get list of cron jobs",
 				client: fake.
 					NewClientBuilder().
-					WithRuntimeObjects([]runtime.Object{&cronJob1, &cronJob2, &cronJobOtherNamespace}...).
+					WithRuntimeObjects(&cronJob1, &cronJob2, &cronJobOtherNamespace).
 					Build(),
 				expected:  []batchv1.CronJob{cronJob1, cronJob2},
 				sleepInfo: sleepInfo,
@@ -94,7 +94,7 @@ func TestCronJobs(t *testing.T) {
 				name: "empty list cron job",
 				client: fake.
 					NewClientBuilder().
-					WithRuntimeObjects([]runtime.Object{&cronJobOtherNamespace}...).
+					WithRuntimeObjects(&cronJobOtherNamespace).
 					Build(),
 				sleepInfo: sleepInfo,
 				expected:  []batchv1.CronJob{},
@@ -103,10 +103,37 @@ func TestCronJobs(t *testing.T) {
 				name: "disabled cronjob suspend",
 				client: fake.
 					NewClientBuilder().
-					WithRuntimeObjects([]runtime.Object{&cronJob1, &cronJob2}...).
+					WithRuntimeObjects(&cronJob1, &cronJob2).
 					Build(),
 				sleepInfo: &v1alpha1.SleepInfo{},
 				expected:  []batchv1.CronJob{},
+			},
+			{
+				name: "get list with cron jobs excluded",
+				client: testutil.PossiblyErroringFakeCtrlRuntimeClient{
+					Client: fake.
+						NewClientBuilder().
+						WithRuntimeObjects(&cronJob1, &cronJob2, &cronJobOtherNamespace, &cronJobSuspendSetToFalseNotEmpty).
+						Build(),
+				},
+				expected: []batchv1.CronJob{cronJob1},
+				sleepInfo: &v1alpha1.SleepInfo{
+					Spec: v1alpha1.SleepInfoSpec{
+						SuspendCronjobs: true,
+						ExcludeRef: []v1alpha1.ExcludeRef{
+							{
+								Name:       cronJob2.Name,
+								ApiVersion: "batch/v1",
+								Kind:       "CronJob",
+							},
+							{
+								Name:       cronJobSuspendSetToFalseNotEmpty.Name,
+								ApiVersion: "batch/v1",
+								Kind:       "CronJob",
+							},
+						},
+					},
+				},
 			},
 		}
 

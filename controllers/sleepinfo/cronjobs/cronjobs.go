@@ -4,9 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
+	kubegreenv1alpha1 "github.com/davidebianchi/kube-green/api/v1alpha1"
 	"github.com/davidebianchi/kube-green/controllers/sleepinfo/resource"
 	batchv1 "k8s.io/api/batch/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -113,11 +116,39 @@ func (c cronjobs) getListByNamespace(ctx context.Context, namespace string) ([]b
 		Namespace: namespace,
 		Limit:     500,
 	}
+
+	excludeRef := c.ResourceClient.SleepInfo.GetExcludeRef()
+	cronJobsToExclude := getCronJobNameToExclude(excludeRef)
+	fieldsSelector := []string{}
+	for _, cronJobToExclude := range cronJobsToExclude {
+		fieldsSelector = append(fieldsSelector, fmt.Sprintf("metadata.name!=%s", cronJobToExclude))
+	}
+	if len(fieldsSelector) > 0 {
+		fSel, err := fields.ParseSelector(strings.Join(fieldsSelector, ","))
+		if err != nil {
+			return nil, err
+		}
+		listOptions.FieldSelector = fSel
+	}
+
 	cronjobs := batchv1.CronJobList{}
 	if err := c.Client.List(ctx, &cronjobs, listOptions); err != nil {
 		return cronjobs.Items, client.IgnoreNotFound(err)
 	}
 	return cronjobs.Items, nil
+}
+
+func getCronJobNameToExclude(excludeRef []kubegreenv1alpha1.ExcludeRef) []string {
+	cronJobsToExclude := []string{}
+	if excludeRef == nil {
+		return cronJobsToExclude
+	}
+	for _, exclude := range excludeRef {
+		if exclude.Kind == "CronJob" {
+			cronJobsToExclude = append(cronJobsToExclude, exclude.Name)
+		}
+	}
+	return cronJobsToExclude
 }
 
 func GetOriginalInfoToRestore(savedData []byte) (OriginalSuspendStatus, error) {

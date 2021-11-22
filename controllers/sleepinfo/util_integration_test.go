@@ -316,7 +316,7 @@ func isCronJobSuspended(suspend *bool) bool {
 
 func cleanupNamespace(k8sClient client.Client, namespace string) {
 	var (
-		timeout  = time.Second * 10
+		timeout  = time.Second * 20
 		interval = time.Millisecond * 250
 	)
 
