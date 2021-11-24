@@ -10,8 +10,12 @@ jobs:
     strategy:
       matrix:
         go_version: [1.16]
-        os: [macos-latest, ubuntu-latest]
+        os: [ubuntu-latest]
         ENVTEST_K8S_VERSION: ['1.22', '1.21', '1.20', '1.19']
+        include:
+          - go_version: 1.16
+            os: macos-latest
+            ENVTEST_K8S_VERSION: '1.22'
     steps:
       - uses: actions/checkout@v2
       - name: Use golang ${{ matrix.go_version }}
