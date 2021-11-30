@@ -11,6 +11,7 @@ import (
 	"github.com/davidebianchi/kube-green/controllers/sleepinfo/resource"
 	"github.com/stretchr/testify/require"
 	batchv1 "k8s.io/api/batch/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -66,7 +67,7 @@ func TestCronJobs(t *testing.T) {
 		listCronJobsTests := []struct {
 			name      string
 			client    client.Client
-			expected  []batchv1.CronJob
+			expected  []unstructured.Unstructured
 			sleepInfo *v1alpha1.SleepInfo
 			throws    bool
 		}{
@@ -76,7 +77,7 @@ func TestCronJobs(t *testing.T) {
 					NewClientBuilder().
 					WithRuntimeObjects(&cronJob1, &cronJob2, &cronJobOtherNamespace).
 					Build(),
-				expected:  []batchv1.CronJob{cronJob1, cronJob2},
+				expected:  []unstructured.Unstructured{cronJob1, cronJob2},
 				sleepInfo: sleepInfo,
 			},
 			{
@@ -97,7 +98,7 @@ func TestCronJobs(t *testing.T) {
 					WithRuntimeObjects(&cronJobOtherNamespace).
 					Build(),
 				sleepInfo: sleepInfo,
-				expected:  []batchv1.CronJob{},
+				expected:  []unstructured.Unstructured{},
 			},
 			{
 				name: "disabled cronjob suspend",
@@ -106,7 +107,7 @@ func TestCronJobs(t *testing.T) {
 					WithRuntimeObjects(&cronJob1, &cronJob2).
 					Build(),
 				sleepInfo: &v1alpha1.SleepInfo{},
-				expected:  []batchv1.CronJob{},
+				expected:  []unstructured.Unstructured{},
 			},
 			{
 				name: "get list with cron jobs excluded",
@@ -116,18 +117,18 @@ func TestCronJobs(t *testing.T) {
 						WithRuntimeObjects(&cronJob1, &cronJob2, &cronJobOtherNamespace, &cronJobSuspendSetToFalseNotEmpty).
 						Build(),
 				},
-				expected: []batchv1.CronJob{cronJob1},
+				expected: []unstructured.Unstructured{cronJob1},
 				sleepInfo: &v1alpha1.SleepInfo{
 					Spec: v1alpha1.SleepInfoSpec{
 						SuspendCronjobs: true,
 						ExcludeRef: []v1alpha1.ExcludeRef{
 							{
-								Name:       cronJob2.Name,
+								Name:       cronJob2.GetName(),
 								ApiVersion: "batch/v1",
 								Kind:       "CronJob",
 							},
 							{
-								Name:       cronJobSuspendSetToFalseNotEmpty.Name,
+								Name:       cronJobSuspendSetToFalseNotEmpty.GetName(),
 								ApiVersion: "batch/v1",
 								Kind:       "CronJob",
 							},
@@ -151,7 +152,8 @@ func TestCronJobs(t *testing.T) {
 				} else {
 					require.NoError(t, err)
 				}
-				require.Equal(t, test.expected, resource.data)
+				actualData := convertCronJobsToUnstructured(t, resource.data)
+				require.Equal(t, test.expected, actualData)
 			})
 		}
 	})
@@ -182,12 +184,12 @@ func TestCronJobs(t *testing.T) {
 			cjList, err := c.getListByNamespace(context.Background(), namespace)
 			require.NoError(t, err)
 
-			require.Equal(t, []batchv1.CronJob{
+			require.Equal(t, []unstructured.Unstructured{
 				suspendAndUpdateResourceVersion(t, cronJobSuspendSetToFalseNotEmpty),
 				suspendedCronJobs,
 				suspendAndUpdateResourceVersion(t, cronJob1),
 				suspendAndUpdateResourceVersion(t, cronJob2),
-			}, cjList)
+			}, convertCronJobsToUnstructured(t, cjList))
 		})
 
 		t.Run("fails to suspend cronjobs", func(t *testing.T) {
@@ -228,20 +230,20 @@ func TestCronJobs(t *testing.T) {
 				Build()
 
 			c := getNewResource(t, fakeK8sClient, map[string]bool{
-				cronJob1.Name:                         false,
-				cronJob2.Name:                         false,
-				cronJobSuspendSetToFalseNotEmpty.Name: false, // cron job deleted from namespace during sleep
+				cronJob1.GetName():                         false,
+				cronJob2.GetName():                         false,
+				cronJobSuspendSetToFalseNotEmpty.GetName(): false, // cron job deleted from namespace during sleep
 			})
 			require.NoError(t, c.WakeUp(context.Background()))
 
 			cronJobList, err := c.getListByNamespace(context.Background(), namespace)
 			require.NoError(t, err)
-			require.Equal(t, []batchv1.CronJob{
+			require.Equal(t, []unstructured.Unstructured{
 				suspendedCronJobs,
 				updateResourceVersion(t, cronJob1),
 				updateResourceVersion(t, cronJob2),
 				cronJobAddedToNamespaceAfterWakeUp,
-			}, cronJobList)
+			}, convertCronJobsToUnstructured(t, cronJobList))
 		})
 
 		t.Run("fails to wake up", func(t *testing.T) {
@@ -252,8 +254,8 @@ func TestCronJobs(t *testing.T) {
 				},
 			}
 			c := getNewResource(t, fakeClient, map[string]bool{
-				cronJob1.Name: false,
-				cronJob2.Name: false,
+				cronJob1.GetName(): false,
+				cronJob2.GetName(): false,
 			})
 			require.EqualError(t, c.WakeUp(context.Background()), "error during patch")
 		})
@@ -318,21 +320,37 @@ func TestCronJobs(t *testing.T) {
 	})
 }
 
-func suspendAndUpdateResourceVersion(t *testing.T, cronJob batchv1.CronJob) batchv1.CronJob {
+func suspendAndUpdateResourceVersion(t *testing.T, cronJob unstructured.Unstructured) unstructured.Unstructured {
 	return updateResourceVersion(t, convertCronJobToBeSuspended(t, cronJob))
 }
 
-func convertCronJobToBeSuspended(t *testing.T, cronJob batchv1.CronJob) batchv1.CronJob {
+func convertCronJobToBeSuspended(t *testing.T, cronJob unstructured.Unstructured) unstructured.Unstructured {
 	suspendTrue := true
 	newCronJob := cronJob.DeepCopy()
-	newCronJob.Spec.Suspend = &suspendTrue
+	err := unstructured.SetNestedField(newCronJob.Object, suspendTrue, "spec", "suspend")
+	require.NoError(t, err)
 	return *newCronJob
 }
 
-func updateResourceVersion(t *testing.T, cronJob batchv1.CronJob) batchv1.CronJob {
-	resourceVersion, err := strconv.Atoi(cronJob.ResourceVersion)
+func updateResourceVersion(t *testing.T, cronJob unstructured.Unstructured) unstructured.Unstructured {
+	resourceVersion, err := strconv.Atoi(cronJob.GetResourceVersion())
 	require.NoError(t, err)
 	newCronJob := cronJob.DeepCopy()
-	newCronJob.ResourceVersion = fmt.Sprintf("%v", resourceVersion+1)
+	newCronJob.SetResourceVersion(fmt.Sprintf("%v", resourceVersion+1))
 	return *newCronJob
+}
+
+func convertCronJobsToUnstructured(t *testing.T, cronJob []batchv1.CronJob) []unstructured.Unstructured {
+	if cronJob == nil {
+		return nil
+	}
+	actualData := []unstructured.Unstructured{}
+	for _, item := range cronJob {
+		unstructuredItem, err := runtime.DefaultUnstructuredConverter.ToUnstructured(item.DeepCopy())
+		require.NoError(t, err)
+		actualData = append(actualData, unstructured.Unstructured{
+			Object: unstructuredItem,
+		})
+	}
+	return actualData
 }

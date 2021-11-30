@@ -11,9 +11,10 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
-	batchv1 "k8s.io/api/batch/v1"
 	core "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -676,10 +677,10 @@ func assertAllReplicasSetToZero(actualDeployments []appsv1.Deployment, originalD
 	}
 }
 
-func assertAllCronJobsSuspended(actualCronJobs []batchv1.CronJob, originalCronJobs []batchv1.CronJob) {
+func assertAllCronJobsSuspended(actualCronJobs []unstructured.Unstructured, originalCronJobs []unstructured.Unstructured) {
 	allSuspended := []bool{}
 	for _, cronJob := range actualCronJobs {
-		allSuspended = append(allSuspended, *cronJob.Spec.Suspend)
+		allSuspended = append(allSuspended, isCronJobSuspended(cronJob))
 	}
 	for _, suspended := range allSuspended {
 		Expect(suspended).To(BeTrue())
@@ -707,7 +708,7 @@ type AssertOperation struct {
 	excludedDeployment  []string
 
 	suspendCronjobs  bool
-	originalCronJobs []batchv1.CronJob
+	originalCronJobs []unstructured.Unstructured
 	excludedCronJob  []string
 }
 
@@ -764,18 +765,26 @@ func assertCorrectSleepOperation(assert AssertOperation) {
 				assertAllCronJobsSuspended(cronJobs, assert.originalCronJobs)
 			} else {
 				for _, cronJob := range cronJobs {
-					originalCronJob := findCronJobByName(assert.originalCronJobs, cronJob.Name)
-					if contains(assert.excludedCronJob, cronJob.Name) {
-						Expect(isCronJobSuspended(cronJob.Spec.Suspend)).To(Equal(isCronJobSuspended(originalCronJob.Spec.Suspend)))
+					originalCronJob := findResourceByName(assert.originalCronJobs, cronJob.GetName())
+					originalUnstructuredCronJob, err := runtime.DefaultUnstructuredConverter.ToUnstructured(originalCronJob)
+					Expect(err).NotTo(HaveOccurred())
+					if contains(assert.excludedCronJob, cronJob.GetName()) {
+						Expect(isCronJobSuspended(cronJob)).To(Equal(isCronJobSuspended(unstructured.Unstructured{
+							Object: originalUnstructuredCronJob,
+						})))
 						continue
 					}
-					Expect(isCronJobSuspended(cronJob.Spec.Suspend)).To(BeTrue())
+					Expect(isCronJobSuspended(cronJob)).To(BeTrue())
 				}
 			}
 		} else {
 			for _, cronJob := range cronJobs {
-				originalCronJob := findCronJobByName(assert.originalCronJobs, cronJob.Name)
-				Expect(isCronJobSuspended(cronJob.Spec.Suspend)).To(Equal(isCronJobSuspended(originalCronJob.Spec.Suspend)))
+				originalCronJob := findResourceByName(assert.originalCronJobs, cronJob.GetName())
+				originalUnstructuredCronJob, err := runtime.DefaultUnstructuredConverter.ToUnstructured(originalCronJob)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(isCronJobSuspended(cronJob)).To(Equal(isCronJobSuspended(unstructured.Unstructured{
+					Object: originalUnstructuredCronJob,
+				})))
 			}
 		}
 	})
@@ -812,14 +821,14 @@ func assertCorrectSleepOperation(assert AssertOperation) {
 		if assert.suspendCronjobs {
 			originalStatus := []cronjobs.OriginalCronJobStatus{}
 			for _, cronJob := range assert.originalCronJobs {
-				if cronJob.Spec.Suspend != nil && *cronJob.Spec.Suspend {
+				if isCronJobSuspended(cronJob) {
 					continue
 				}
-				if contains(assert.excludedCronJob, cronJob.Name) {
+				if contains(assert.excludedCronJob, cronJob.GetName()) {
 					continue
 				}
 				originalStatus = append(originalStatus, cronjobs.OriginalCronJobStatus{
-					Name:    cronJob.Name,
+					Name:    cronJob.GetName(),
 					Suspend: false,
 				})
 			}
@@ -871,8 +880,12 @@ func assertCorrectWakeUpOperation(assert AssertOperation) {
 	By("cron jobs correctly waked up", func() {
 		cronJobs := listCronJobs(assert.ctx, assert.namespace)
 		for _, cronJob := range cronJobs {
-			originalCronJob := findCronJobByName(assert.originalCronJobs, cronJob.Name)
-			Expect(isCronJobSuspended(cronJob.Spec.Suspend)).To(Equal(isCronJobSuspended(originalCronJob.Spec.Suspend)))
+			originalCronJob := findResourceByName(assert.originalCronJobs, cronJob.GetName())
+			originalUnstructuredCronJob, err := runtime.DefaultUnstructuredConverter.ToUnstructured(originalCronJob)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(isCronJobSuspended(cronJob)).To(Equal(isCronJobSuspended(unstructured.Unstructured{
+				Object: originalUnstructuredCronJob,
+			})))
 		}
 	})
 

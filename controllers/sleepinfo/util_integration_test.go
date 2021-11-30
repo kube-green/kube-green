@@ -2,6 +2,7 @@ package sleepinfo
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	kubegreenv1alpha1 "github.com/davidebianchi/kube-green/api/v1alpha1"
@@ -10,11 +11,12 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
-	batchv1 "k8s.io/api/batch/v1"
 	core "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -30,7 +32,7 @@ type setupOptions struct {
 
 type originalResources struct {
 	deploymentList []appsv1.Deployment
-	cronjobList    []batchv1.CronJob
+	cronjobList    []unstructured.Unstructured
 }
 
 func setupNamespaceWithResources(ctx context.Context, sleepInfoName, namespace string, reconciler SleepInfoReconciler, now string, opts setupOptions) (ctrl.Request, originalResources) {
@@ -41,7 +43,7 @@ func setupNamespaceWithResources(ctx context.Context, sleepInfoName, namespace s
 	By("create deployments")
 	originalDeployments := upsertDeployments(ctx, namespace, false)
 
-	var originalCronJobs []batchv1.CronJob
+	var originalCronJobs []unstructured.Unstructured
 	if opts.insertCronjobs {
 		By("create cronjobs")
 		originalCronJobs = upsertCronJobs(ctx, namespace, false)
@@ -72,7 +74,7 @@ func setupNamespaceWithResources(ctx context.Context, sleepInfoName, namespace s
 	By("cron jobs not suspended", func() {
 		cronJobsNotChanged := listCronJobs(ctx, namespace)
 		for i, cj := range cronJobsNotChanged {
-			Expect(isCronJobSuspended(cj.Spec.Suspend)).To(Equal(isCronJobSuspended(originalCronJobs[i].Spec.Suspend)))
+			Expect(isCronJobSuspended(cj)).To(Equal(isCronJobSuspended(originalCronJobs[i])))
 		}
 	})
 
@@ -234,10 +236,10 @@ func findDeployByName(deployments []appsv1.Deployment, nameToFind string) *appsv
 	return nil
 }
 
-func findCronJobByName(cronJobs []batchv1.CronJob, nameToFind string) *batchv1.CronJob {
-	for _, cronJob := range cronJobs {
-		if cronJob.Name == nameToFind {
-			return cronJob.DeepCopy()
+func findResourceByName(resources []unstructured.Unstructured, nameToFind string) *unstructured.Unstructured {
+	for _, resource := range resources {
+		if resource.GetName() == nameToFind {
+			return resource.DeepCopy()
 		}
 	}
 	return nil
@@ -252,41 +254,53 @@ func contains(s []string, v string) bool {
 	return false
 }
 
-func upsertCronJobs(ctx context.Context, namespace string, updateIfAlreadyCreated bool) []batchv1.CronJob {
+func upsertCronJobs(ctx context.Context, namespace string, updateIfAlreadyCreated bool) []unstructured.Unstructured {
 	suspendTrue := true
 	suspendFalse := false
-	cronJobs := []batchv1.CronJob{
+
+	restMapping, err := k8sClient.RESTMapper().RESTMapping(schema.GroupKind{
+		Group: "batch",
+		Kind:  "CronJob",
+	})
+	Expect(err).NotTo(HaveOccurred())
+
+	version := getCronJobAPIVersion()
+
+	cronJobs := []unstructured.Unstructured{
 		cronjobs.GetMock(cronjobs.MockSpec{
 			Name:      "cronjob-1",
 			Namespace: namespace,
+			Version:   version,
 		}),
 		cronjobs.GetMock(cronjobs.MockSpec{
 			Name:      "cronjob-2",
 			Namespace: namespace,
 			Suspend:   &suspendFalse,
+			Version:   version,
 		}),
 		cronjobs.GetMock(cronjobs.MockSpec{
 			Name:      "cronjob-suspended",
 			Namespace: namespace,
 			Suspend:   &suspendTrue,
+			Version:   version,
 		}),
 	}
 	for _, cronJob := range cronJobs {
 		var alreadyExists bool
-		c := batchv1.CronJob{}
 		if updateIfAlreadyCreated {
+			obj := unstructured.Unstructured{}
+			obj.SetGroupVersionKind(restMapping.GroupVersionKind)
+
 			err := k8sClient.Get(ctx, types.NamespacedName{
-				Name:      cronJob.Name,
+				Name:      cronJob.GetName(),
 				Namespace: namespace,
-			}, &c)
+			}, &obj)
 			if err == nil {
 				alreadyExists = true
 			}
 		}
 		if alreadyExists {
-			patch := client.MergeFrom(c.DeepCopy())
-			c.Spec.Suspend = cronJob.Spec.Suspend
-			if err := k8sClient.Patch(ctx, &c, patch); err != nil {
+			if err := k8sClient.Patch(ctx, &cronJob, client.Apply); err != nil {
 				Expect(err).NotTo(HaveOccurred())
 			}
 		} else {
@@ -298,20 +312,33 @@ func upsertCronJobs(ctx context.Context, namespace string, updateIfAlreadyCreate
 	return cronJobs
 }
 
-func listCronJobs(ctx context.Context, namespace string) []batchv1.CronJob {
-	cronJobs := batchv1.CronJobList{}
-	err := k8sClient.List(ctx, &cronJobs, &client.ListOptions{
+func listCronJobs(ctx context.Context, namespace string) []unstructured.Unstructured {
+	restMapping, err := k8sClient.RESTMapper().RESTMapping(schema.GroupKind{
+		Group: "batch",
+		Kind:  "CronJob",
+	})
+	Expect(err).NotTo(HaveOccurred())
+
+	u := unstructured.UnstructuredList{}
+	u.SetGroupVersionKind(restMapping.GroupVersionKind)
+
+	err = k8sClient.List(ctx, &u, &client.ListOptions{
 		Namespace: namespace,
 	})
 	Expect(err).NotTo(HaveOccurred())
-	return cronJobs.Items
+
+	return u.Items
 }
 
-func isCronJobSuspended(suspend *bool) bool {
-	if suspend == nil {
+func isCronJobSuspended(cronJob unstructured.Unstructured) bool {
+	suspend, found, err := unstructured.NestedBool(cronJob.Object, "spec", "suspend")
+	if err != nil {
+		Fail(fmt.Sprintf("CronJob suspend error %s", err))
+	}
+	if !found {
 		return false
 	}
-	return *suspend
+	return suspend
 }
 
 func cleanupNamespace(k8sClient client.Client, namespace string) {
@@ -333,4 +360,13 @@ func cleanupNamespace(k8sClient client.Client, namespace string) {
 		}, &v1.Namespace{})
 		return apierrors.IsNotFound(err)
 	}, timeout, interval).Should(BeTrue())
+}
+
+func getCronJobAPIVersion() string {
+	restMapping, err := k8sClient.RESTMapper().RESTMapping(schema.GroupKind{
+		Group: "batch",
+		Kind:  "CronJob",
+	})
+	Expect(err).NotTo(HaveOccurred())
+	return restMapping.GroupVersionKind.Version
 }
