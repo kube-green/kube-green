@@ -75,18 +75,20 @@ func (c cronjobs) Sleep(ctx context.Context) error {
 
 func (c cronjobs) WakeUp(ctx context.Context) error {
 	for _, cronjob := range c.data {
+		cjLogger := c.Log.WithValues("cronjob", cronjob.GetName(), "namespace", cronjob.GetNamespace())
 		cronjobSuspended, found, err := getSuspendStatus(cronjob)
 		if err != nil {
+			cjLogger.Info("fails to read suspend status")
 			return err
 		}
 		if !found || !cronjobSuspended {
-			c.Log.Info("cronjob is not suspended during wake up", "cronjob", cronjob.GetName())
+			cjLogger.Info("cronjob is not suspended during wake up")
 			continue
 		}
 
 		status, ok := c.OriginalSuspendStatus[cronjob.GetName()]
 		if !ok || status {
-			c.Log.Info(fmt.Sprintf("replicas info not set on secret in namespace %s for deployment %s", cronjob.GetNamespace(), cronjob.GetName()))
+			cjLogger.Info("original cron job info not correctly set")
 			continue
 		}
 
@@ -128,6 +130,7 @@ func (c cronjobs) GetOriginalInfoToSave() ([]byte, error) {
 func (c *cronjobs) fetch(ctx context.Context, namespace string) error {
 	var err error
 	c.data, err = c.getListByNamespace(ctx, namespace)
+	c.Log.V(1).WithValues("number of cron jobs", len(c.data), "namespace", namespace).Info("cron jobs in namespace")
 	return err
 }
 
