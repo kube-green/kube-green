@@ -3,11 +3,12 @@ kind: SleepInfo
 metadata:
   name: working-hours
 spec:
-  weekdays: "1-5"
-  sleepAt: "20:00"
-  wakeUpAt: "08:00"
+  weekdays: "*"
+  sleepAt: "12:20"
+  wakeUpAt: "12:21"
   timeZone: "Europe/Rome"
+  suspendCronJobs: true
   excludeRef:
     - apiVersion: "apps/v1"
       kind:       Deployment
-      name:       api-gateway
+      name:       do-not-sleep
