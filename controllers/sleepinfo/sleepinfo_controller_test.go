@@ -6,6 +6,7 @@ import (
 	"time"
 
 	kubegreenv1alpha1 "github.com/davidebianchi/kube-green/api/v1alpha1"
+	"github.com/davidebianchi/kube-green/controllers/internal/testutil"
 	"github.com/davidebianchi/kube-green/controllers/sleepinfo/cronjobs"
 	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo"
@@ -153,7 +154,7 @@ var _ = Describe("SleepInfo Controller", func() {
 
 	It("not valid sleep schedule", func() {
 		namespace := "not-valid-sleep-schedule"
-		err := createNamespace(ctx, namespace)
+		err := testutil.CreateNamespace(ctx, k8sClient, namespace)
 		Expect(err).NotTo(HaveOccurred())
 
 		By("create SleepInfo")
@@ -186,7 +187,7 @@ var _ = Describe("SleepInfo Controller", func() {
 
 	It("not valid wake up schedule", func() {
 		namespace := "not-valid-wake-up-schedule"
-		err := createNamespace(ctx, namespace)
+		err := testutil.CreateNamespace(ctx, k8sClient, namespace)
 		Expect(err).NotTo(HaveOccurred())
 
 		By("create SleepInfo")
@@ -220,7 +221,7 @@ var _ = Describe("SleepInfo Controller", func() {
 
 	It("not valid weekday", func() {
 		namespace := "not-valid-weekday"
-		err := createNamespace(ctx, namespace)
+		err := testutil.CreateNamespace(ctx, k8sClient, namespace)
 		Expect(err).NotTo(HaveOccurred())
 
 		By("create SleepInfo")
@@ -396,7 +397,7 @@ var _ = Describe("SleepInfo Controller", func() {
 
 	It("reconcile - sleep info not present in namespace", func() {
 		namespace := "no-sleepinfo"
-		err := createNamespace(ctx, namespace)
+		err := testutil.CreateNamespace(ctx, k8sClient, namespace)
 		Expect(err).ShouldNot(HaveOccurred())
 
 		req := reconcile.Request{

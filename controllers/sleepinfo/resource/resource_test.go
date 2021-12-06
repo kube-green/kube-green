@@ -19,6 +19,24 @@ import (
 )
 
 func TestResource(t *testing.T) {
+	deployment := appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-name",
+			Namespace: "test-namespace",
+		},
+		Spec: appsv1.DeploymentSpec{
+			Template: v1.PodTemplateSpec{
+				Spec: v1.PodSpec{
+					Containers: []v1.Container{
+						{
+							Image: "my-image",
+						},
+					},
+				},
+			},
+		},
+	}
+
 	t.Run("IsClientValid", func(t *testing.T) {
 		t.Run("without any field", func(t *testing.T) {
 			r := ResourceClient{}
@@ -65,24 +83,6 @@ func TestResource(t *testing.T) {
 	})
 
 	t.Run("Patch", func(t *testing.T) {
-		deployment := appsv1.Deployment{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "my-name",
-				Namespace: "test-namespace",
-			},
-			Spec: appsv1.DeploymentSpec{
-				Template: v1.PodTemplateSpec{
-					Spec: v1.PodSpec{
-						Containers: []v1.Container{
-							{
-								Image: "my-image",
-							},
-						},
-					},
-				},
-			},
-		}
-
 		t.Run("fails if client is not valid", func(t *testing.T) {
 			c := ResourceClient{}
 
@@ -168,6 +168,33 @@ func TestResource(t *testing.T) {
 			newD1.Spec.Template.Spec.Containers[0].Image = "new-image"
 
 			require.EqualError(t, c.Patch(context.Background(), &deployment, newD1), "error during patch")
+		})
+	})
+
+	t.Run("Server Side Apply patch", func(t *testing.T) {
+		t.Run("fails if client is not valid", func(t *testing.T) {
+			c := ResourceClient{}
+
+			require.ErrorIs(t, c.SSAPatch(context.Background(), nil), ErrInvalidClient)
+		})
+
+		t.Run("throws if patch fails", func(t *testing.T) {
+			k8sClient := testutil.PossiblyErroringFakeCtrlRuntimeClient{
+				Client: fake.NewClientBuilder().Build(),
+				ShouldError: func(method testutil.Method, obj runtime.Object) bool {
+					return true
+				},
+			}
+			c := ResourceClient{
+				SleepInfo: &kubegreenv1alpha1.SleepInfo{},
+				Log:       logr.DiscardLogger{},
+				Client:    k8sClient,
+			}
+
+			newD1 := deployment.DeepCopy()
+			newD1.Spec.Template.Spec.Containers[0].Image = "new-image"
+
+			require.EqualError(t, c.SSAPatch(context.Background(), &deployment), "error during patch")
 		})
 	})
 }

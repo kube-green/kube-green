@@ -6,12 +6,12 @@ import (
 	"time"
 
 	kubegreenv1alpha1 "github.com/davidebianchi/kube-green/api/v1alpha1"
+	"github.com/davidebianchi/kube-green/controllers/internal/testutil"
 	"github.com/davidebianchi/kube-green/controllers/sleepinfo/cronjobs"
 	"github.com/davidebianchi/kube-green/controllers/sleepinfo/deployments"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
-	core "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -84,19 +84,6 @@ func setupNamespaceWithResources(ctx context.Context, sleepInfoName, namespace s
 	}
 }
 
-func createNamespace(ctx context.Context, name string) error {
-	namespace := &core.Namespace{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Namespace",
-			APIVersion: "v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
-		},
-	}
-	return k8sClient.Create(ctx, namespace)
-}
-
 func upsertDeployments(ctx context.Context, namespace string, updateIfAlreadyCreated bool) []appsv1.Deployment {
 	var threeReplicas int32 = 3
 	var oneReplica int32 = 1
@@ -167,7 +154,7 @@ func createSleepInfo(ctx context.Context, sleepInfoName, namespace string, opts 
 		interval = time.Millisecond * 250
 	)
 
-	Expect(createNamespace(ctx, namespace)).NotTo(HaveOccurred())
+	Expect(testutil.CreateNamespace(ctx, k8sClient, namespace)).NotTo(HaveOccurred())
 	sleepInfo := &kubegreenv1alpha1.SleepInfo{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "SleepInfo",
