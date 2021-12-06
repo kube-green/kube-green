@@ -62,8 +62,8 @@ spec:
                   and minute. For example, *:*/2 is set to configure a run every even
                   minute."
                 type: string
-              suspendCronjob:
-                description: If SuspendCronjob is set to true, on sleep the cronjobs
+              suspendCronJobs:
+                description: If SuspendCronjobs is set to true, on sleep the cronjobs
                   of the namespace will be suspended.
                 type: boolean
               timeZone:
