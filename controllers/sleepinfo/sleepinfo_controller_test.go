@@ -655,6 +655,50 @@ var _ = Describe("SleepInfo Controller", func() {
 		assertCorrectWakeUpOperation(assertContextInfo.withSchedule("2021-03-23T20:19:50.100Z").withRequeue(45*60 + 9.9))
 		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T21:05:00.000Z").withRequeue(15 * 60))
 	})
+
+	It("reconcile - with deployments and cron jobs - deploy between sleep and wakeup", func() {
+		namespace := "deployments-cronjobs-suspend-redeploy"
+		req, originalResources := setupNamespaceWithResources(ctx, sleepInfoName, namespace, sleepInfoReconciler, mockNow, setupOptions{
+			suspendCronjobs: true,
+			insertCronjobs:  true,
+		})
+
+		assertContextInfo := AssertOperation{
+			testLogger:    testLogger,
+			ctx:           ctx,
+			req:           req,
+			namespace:     namespace,
+			sleepInfoName: sleepInfoName,
+
+			originalDeployments: originalResources.deploymentList,
+
+			originalCronJobs: originalResources.cronjobList,
+			suspendCronjobs:  true,
+		}
+		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T20:05:59.000Z").withRequeue(14*60 + 1))
+
+		By("re deploy", func() {
+			upsertDeployments(ctx, namespace, true)
+			upsertCronJobs(ctx, namespace, true)
+
+			By("check replicas")
+			deployments := listDeployments(ctx, namespace)
+			for _, deployment := range deployments {
+				originalDeployment := findDeployByName(originalResources.deploymentList, deployment.Name)
+				Expect(deployment.Spec.Replicas).To(Equal(originalDeployment.Spec.Replicas))
+			}
+
+			By("check cron jobs status")
+			cronJobs := listCronJobs(ctx, namespace)
+			for _, cronJob := range cronJobs {
+				originalCronJob := findResourceByName(originalResources.cronjobList, cronJob.GetName())
+				Expect(isCronJobSuspended(cronJob)).To(Equal(isCronJobSuspended(*originalCronJob)))
+			}
+		})
+
+		assertCorrectWakeUpOperation(assertContextInfo.withSchedule("2021-03-23T20:19:50.100Z").withRequeue(45*60 + 9.9))
+		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T21:05:00.000Z").withRequeue(15 * 60))
+	})
 })
 
 type mockClock struct {

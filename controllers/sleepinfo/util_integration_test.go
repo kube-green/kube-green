@@ -139,9 +139,8 @@ func upsertDeployments(ctx context.Context, namespace string, updateIfAlreadyCre
 			}
 		}
 		if deploymentAlreadyExists {
-			patch := client.MergeFrom(d.DeepCopy())
-			d.Spec.Replicas = deployment.Spec.Replicas
-			if err := k8sClient.Patch(ctx, &d, patch); err != nil {
+			patch := client.MergeFrom(&d)
+			if err := k8sClient.Patch(ctx, &deployment, patch); err != nil {
 				Expect(err).NotTo(HaveOccurred())
 			}
 		} else {
@@ -287,8 +286,8 @@ func upsertCronJobs(ctx context.Context, namespace string, updateIfAlreadyCreate
 	}
 	for _, cronJob := range cronJobs {
 		var alreadyExists bool
+		obj := unstructured.Unstructured{}
 		if updateIfAlreadyCreated {
-			obj := unstructured.Unstructured{}
 			obj.SetGroupVersionKind(restMapping.GroupVersionKind)
 
 			err := k8sClient.Get(ctx, types.NamespacedName{
@@ -300,7 +299,8 @@ func upsertCronJobs(ctx context.Context, namespace string, updateIfAlreadyCreate
 			}
 		}
 		if alreadyExists {
-			if err := k8sClient.Patch(ctx, &cronJob, client.Apply); err != nil {
+			patch := client.MergeFrom(&obj)
+			if err := k8sClient.Patch(ctx, &cronJob, patch); err != nil {
 				Expect(err).NotTo(HaveOccurred())
 			}
 		} else {

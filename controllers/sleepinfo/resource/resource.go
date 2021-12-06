@@ -22,9 +22,10 @@ type Resource interface {
 }
 
 type ResourceClient struct {
-	Client    client.Client
-	SleepInfo *kubegreenv1alpha1.SleepInfo
-	Log       logr.Logger
+	Client           client.Client
+	SleepInfo        *kubegreenv1alpha1.SleepInfo
+	Log              logr.Logger
+	FieldManagerName string
 }
 
 func (r ResourceClient) Patch(ctx context.Context, oldObj, newObj client.Object) error {
@@ -32,6 +33,26 @@ func (r ResourceClient) Patch(ctx context.Context, oldObj, newObj client.Object)
 		return err
 	}
 	if err := r.Client.Patch(ctx, newObj, client.MergeFrom(oldObj)); err != nil {
+		if client.IgnoreNotFound(err) == nil {
+			return nil
+		}
+		return err
+	}
+	return nil
+}
+
+var forceTrue = true
+
+// Server Side Apply patch. Reference: https://kubernetes.io/docs/reference/using-api/server-side-apply/
+func (r ResourceClient) SSAPatch(ctx context.Context, newObj client.Object) error {
+	if err := r.IsClientValid(); err != nil {
+		return err
+	}
+	newObj.SetManagedFields(nil)
+	if err := r.Client.Patch(ctx, newObj, client.Apply, &client.PatchOptions{
+		FieldManager: r.FieldManagerName,
+		Force:        &forceTrue,
+	}); err != nil {
 		if client.IgnoreNotFound(err) == nil {
 			return nil
 		}

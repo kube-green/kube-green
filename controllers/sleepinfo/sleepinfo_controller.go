@@ -31,6 +31,8 @@ const (
 
 	sleepOperation  = "SLEEP"
 	wakeUpOperation = "WAKE_UP"
+
+	fieldManagerName = "kube-green"
 )
 
 // SleepInfoReconciler reconciles a SleepInfo object
@@ -108,9 +110,10 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	scheduleLog.WithValues("last schedule", now, "status", sleepInfo.Status).Info("last schedule value")
 
 	resources, err := NewResources(ctx, resource.ResourceClient{
-		Client:    r.Client,
-		SleepInfo: sleepInfo,
-		Log:       log,
+		Client:           r.Client,
+		SleepInfo:        sleepInfo,
+		Log:              log,
+		FieldManagerName: fieldManagerName,
 	}, req.Namespace, sleepInfoData)
 	if err != nil {
 		log.Error(err, "fails to get resources")

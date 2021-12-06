@@ -13,8 +13,9 @@ import (
 	"github.com/davidebianchi/kube-green/controllers/sleepinfo/resource"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
-	batchv1 "k8s.io/api/batch/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
@@ -42,7 +43,7 @@ func TestNewResources(t *testing.T) {
 
 	t.Run("retrieve deployments data", func(t *testing.T) {
 		resClient := resource.ResourceClient{
-			Client:    fake.NewClientBuilder().WithRuntimeObjects(&cronJob, &deployments).Build(),
+			Client:    getFakeClient().WithRuntimeObjects(&cronJob, &deployments).Build(),
 			Log:       zap.New(zap.UseDevMode(true)),
 			SleepInfo: &v1alpha1.SleepInfo{},
 		}
@@ -54,7 +55,7 @@ func TestNewResources(t *testing.T) {
 
 	t.Run("retrieve deployments and cron jobs data", func(t *testing.T) {
 		resClient := resource.ResourceClient{
-			Client: fake.NewClientBuilder().WithRuntimeObjects(&cronJob, &deployments).Build(),
+			Client: getFakeClient().WithRuntimeObjects(&cronJob, &deployments).Build(),
 			Log:    zap.New(zap.UseDevMode(true)),
 			SleepInfo: &v1alpha1.SleepInfo{
 				Spec: v1alpha1.SleepInfoSpec{
@@ -71,7 +72,7 @@ func TestNewResources(t *testing.T) {
 	t.Run("throws if fetch deployments fails", func(t *testing.T) {
 		resClient := resource.ResourceClient{
 			Client: testutil.PossiblyErroringFakeCtrlRuntimeClient{
-				Client: fake.NewClientBuilder().WithRuntimeObjects(&cronJob, &deployments).Build(),
+				Client: getFakeClient().WithRuntimeObjects(&cronJob, &deployments).Build(),
 				ShouldError: func(method testutil.Method, obj runtime.Object) bool {
 					_, ok := obj.(*appsv1.DeploymentList)
 					return method == testutil.List && ok
@@ -88,10 +89,10 @@ func TestNewResources(t *testing.T) {
 	t.Run("throws if fetch cron job fails", func(t *testing.T) {
 		resClient := resource.ResourceClient{
 			Client: testutil.PossiblyErroringFakeCtrlRuntimeClient{
-				Client: fake.NewClientBuilder().WithRuntimeObjects(&cronJob, &deployments).Build(),
+				Client: getFakeClient().WithRuntimeObjects(&cronJob, &deployments).Build(),
 				ShouldError: func(method testutil.Method, obj runtime.Object) bool {
-					_, ok := obj.(*batchv1.CronJobList)
-					return method == testutil.List && ok
+					kind := obj.GetObjectKind().GroupVersionKind().Kind
+					return method == testutil.List && kind == "CronJob"
 				},
 			},
 			Log: zap.New(zap.UseDevMode(true)),
@@ -102,7 +103,7 @@ func TestNewResources(t *testing.T) {
 			},
 		}
 		res, err := NewResources(context.Background(), resClient, namespace, SleepInfoData{})
-		require.EqualError(t, err, "error during list")
+		require.EqualError(t, err, fmt.Sprintf("%s: error during list", cronjobs.ErrFetchingCronJobs))
 		require.Empty(t, res)
 	})
 }
@@ -143,7 +144,7 @@ func TestHasResources(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			resources, err := NewResources(context.Background(), resource.ResourceClient{
 				Log:       testLogger,
-				Client:    fake.NewClientBuilder().Build(),
+				Client:    getFakeClient().Build(),
 				SleepInfo: &v1alpha1.SleepInfo{},
 			}, namespace, SleepInfoData{})
 			require.NoError(t, err)
@@ -402,4 +403,26 @@ func newResourcesMock(t *testing.T, deploymentsMock resource.ResourceMock, cronj
 		deployments: resource.GetResourceMock(deploymentsMock),
 		cronjobs:    resource.GetResourceMock(cronjobsMock),
 	}
+}
+
+func getFakeClient() *fake.ClientBuilder {
+	groupVersion := []schema.GroupVersion{
+		{Group: "batch", Version: "v1"},
+		{Group: "batch", Version: "v1beta1"},
+	}
+	restMapper := meta.NewDefaultRESTMapper(groupVersion)
+	restMapper.Add(schema.GroupVersionKind{
+		Group:   "batch",
+		Version: "v1",
+		Kind:    "CronJob",
+	}, meta.RESTScopeNamespace)
+	restMapper.Add(schema.GroupVersionKind{
+		Group:   "batch",
+		Version: "v1beta1",
+		Kind:    "CronJob",
+	}, meta.RESTScopeNamespace)
+
+	return fake.
+		NewClientBuilder().
+		WithRESTMapper(restMapper)
 }

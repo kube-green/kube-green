@@ -3,20 +3,26 @@ package cronjobs
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
 	kubegreenv1alpha1 "github.com/davidebianchi/kube-green/api/v1alpha1"
 	"github.com/davidebianchi/kube-green/controllers/sleepinfo/resource"
-	batchv1 "k8s.io/api/batch/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+)
+
+var (
+	ErrFetchingCronJobs = errors.New("error fetching cronjobs")
 )
 
 type OriginalSuspendStatus map[string]bool
 type cronjobs struct {
 	resource.ResourceClient
-	data                  []batchv1.CronJob
+	data                  []unstructured.Unstructured
 	OriginalSuspendStatus OriginalSuspendStatus
 	areToSuspend          bool
 }
@@ -26,13 +32,13 @@ func NewResource(ctx context.Context, res resource.ResourceClient, namespace str
 		ResourceClient:        res,
 		OriginalSuspendStatus: originalSuspendStatus,
 		areToSuspend:          res.SleepInfo.IsCronjobsToSuspend(),
-		data:                  []batchv1.CronJob{},
+		data:                  []unstructured.Unstructured{},
 	}
 	if !d.areToSuspend {
 		return d, nil
 	}
 	if err := d.fetch(ctx, namespace); err != nil {
-		return cronjobs{}, err
+		return cronjobs{}, fmt.Errorf("%w: %s", ErrFetchingCronJobs, err)
 	}
 
 	return d, nil
@@ -42,18 +48,25 @@ func (d cronjobs) HasResource() bool {
 	return len(d.data) > 0
 }
 
-var suspendTrue = true
+func getSuspendStatus(cronjob unstructured.Unstructured) (bool, bool, error) {
+	return unstructured.NestedBool(cronjob.Object, "spec", "suspend")
+}
 
 func (c cronjobs) Sleep(ctx context.Context) error {
 	for _, cronjob := range c.data {
-		cronjobSuspended := cronjob.Spec.Suspend
-		if cronjobSuspended != nil && *cronjobSuspended {
+		cronjobSuspended, found, err := getSuspendStatus(cronjob)
+		if err != nil {
+			return err
+		}
+		if found && cronjobSuspended {
 			continue
 		}
 		newCronJob := cronjob.DeepCopy()
-		newCronJob.Spec.Suspend = &suspendTrue
+		if err = unstructured.SetNestedField(newCronJob.Object, true, "spec", "suspend"); err != nil {
+			return err
+		}
 
-		if err := c.Patch(ctx, &cronjob, newCronJob); err != nil {
+		if err := c.SSAPatch(ctx, newCronJob); err != nil {
 			return err
 		}
 	}
@@ -62,20 +75,23 @@ func (c cronjobs) Sleep(ctx context.Context) error {
 
 func (c cronjobs) WakeUp(ctx context.Context) error {
 	for _, cronjob := range c.data {
-		cronjobSuspended := cronjob.Spec.Suspend
-		if cronjobSuspended == nil || !*cronjobSuspended {
-			c.Log.Info("cronjob is not suspended during wake up", "cronjob", cronjob.Name)
+		cronjobSuspended, found, err := getSuspendStatus(cronjob)
+		if err != nil {
+			return err
+		}
+		if !found || !cronjobSuspended {
+			c.Log.Info("cronjob is not suspended during wake up", "cronjob", cronjob.GetName())
 			continue
 		}
 
-		status, ok := c.OriginalSuspendStatus[cronjob.Name]
+		status, ok := c.OriginalSuspendStatus[cronjob.GetName()]
 		if !ok || status {
-			c.Log.Info(fmt.Sprintf("replicas info not set on secret in namespace %s for deployment %s", cronjob.Namespace, cronjob.Name))
+			c.Log.Info(fmt.Sprintf("replicas info not set on secret in namespace %s for deployment %s", cronjob.GetNamespace(), cronjob.GetName()))
 			continue
 		}
 
 		newCronJob := cronjob.DeepCopy()
-		newCronJob.Spec.Suspend = nil
+		unstructured.RemoveNestedField(newCronJob.Object, "spec", "suspend")
 
 		if err := c.Patch(ctx, &cronjob, newCronJob); err != nil {
 			return err
@@ -95,11 +111,15 @@ func (c cronjobs) GetOriginalInfoToSave() ([]byte, error) {
 	}
 	cronJobsStatus := []OriginalCronJobStatus{}
 	for _, cronJob := range c.data {
-		if cronJob.Spec.Suspend != nil && *cronJob.Spec.Suspend {
+		cronJobSuspended, found, err := getSuspendStatus(cronJob)
+		if err != nil {
+			return nil, err
+		}
+		if found && cronJobSuspended {
 			continue
 		}
 		cronJobsStatus = append(cronJobsStatus, OriginalCronJobStatus{
-			Name: cronJob.Name,
+			Name: cronJob.GetName(),
 		})
 	}
 	return json.Marshal(cronJobsStatus)
@@ -111,7 +131,7 @@ func (c *cronjobs) fetch(ctx context.Context, namespace string) error {
 	return err
 }
 
-func (c cronjobs) getListByNamespace(ctx context.Context, namespace string) ([]batchv1.CronJob, error) {
+func (c cronjobs) getListByNamespace(ctx context.Context, namespace string) ([]unstructured.Unstructured, error) {
 	listOptions := &client.ListOptions{
 		Namespace: namespace,
 		Limit:     500,
@@ -131,7 +151,17 @@ func (c cronjobs) getListByNamespace(ctx context.Context, namespace string) ([]b
 		listOptions.FieldSelector = fSel
 	}
 
-	cronjobs := batchv1.CronJobList{}
+	restMapping, err := c.Client.RESTMapper().RESTMapping(schema.GroupKind{
+		Group: "batch",
+		Kind:  "CronJob",
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	cronjobs := unstructured.UnstructuredList{}
+	cronjobs.SetGroupVersionKind(restMapping.GroupVersionKind)
+
 	if err := c.Client.List(ctx, &cronjobs, listOptions); err != nil {
 		return cronjobs.Items, client.IgnoreNotFound(err)
 	}

@@ -10,9 +10,10 @@ import (
 	"github.com/davidebianchi/kube-green/controllers/internal/testutil"
 	"github.com/davidebianchi/kube-green/controllers/sleepinfo/resource"
 	"github.com/stretchr/testify/require"
-	batchv1 "k8s.io/api/batch/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -73,8 +74,7 @@ func TestCronJobs(t *testing.T) {
 		}{
 			{
 				name: "get list of cron jobs",
-				client: fake.
-					NewClientBuilder().
+				client: getFakeClient().
 					WithRuntimeObjects(&cronJob1, &cronJob2, &cronJobOtherNamespace).
 					Build(),
 				expected:  []unstructured.Unstructured{cronJob1, cronJob2},
@@ -84,7 +84,7 @@ func TestCronJobs(t *testing.T) {
 				name:      "fails to list cron job",
 				sleepInfo: sleepInfo,
 				client: &testutil.PossiblyErroringFakeCtrlRuntimeClient{
-					Client: fake.NewClientBuilder().Build(),
+					Client: getFakeClient().Build(),
 					ShouldError: func(method testutil.Method, obj runtime.Object) bool {
 						return method == testutil.List
 					},
@@ -93,8 +93,7 @@ func TestCronJobs(t *testing.T) {
 			},
 			{
 				name: "empty list cron job",
-				client: fake.
-					NewClientBuilder().
+				client: getFakeClient().
 					WithRuntimeObjects(&cronJobOtherNamespace).
 					Build(),
 				sleepInfo: sleepInfo,
@@ -102,8 +101,7 @@ func TestCronJobs(t *testing.T) {
 			},
 			{
 				name: "disabled cronjob suspend",
-				client: fake.
-					NewClientBuilder().
+				client: getFakeClient().
 					WithRuntimeObjects(&cronJob1, &cronJob2).
 					Build(),
 				sleepInfo: &v1alpha1.SleepInfo{},
@@ -112,8 +110,7 @@ func TestCronJobs(t *testing.T) {
 			{
 				name: "get list with cron jobs excluded",
 				client: testutil.PossiblyErroringFakeCtrlRuntimeClient{
-					Client: fake.
-						NewClientBuilder().
+					Client: getFakeClient().
 						WithRuntimeObjects(&cronJob1, &cronJob2, &cronJobOtherNamespace, &cronJobSuspendSetToFalseNotEmpty).
 						Build(),
 				},
@@ -148,36 +145,39 @@ func TestCronJobs(t *testing.T) {
 
 				resource, err := NewResource(context.Background(), r, namespace, map[string]bool{})
 				if test.throws {
-					require.EqualError(t, err, "error during list")
+					require.EqualError(t, err, fmt.Sprintf("%s: error during list", ErrFetchingCronJobs))
 				} else {
 					require.NoError(t, err)
 				}
-				actualData := convertCronJobsToUnstructured(t, resource.data)
-				require.Equal(t, test.expected, actualData)
+				require.Equal(t, test.expected, resource.data)
 			})
 		}
 	})
 
 	t.Run("HasResources", func(t *testing.T) {
 		t.Run("without resource", func(t *testing.T) {
-			c := getNewResource(t, fake.NewClientBuilder().Build(), nil)
+			c := getNewResource(t, getFakeClient().Build(), nil)
 			require.False(t, c.HasResource())
 		})
 
 		t.Run("with resource", func(t *testing.T) {
-			c := getNewResource(t, fake.NewClientBuilder().WithRuntimeObjects(&cronJob1).Build(), nil)
+			c := getNewResource(t, getFakeClient().WithRuntimeObjects(&cronJob1).Build(), nil)
 			require.True(t, c.HasResource())
 		})
 	})
 
 	t.Run("Sleep", func(t *testing.T) {
 		t.Run("not throws if no data", func(t *testing.T) {
-			c := getNewResource(t, fake.NewClientBuilder().Build(), nil)
+			c := getNewResource(t, getFakeClient().Build(), nil)
 			require.NoError(t, c.Sleep(context.Background()))
 		})
 
 		t.Run("suspend cronjobs", func(t *testing.T) {
-			fakeClient := fake.NewClientBuilder().WithRuntimeObjects(&cronJob1, &cronJob2, &suspendedCronJobs, &cronJobSuspendSetToFalseNotEmpty).Build()
+			fakeClient := testutil.PossiblyErroringFakeCtrlRuntimeClient{
+				Client: getFakeClient().
+					WithRuntimeObjects(&cronJob1, &cronJob2, &suspendedCronJobs, &cronJobSuspendSetToFalseNotEmpty).
+					Build(),
+			}
 			c := getNewResource(t, fakeClient, nil)
 			require.NoError(t, c.Sleep(context.Background()))
 
@@ -189,12 +189,12 @@ func TestCronJobs(t *testing.T) {
 				suspendedCronJobs,
 				suspendAndUpdateResourceVersion(t, cronJob1),
 				suspendAndUpdateResourceVersion(t, cronJob2),
-			}, convertCronJobsToUnstructured(t, cjList))
+			}, cjList)
 		})
 
 		t.Run("fails to suspend cronjobs", func(t *testing.T) {
 			fakeClient := testutil.PossiblyErroringFakeCtrlRuntimeClient{
-				Client: fake.NewClientBuilder().WithRuntimeObjects(&cronJob1, &cronJob2, &suspendedCronJobs).Build(),
+				Client: getFakeClient().WithRuntimeObjects(&cronJob1, &cronJob2, &suspendedCronJobs).Build(),
 				ShouldError: func(method testutil.Method, obj runtime.Object) bool {
 					return method == testutil.Patch
 				},
@@ -209,7 +209,7 @@ func TestCronJobs(t *testing.T) {
 		suspendedCronJob2 := convertCronJobToBeSuspended(t, cronJob2)
 
 		t.Run("not throws if no data", func(t *testing.T) {
-			c := getNewResource(t, fake.NewClientBuilder().Build(), nil)
+			c := getNewResource(t, getFakeClient().Build(), nil)
 			require.NoError(t, c.WakeUp(context.Background()))
 		})
 
@@ -219,8 +219,7 @@ func TestCronJobs(t *testing.T) {
 				Schedule:  "0 0 0 * * *",
 				Namespace: namespace,
 			})
-			fakeK8sClient := fake.
-				NewClientBuilder().
+			fakeK8sClient := getFakeClient().
 				WithRuntimeObjects(
 					&suspendedCronJob1,
 					&suspendedCronJob2,
@@ -243,12 +242,12 @@ func TestCronJobs(t *testing.T) {
 				updateResourceVersion(t, cronJob1),
 				updateResourceVersion(t, cronJob2),
 				cronJobAddedToNamespaceAfterWakeUp,
-			}, convertCronJobsToUnstructured(t, cronJobList))
+			}, cronJobList)
 		})
 
 		t.Run("fails to wake up", func(t *testing.T) {
 			fakeClient := testutil.PossiblyErroringFakeCtrlRuntimeClient{
-				Client: fake.NewClientBuilder().WithRuntimeObjects(&suspendedCronJob1, &suspendedCronJob2, &suspendedCronJobs).Build(),
+				Client: getFakeClient().WithRuntimeObjects(&suspendedCronJob1, &suspendedCronJob2, &suspendedCronJobs).Build(),
 				ShouldError: func(method testutil.Method, obj runtime.Object) bool {
 					return method == testutil.Patch
 				},
@@ -263,7 +262,7 @@ func TestCronJobs(t *testing.T) {
 
 	t.Run("GetOriginalInfoToSave", func(t *testing.T) {
 		t.Run("returns nil if not to suspend", func(t *testing.T) {
-			c := getNewResource(t, fake.NewClientBuilder().Build(), nil)
+			c := getNewResource(t, getFakeClient().Build(), nil)
 			c.areToSuspend = false
 			res, err := c.GetOriginalInfoToSave()
 			require.NoError(t, err)
@@ -271,14 +270,14 @@ func TestCronJobs(t *testing.T) {
 		})
 
 		t.Run("without cron jobs", func(t *testing.T) {
-			c := getNewResource(t, fake.NewClientBuilder().Build(), nil)
+			c := getNewResource(t, getFakeClient().Build(), nil)
 			res, err := c.GetOriginalInfoToSave()
 			require.NoError(t, err)
 			require.JSONEq(t, `[]`, string(res))
 		})
 
 		t.Run("with cron jobs", func(t *testing.T) {
-			fakeClient := fake.NewClientBuilder().
+			fakeClient := getFakeClient().
 				WithRuntimeObjects(&cronJob1, &cronJob2, &suspendedCronJobs, &cronJobSuspendSetToFalseNotEmpty).
 				Build()
 			c := getNewResource(t, fakeClient, nil)
@@ -340,17 +339,24 @@ func updateResourceVersion(t *testing.T, cronJob unstructured.Unstructured) unst
 	return *newCronJob
 }
 
-func convertCronJobsToUnstructured(t *testing.T, cronJob []batchv1.CronJob) []unstructured.Unstructured {
-	if cronJob == nil {
-		return nil
+func getFakeClient() *fake.ClientBuilder {
+	groupVersion := []schema.GroupVersion{
+		{Group: "batch", Version: "v1"},
+		{Group: "batch", Version: "v1beta1"},
 	}
-	actualData := []unstructured.Unstructured{}
-	for _, item := range cronJob {
-		unstructuredItem, err := runtime.DefaultUnstructuredConverter.ToUnstructured(item.DeepCopy())
-		require.NoError(t, err)
-		actualData = append(actualData, unstructured.Unstructured{
-			Object: unstructuredItem,
-		})
-	}
-	return actualData
+	restMapper := meta.NewDefaultRESTMapper(groupVersion)
+	restMapper.Add(schema.GroupVersionKind{
+		Group:   "batch",
+		Version: "v1",
+		Kind:    "CronJob",
+	}, meta.RESTScopeNamespace)
+	restMapper.Add(schema.GroupVersionKind{
+		Group:   "batch",
+		Version: "v1beta1",
+		Kind:    "CronJob",
+	}, meta.RESTScopeNamespace)
+
+	return fake.
+		NewClientBuilder().
+		WithRESTMapper(restMapper)
 }
