@@ -4,9 +4,9 @@ import "context"
 
 type ResourceMock struct {
 	HasResourceResponseMock bool
-	mockSleep               func(context.Context) error
-	mockWakeUp              func(context.Context) error
-	mockOriginalInfoToSave  func() ([]byte, error)
+	MockSleep               func(context.Context) error
+	MockWakeUp              func(context.Context) error
+	MockOriginalInfoToSave  func() ([]byte, error)
 }
 
 func (r ResourceMock) HasResource() bool {
@@ -14,15 +14,24 @@ func (r ResourceMock) HasResource() bool {
 }
 
 func (r ResourceMock) Sleep(ctx context.Context) error {
-	return r.mockSleep(ctx)
+	if r.MockSleep == nil {
+		return nil
+	}
+	return r.MockSleep(ctx)
 }
 
 func (r ResourceMock) WakeUp(ctx context.Context) error {
-	return r.mockWakeUp(ctx)
+	if r.MockWakeUp == nil {
+		return nil
+	}
+	return r.MockWakeUp(ctx)
 }
 
 func (r ResourceMock) GetOriginalInfoToSave() ([]byte, error) {
-	return r.mockOriginalInfoToSave()
+	if r.MockOriginalInfoToSave == nil {
+		return nil, nil
+	}
+	return r.MockOriginalInfoToSave()
 }
 
 func GetResourceMock(mock ResourceMock) Resource {

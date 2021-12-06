@@ -5,6 +5,8 @@ import (
 	"errors"
 
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -27,7 +29,28 @@ func (p PossiblyErroringFakeCtrlRuntimeClient) List(ctx context.Context, dpl cli
 	if p.ShouldError != nil && p.ShouldError(List, dpl) {
 		return errors.New("error during list")
 	}
-	return p.Client.List(ctx, dpl, opts...)
+	err := p.Client.List(ctx, dpl, opts...)
+	if err != nil {
+		return err
+	}
+
+	listOpts := client.ListOptions{}
+	listOpts.ApplyOptions(opts)
+	if listOpts.FieldSelector != nil {
+		objList, err := meta.ExtractList(dpl)
+		if err != nil {
+			return err
+		}
+		filteredObjs, err := filterObjectsByName(objList, listOpts.FieldSelector)
+		if err != nil {
+			return err
+		}
+		err = meta.SetList(dpl, filteredObjs)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (p PossiblyErroringFakeCtrlRuntimeClient) Create(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
@@ -57,6 +80,15 @@ func (p PossiblyErroringFakeCtrlRuntimeClient) Patch(ctx context.Context, obj cl
 	if secret, ok := obj.(*v1.Secret); ok {
 		convertSecretStringData(secret)
 	}
+
+	if patch == client.Apply {
+		// This is a huge workaround of a limitation of fake client.
+		// Fake client do not know how to update resource with the Server Side Apply strategy.
+		// This is the issue open on kubernetes repository: https://github.com/kubernetes/kubernetes/issues/99953
+		patch = client.MergeFrom(nil)
+		return p.Client.Patch(ctx, obj, patch, opts...)
+	}
+
 	return p.Client.Patch(ctx, obj, patch, opts...)
 }
 
@@ -74,4 +106,22 @@ func convertSecretStringData(secret *v1.Secret) {
 		}
 	}
 	secret.StringData = nil
+}
+
+func filterObjectsByName(objList []runtime.Object, fieldSelector fields.Selector) ([]runtime.Object, error) {
+	items := make([]runtime.Object, 0, len(objList))
+	for _, obj := range objList {
+		accessor, err := meta.Accessor(obj)
+		if err != nil {
+			return nil, err
+		}
+		name := accessor.GetName()
+		fieldSel := fields.Set{
+			"metadata.name": name,
+		}
+		if fieldSelector.Matches(fieldSel) {
+			items = append(items, obj.DeepCopyObject())
+		}
+	}
+	return items, nil
 }

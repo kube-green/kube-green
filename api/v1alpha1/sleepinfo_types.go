@@ -51,6 +51,9 @@ type SleepInfoSpec struct {
 	// ExcludeRef define the resource to exclude from the sleep.
 	// +optional
 	ExcludeRef []ExcludeRef `json:"excludeRef,omitempty"`
+	// If SuspendCronjobs is set to true, on sleep the cronjobs of the namespace will be suspended.
+	// +optional
+	SuspendCronjobs bool `json:"suspendCronJobs,omitempty"`
 }
 
 // SleepInfoStatus defines the observed state of SleepInfo
@@ -95,7 +98,7 @@ func (s SleepInfo) GetExcludeRef() []ExcludeRef {
 func (s SleepInfo) getScheduleFromWeekdayAndTime(hourAndMinute string) (string, error) {
 	weekday := s.Spec.Weekdays
 	if weekday == "" {
-		return "", fmt.Errorf("empty weekdays from sleep info configuration")
+		return "", fmt.Errorf("empty weekdays from SleepInfo configuration")
 	}
 
 	splittedTime := strings.Split(hourAndMinute, ":")
@@ -107,6 +110,10 @@ func (s SleepInfo) getScheduleFromWeekdayAndTime(hourAndMinute string) (string, 
 		schedule = fmt.Sprintf("CRON_TZ=%s %s", s.Spec.TimeZone, schedule)
 	}
 	return schedule, nil
+}
+
+func (s SleepInfo) IsCronjobsToSuspend() bool {
+	return s.Spec.SuspendCronjobs
 }
 
 //+kubebuilder:object:root=true

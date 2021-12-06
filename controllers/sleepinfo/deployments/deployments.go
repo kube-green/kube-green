@@ -3,7 +3,6 @@ package deployments
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 
 	kubegreenv1alpha1 "github.com/davidebianchi/kube-green/api/v1alpha1"
 	"github.com/davidebianchi/kube-green/controllers/sleepinfo/resource"
@@ -51,14 +50,15 @@ func (d deployments) Sleep(ctx context.Context) error {
 
 func (d deployments) WakeUp(ctx context.Context) error {
 	for _, deployment := range d.data {
+		deployLogger := d.Log.WithValues("deployment", deployment.Name, "namespace", deployment.Namespace)
 		if *deployment.Spec.Replicas != 0 {
-			d.Log.Info("replicas not 0 during wake up", "deployment name", deployment.Name)
+			deployLogger.Info("replicas not 0 during wake up")
 			continue
 		}
 
 		replica, ok := d.OriginalReplicas[deployment.Name]
 		if !ok {
-			d.Log.Info(fmt.Sprintf("replicas info not set on secret in namespace %s for deployment %s", deployment.Namespace, deployment.Name))
+			deployLogger.Info("original deploy info not correctly set")
 			continue
 		}
 

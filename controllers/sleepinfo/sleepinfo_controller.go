@@ -19,7 +19,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	kubegreenv1alpha1 "github.com/davidebianchi/kube-green/api/v1alpha1"
-	"github.com/davidebianchi/kube-green/controllers/sleepinfo/deployments"
 	"github.com/davidebianchi/kube-green/controllers/sleepinfo/resource"
 )
 
@@ -27,10 +26,13 @@ const (
 	lastScheduleKey               = "scheduled-at"
 	lastOperationKey              = "operation-type"
 	replicasBeforeSleepKey        = "deployment-replicas"
+	originalCronjobStatusKey      = "cronjobs-info"
 	replicasBeforeSleepAnnotation = "sleepinfo.kube-green.com/replicas-before-sleep"
 
 	sleepOperation  = "SLEEP"
 	wakeUpOperation = "WAKE_UP"
+
+	fieldManagerName = "kube-green"
 )
 
 // SleepInfoReconciler reconciles a SleepInfo object
@@ -60,6 +62,7 @@ var sleepDelta int64 = 60
 //+kubebuilder:rbac:groups=kube-green.com,resources=sleepinfos/finalizers,verbs=update
 //+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=batch,resources=cronjobs,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -107,9 +110,10 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	scheduleLog.WithValues("last schedule", now, "status", sleepInfo.Status).Info("last schedule value")
 
 	resources, err := NewResources(ctx, resource.ResourceClient{
-		Client:    r.Client,
-		SleepInfo: sleepInfo,
-		Log:       log,
+		Client:           r.Client,
+		SleepInfo:        sleepInfo,
+		Log:              log,
+		FieldManagerName: fieldManagerName,
 	}, req.Namespace, sleepInfoData)
 	if err != nil {
 		log.Error(err, "fails to get resources")
@@ -228,11 +232,12 @@ func (r SleepInfoReconciler) handleSleepInfoStatus(
 }
 
 type SleepInfoData struct {
-	LastSchedule                time.Time        `json:"lastSchedule"`
-	CurrentOperationType        string           `json:"operationType"`
-	OriginalDeploymentsReplicas map[string]int32 `json:"originalDeploymentReplicas"`
-	CurrentOperationSchedule    string           `json:"-"`
-	NextOperationSchedule       string           `json:"-"`
+	LastSchedule                time.Time
+	CurrentOperationType        string
+	OriginalDeploymentsReplicas map[string]int32
+	CurrentOperationSchedule    string
+	NextOperationSchedule       string
+	OriginalCronJobStatus       map[string]bool
 }
 
 func (s SleepInfoData) IsWakeUpOperation() bool {
@@ -267,11 +272,7 @@ func getSleepInfoData(secret *v1.Secret, sleepInfo *kubegreenv1alpha1.SleepInfo)
 	}
 	data := secret.Data
 
-	originalDeploymentsReplicasData, err := deployments.GetOriginalInfoToRestore(data[replicasBeforeSleepKey])
-	if err != nil {
-		return SleepInfoData{}, err
-	}
-	sleepInfoData.OriginalDeploymentsReplicas = originalDeploymentsReplicasData
+	setOriginalResourceInfoToRestoreInSleepInfo(data, &sleepInfoData)
 
 	lastSchedule, err := time.Parse(time.RFC3339, string(data[lastScheduleKey]))
 	if err != nil {
