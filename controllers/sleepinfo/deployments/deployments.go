@@ -4,8 +4,9 @@ import (
 	"context"
 	"encoding/json"
 
-	kubegreenv1alpha1 "github.com/davidebianchi/kube-green/api/v1alpha1"
-	"github.com/davidebianchi/kube-green/controllers/sleepinfo/resource"
+	kubegreenv1alpha1 "github.com/kube-green/kube-green/api/v1alpha1"
+	"github.com/kube-green/kube-green/controllers/sleepinfo/resource"
+
 	appsv1 "k8s.io/api/apps/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )

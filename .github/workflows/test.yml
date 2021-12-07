@@ -49,7 +49,7 @@ jobs:
       - name: Prepare
         id: prep
         run: |
-          DOCKER_IMAGE=davidebianchi/kube-green
+          DOCKER_IMAGE=kubegreen/kube-green
           VERSION=latest
           if [[ $GITHUB_REF == refs/tags/* ]]; then
             VERSION=${GITHUB_REF#refs/tags/}

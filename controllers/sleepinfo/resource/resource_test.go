@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"testing"
 
-	kubegreenv1alpha1 "github.com/davidebianchi/kube-green/api/v1alpha1"
-	"github.com/davidebianchi/kube-green/controllers/internal/testutil"
+	kubegreenv1alpha1 "github.com/kube-green/kube-green/api/v1alpha1"
+	"github.com/kube-green/kube-green/controllers/internal/testutil"
+
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"

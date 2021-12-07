@@ -3,9 +3,9 @@ package sleepinfo
 import (
 	"context"
 
-	"github.com/davidebianchi/kube-green/controllers/sleepinfo/cronjobs"
-	"github.com/davidebianchi/kube-green/controllers/sleepinfo/deployments"
-	"github.com/davidebianchi/kube-green/controllers/sleepinfo/resource"
+	"github.com/kube-green/kube-green/controllers/sleepinfo/cronjobs"
+	"github.com/kube-green/kube-green/controllers/sleepinfo/deployments"
+	"github.com/kube-green/kube-green/controllers/sleepinfo/resource"
 )
 
 type Resources struct {

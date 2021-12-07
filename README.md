@@ -3,7 +3,7 @@
 [![Coverage Status][coverage-badge]][coverage]
 
 <div align="center">
-  <img src="https://github.com/davidebianchi/kube-green/raw/main/logo/logo.png" width="250" >
+  <img src="https://github.com/kube-green/kube-green/raw/main/logo/logo.png" width="250" >
 </div>
 
 How many of your dev/preview pods stay on during weekends? Or at night? It's a waste of resources! And money! But fear not, *kube-green* is here to the rescue.
@@ -93,9 +93,9 @@ To upgrade the version:
 
 Special thanks to [JGiola](https://github.com/JGiola) for the tech review.
 
-[go-report-svg]: https://goreportcard.com/badge/github.com/davidebianchi/kube-green
-[go-report-card]: https://goreportcard.com/report/github.com/davidebianchi/kube-green
-[test-and-build-svg]: https://github.com/davidebianchi/kube-green/actions/workflows/test.yml/badge.svg
-[test-and-build]: https://github.com/davidebianchi/kube-green/actions/workflows/test.yml
-[coverage-badge]: https://coveralls.io/repos/github/davidebianchi/kube-green/badge.svg?branch=main
-[coverage]: https://coveralls.io/github/davidebianchi/kube-green?branch=main
+[go-report-svg]: https://goreportcard.com/badge/github.com/kube-green/kube-green
+[go-report-card]: https://goreportcard.com/report/github.com/kube-green/kube-green
+[test-and-build-svg]: https://github.com/kube-green/kube-green/actions/workflows/test.yml/badge.svg
+[test-and-build]: https://github.com/kube-green/kube-green/actions/workflows/test.yml
+[coverage-badge]: https://coveralls.io/repos/github/kube-green/kube-green/badge.svg?branch=main
+[coverage]: https://coveralls.io/github/kube-green/kube-green?branch=main

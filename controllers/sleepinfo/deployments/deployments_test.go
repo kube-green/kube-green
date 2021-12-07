@@ -4,9 +4,10 @@ import (
 	"context"
 	"testing"
 
-	"github.com/davidebianchi/kube-green/api/v1alpha1"
-	"github.com/davidebianchi/kube-green/controllers/internal/testutil"
-	"github.com/davidebianchi/kube-green/controllers/sleepinfo/resource"
+	"github.com/kube-green/kube-green/api/v1alpha1"
+	"github.com/kube-green/kube-green/controllers/internal/testutil"
+	"github.com/kube-green/kube-green/controllers/sleepinfo/resource"
+
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

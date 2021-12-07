@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## Unreleased
 
+### BREAKING CHANGES
+
+- the new official docker image of `kube-green` is `kubegreen/kube-green`.
+
 ### Added
 
 - handle cron job in SleepInfo sleep and wake up. Cron Jobs are optionally suspended on sleep and resumed on wake up. To enable it, set `spec.suspendCronJobs = true` in the SleepInfo CRD.

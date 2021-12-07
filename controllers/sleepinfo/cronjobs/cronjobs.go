@@ -7,8 +7,9 @@ import (
 	"fmt"
 	"strings"
 
-	kubegreenv1alpha1 "github.com/davidebianchi/kube-green/api/v1alpha1"
-	"github.com/davidebianchi/kube-green/controllers/sleepinfo/resource"
+	kubegreenv1alpha1 "github.com/kube-green/kube-green/api/v1alpha1"
+	"github.com/kube-green/kube-green/controllers/sleepinfo/resource"
+
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime/schema"

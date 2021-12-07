@@ -4,8 +4,9 @@ import (
 	"context"
 	"time"
 
-	kubegreenv1alpha1 "github.com/davidebianchi/kube-green/api/v1alpha1"
-	"github.com/davidebianchi/kube-green/controllers/internal/testutil"
+	kubegreenv1alpha1 "github.com/kube-green/kube-green/api/v1alpha1"
+	"github.com/kube-green/kube-green/controllers/internal/testutil"
+
 	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

@@ -19,8 +19,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	kubegreencomv1alpha1 "github.com/davidebianchi/kube-green/api/v1alpha1"
-	sleepinfocontroller "github.com/davidebianchi/kube-green/controllers/sleepinfo"
+	kubegreencomv1alpha1 "github.com/kube-green/kube-green/api/v1alpha1"
+	sleepinfocontroller "github.com/kube-green/kube-green/controllers/sleepinfo"
 	// +kubebuilder:scaffold:imports
 )
 

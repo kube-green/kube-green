@@ -5,9 +5,10 @@ import (
 	"encoding/json"
 	"time"
 
-	kubegreenv1alpha1 "github.com/davidebianchi/kube-green/api/v1alpha1"
-	"github.com/davidebianchi/kube-green/controllers/internal/testutil"
-	"github.com/davidebianchi/kube-green/controllers/sleepinfo/cronjobs"
+	kubegreenv1alpha1 "github.com/kube-green/kube-green/api/v1alpha1"
+	"github.com/kube-green/kube-green/controllers/internal/testutil"
+	"github.com/kube-green/kube-green/controllers/sleepinfo/cronjobs"
+
 	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

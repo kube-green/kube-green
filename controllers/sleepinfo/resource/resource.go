@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	kubegreenv1alpha1 "github.com/davidebianchi/kube-green/api/v1alpha1"
+	kubegreenv1alpha1 "github.com/kube-green/kube-green/api/v1alpha1"
 
 	"github.com/go-logr/logr"
 	"sigs.k8s.io/controller-runtime/pkg/client"

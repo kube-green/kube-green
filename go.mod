@@ -1,4 +1,4 @@
-module github.com/davidebianchi/kube-green
+module github.com/kube-green/kube-green
 
 go 1.16
 

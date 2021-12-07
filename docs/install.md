@@ -67,7 +67,7 @@ kubectl -n cert-manager get pods
 To install *kube-green* clone the repo and checkout to the latest release tag.
 
 ```sh
-git clone git@github.com:davidebianchi/kube-green.git
+git clone git@github.com:kube-green/kube-green.git
 git checkout LATEST_RELEASE
 ```
 

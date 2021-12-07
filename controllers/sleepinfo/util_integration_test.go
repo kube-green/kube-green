@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"time"
 
-	kubegreenv1alpha1 "github.com/davidebianchi/kube-green/api/v1alpha1"
-	"github.com/davidebianchi/kube-green/controllers/internal/testutil"
-	"github.com/davidebianchi/kube-green/controllers/sleepinfo/cronjobs"
-	"github.com/davidebianchi/kube-green/controllers/sleepinfo/deployments"
+	kubegreenv1alpha1 "github.com/kube-green/kube-green/api/v1alpha1"
+	"github.com/kube-green/kube-green/controllers/internal/testutil"
+	"github.com/kube-green/kube-green/controllers/sleepinfo/cronjobs"
+	"github.com/kube-green/kube-green/controllers/sleepinfo/deployments"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"

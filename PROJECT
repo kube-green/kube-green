@@ -4,7 +4,7 @@ plugins:
   manifests.sdk.operatorframework.io/v2: {}
   scorecard.sdk.operatorframework.io/v2: {}
 projectName: kube-green
-repo: github.com/davidebianchi/kube-green
+repo: github.com/kube-green/kube-green
 resources:
 - api:
     crdVersion: v1
@@ -12,7 +12,7 @@ resources:
   controller: true
   domain: kube-green.com
   kind: SleepInfo
-  path: github.com/davidebianchi/kube-green/api/v1alpha1
+  path: github.com/kube-green/kube-green/api/v1alpha1
   plural: sleepinfos
   version: v1alpha1
   webhooks:

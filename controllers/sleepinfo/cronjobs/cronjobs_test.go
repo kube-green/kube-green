@@ -6,9 +6,10 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/davidebianchi/kube-green/api/v1alpha1"
-	"github.com/davidebianchi/kube-green/controllers/internal/testutil"
-	"github.com/davidebianchi/kube-green/controllers/sleepinfo/resource"
+	"github.com/kube-green/kube-green/api/v1alpha1"
+	"github.com/kube-green/kube-green/controllers/internal/testutil"
+	"github.com/kube-green/kube-green/controllers/sleepinfo/resource"
+
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"

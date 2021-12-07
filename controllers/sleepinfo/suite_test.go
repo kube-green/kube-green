@@ -18,7 +18,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	kubegreencomv1alpha1 "github.com/davidebianchi/kube-green/api/v1alpha1"
+	kubegreencomv1alpha1 "github.com/kube-green/kube-green/api/v1alpha1"
 	//+kubebuilder:scaffold:imports
 )
 
