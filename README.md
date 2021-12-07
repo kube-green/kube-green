@@ -14,7 +14,7 @@ Keep reading to find out how to use it, and if you have ideas on how to improve 
 
 ## Install
 
-To install *kube-green* just clone this repository and run:
+To install *kube-green* just clone this repository, check out to the latest stable tag, and run:
 
 ```sh
 make deploy
