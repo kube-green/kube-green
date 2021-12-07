@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## Unreleased
 
+## v0.3.0-rc.0 - 07-12-2021
+
 ### BREAKING CHANGES
 
 - ⚠️ the new official docker image of `kube-green` is `kubegreen/kube-green`
