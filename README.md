@@ -39,7 +39,7 @@ The SleepInfo spec contains:
 * **sleepAt**: time in hours and minutes (HH:mm) when namespace will go to sleep. Valid values are, for example, 19:00or `*:*` for every minute and every hour. Resources sleep will be deployments (setting replicas value to 0) and, if `suspendCronjobs` option is set to true, cron jobs will be suspended.
 * **wakeUpAt** (*optional*): time in hours and minutes (HH:mm) when namespace should be restored to the initial state (before sleep). Valid values are, for example, 19:00or `*:*` for every minute and every hour. If wake up value is not set, pod in namespace will not be restored. So, you will need to deploy the initial namespace configuration to restore it.
 * **timeZone** (*optional*): time zone in IANA specification. For example for italian hour, set `Europe/Rome`.
-* **suspendCronjobs** (*optional*): if set to true, cronjobs will be suspended.
+* **suspendCronJobs** (*optional*): if set to true, cronjobs will be suspended.
 * **excluldeRef** (*optional*): an array of object containing the resource to exclude from sleep. It contains:
   * **apiVersion**: version of the resource. Now it is supported *"apps/v1"*, *"batch/v1beta1"* and *"batch/v1"*
   * **kind**: the kind of resource. Now it is supported *"Deployment"* and *"CronJob"*
