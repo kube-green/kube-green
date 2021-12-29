@@ -70,6 +70,7 @@ type SleepInfoStatus struct {
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 //+kubebuilder:resource:path=sleepinfos
+// +genclient - this is required for auto generated docs
 
 // SleepInfo is the Schema for the sleepinfos API
 type SleepInfo struct {
