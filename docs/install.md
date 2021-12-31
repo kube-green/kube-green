@@ -36,7 +36,7 @@ To follow this guide, you should have `kubectl` and `kind` installed locally.
 
 - The kubernetes command line tool: [kubectl](https://kubernetes.io/docs/tasks/tools/#kubectl)
 - [docker](https://docs.docker.com/get-docker/)
-- Run kubernetes localy: [kind](https://kind.sigs.k8s.io/docs/user/quick-start/#installation)
+- Run kubernetes locally: [kind](https://kind.sigs.k8s.io/docs/user/quick-start/#installation)
 
 Now you have all the tools needed, let's go!
 
