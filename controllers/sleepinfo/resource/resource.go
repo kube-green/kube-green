@@ -63,19 +63,15 @@ func (r ResourceClient) SSAPatch(ctx context.Context, newObj client.Object) erro
 
 var errClientEmpty = "client is empty"
 var errSleepInfoEmpty = "sleepInfo is nil"
-var errLogEmpty = "log is empty"
 
 func (r ResourceClient) IsClientValid() error {
-	if r.Client != nil && r.SleepInfo != nil && r.Log != nil {
+	if r.Client != nil && r.SleepInfo != nil {
 		return nil
 	}
 
 	errStrings := []string{}
 	if r.Client == nil {
 		errStrings = append(errStrings, errClientEmpty)
-	}
-	if r.Log == nil {
-		errStrings = append(errStrings, errLogEmpty)
 	}
 	if r.SleepInfo == nil {
 		errStrings = append(errStrings, errSleepInfoEmpty)
