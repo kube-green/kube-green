@@ -42,22 +42,13 @@ func TestResource(t *testing.T) {
 		t.Run("without any field", func(t *testing.T) {
 			r := ResourceClient{}
 
-			require.EqualError(t, r.IsClientValid(), fmt.Sprintf("%s: %s and %s and %s", ErrInvalidClient, errClientEmpty, errLogEmpty, errSleepInfoEmpty))
-		})
-
-		t.Run("without Log", func(t *testing.T) {
-			r := ResourceClient{
-				Client:    fake.NewClientBuilder().Build(),
-				SleepInfo: &kubegreenv1alpha1.SleepInfo{},
-			}
-
-			require.EqualError(t, r.IsClientValid(), fmt.Sprintf("%s: %s", ErrInvalidClient, errLogEmpty))
+			require.EqualError(t, r.IsClientValid(), fmt.Sprintf("%s: %s and %s", ErrInvalidClient, errClientEmpty, errSleepInfoEmpty))
 		})
 
 		t.Run("without SleepInfo", func(t *testing.T) {
 			r := ResourceClient{
 				Client: fake.NewClientBuilder().Build(),
-				Log:    logr.DiscardLogger{},
+				Log:    logr.Discard(),
 			}
 
 			require.EqualError(t, r.IsClientValid(), fmt.Sprintf("%s: %s", ErrInvalidClient, errSleepInfoEmpty))
@@ -66,7 +57,7 @@ func TestResource(t *testing.T) {
 		t.Run("without Client", func(t *testing.T) {
 			r := ResourceClient{
 				SleepInfo: &kubegreenv1alpha1.SleepInfo{},
-				Log:       logr.DiscardLogger{},
+				Log:       logr.Discard(),
 			}
 
 			require.EqualError(t, r.IsClientValid(), fmt.Sprintf("%s: %s", ErrInvalidClient, errClientEmpty))
@@ -75,7 +66,7 @@ func TestResource(t *testing.T) {
 		t.Run("valid client", func(t *testing.T) {
 			r := ResourceClient{
 				SleepInfo: &kubegreenv1alpha1.SleepInfo{},
-				Log:       logr.DiscardLogger{},
+				Log:       logr.Discard(),
 				Client:    fake.NewClientBuilder().Build(),
 			}
 
@@ -94,7 +85,7 @@ func TestResource(t *testing.T) {
 			k8sClient := fake.NewClientBuilder().WithRuntimeObjects(&deployment).Build()
 			c := ResourceClient{
 				SleepInfo: &kubegreenv1alpha1.SleepInfo{},
-				Log:       logr.DiscardLogger{},
+				Log:       logr.Discard(),
 				Client:    k8sClient,
 			}
 
@@ -116,7 +107,7 @@ func TestResource(t *testing.T) {
 			k8sClient := fake.NewClientBuilder().WithRuntimeObjects(&deployment).Build()
 			c := ResourceClient{
 				SleepInfo: &kubegreenv1alpha1.SleepInfo{},
-				Log:       logr.DiscardLogger{},
+				Log:       logr.Discard(),
 				Client:    k8sClient,
 			}
 
@@ -135,7 +126,7 @@ func TestResource(t *testing.T) {
 			k8sClient := fake.NewClientBuilder().Build()
 			c := ResourceClient{
 				SleepInfo: &kubegreenv1alpha1.SleepInfo{},
-				Log:       logr.DiscardLogger{},
+				Log:       logr.Discard(),
 				Client:    k8sClient,
 			}
 
@@ -161,7 +152,7 @@ func TestResource(t *testing.T) {
 			}
 			c := ResourceClient{
 				SleepInfo: &kubegreenv1alpha1.SleepInfo{},
-				Log:       logr.DiscardLogger{},
+				Log:       logr.Discard(),
 				Client:    k8sClient,
 			}
 
@@ -188,7 +179,7 @@ func TestResource(t *testing.T) {
 			}
 			c := ResourceClient{
 				SleepInfo: &kubegreenv1alpha1.SleepInfo{},
-				Log:       logr.DiscardLogger{},
+				Log:       logr.Discard(),
 				Client:    k8sClient,
 			}
 

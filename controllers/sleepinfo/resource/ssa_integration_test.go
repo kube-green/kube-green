@@ -35,7 +35,7 @@ var _ = Describe("Server side apply integration tests", func() {
 			resource = upsertResource(context.Background(), namespace)
 			c = ResourceClient{
 				SleepInfo:        &kubegreenv1alpha1.SleepInfo{},
-				Log:              logr.DiscardLogger{},
+				Log:              logr.Discard(),
 				Client:           k8sClient,
 				FieldManagerName: "kube-green-test",
 			}
