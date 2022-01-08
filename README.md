@@ -83,7 +83,7 @@ make undeploy
 To upgrade the version:
 
 1. `export VERSION=v{{NEW_VERSION_TO_TAG}}` where `{{NEW_VERSION_TO_TAG}}` should be replaced with the next version to upgrade. N.B.: version should include `v` as first char.
-2. run `./scripts/update-version.sh $VERSION`
+2. run `./hack/update-version.sh $VERSION`
 3. run `make`
 4. add, commit and push
 5. git tag $VERSION
