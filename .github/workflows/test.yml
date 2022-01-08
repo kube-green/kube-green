@@ -40,26 +40,22 @@ jobs:
     name: Build docker
     needs: tests
     runs-on: ubuntu-latest
-    if: ${{ startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' }}
+    if: ${{ startsWith(github.ref, 'refs/tags/') || github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v3
+        with:
+          images: kubegreen/kube-green
+          tags: |
+            type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+            type=semver,pattern={{version}}
+          flavor: |
+            latest=false
 
-      - name: Prepare
-        id: prep
-        run: |
-          DOCKER_IMAGE=kubegreen/kube-green
-          VERSION=latest
-          if [[ $GITHUB_REF == refs/tags/* ]]; then
-            VERSION=${GITHUB_REF#refs/tags/}
-            VERSION=$(echo ${VERSION} | sed s/^v//)
-          elif [[ $GITHUB_REF == refs/heads/main ]]; then
-            VERSION=latest
-          fi
-          TAGS="${DOCKER_IMAGE}:${VERSION}"
-          echo ::set-output name=tags::${TAGS}
-          echo ::set-output name=image::${DOCKER_IMAGE}
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
 
@@ -75,10 +71,12 @@ jobs:
           path: ${{ env.context }}build
           key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ github.sha }}
           restore-keys: |
-            ${{ runner.os }}-build-${{ env.cache-name }}-${{ github.sha }}
+            ${{ runner.os }}-build-${{ env.cache-name }}
       - name: Build and push
         uses: docker/build-push-action@v2
         with:
           context: '${{ env.context }}'
           push: true
-          tags: ${{ steps.prep.outputs.tags }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
