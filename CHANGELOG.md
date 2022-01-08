@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - Handle cron job suspend in SleepInfo sleep and wake up.
   Cron Jobs are now optionally suspended on sleep and resumed on wake up. To enable it, set `spec.suspendCronJobs = true` in the SleepInfo CRD.
-- support for kubernetes version 1.19+
+- support for kubernetes version from 1.19 to 1.23
 
 ## v0.2.0 - 04-08-2021
 
