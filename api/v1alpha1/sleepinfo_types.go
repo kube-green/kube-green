@@ -79,7 +79,6 @@ type SleepInfoStatus struct {
 //+kubebuilder:subresource:status
 //+kubebuilder:resource:path=sleepinfos
 // +genclient - this is required for auto generated docs
-//+operator-sdk:csv:customresourcedefinitions:displayName="Sleep Info",resources={{Deployment,v1},{CronJob,batch/v1}}
 
 // SleepInfo is the Schema for the sleepinfos API
 type SleepInfo struct {

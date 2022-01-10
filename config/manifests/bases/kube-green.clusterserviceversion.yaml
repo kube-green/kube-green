@@ -14,13 +14,6 @@ spec:
       displayName: Sleep Info
       kind: SleepInfo
       name: sleepinfos.kube-green.com
-      resources:
-      - kind: CronJob
-        name: ""
-        version: batch/v1
-      - kind: Deployment
-        name: ""
-        version: v1
       specDescriptors:
       - description: ExcludeRef define the resource to exclude from the sleep.
         displayName: Exclude Ref
