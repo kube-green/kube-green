@@ -30,11 +30,13 @@ type SleepInfoSpec struct {
 	// Weekdays are in cron notation.
 	//
 	// For example, to configure a schedule from monday to friday, set it to "1-5"
+	//+operator-sdk:csv:customresourcedefinitions:type=spec
 	Weekdays string `json:"weekdays"`
 	// Hours:Minutes
 	//
 	// Accept cron schedule for both hour and minute.
 	// For example, *:*/2 is set to configure a run every even minute.
+	//+operator-sdk:csv:customresourcedefinitions:type=spec
 	SleepTime string `json:"sleepAt"`
 	// Hours:Minutes
 	//
@@ -42,17 +44,21 @@ type SleepInfoSpec struct {
 	// For example, *:*/2 is set to configure a run every even minute.
 	// It is not required.
 	// +optional
+	//+operator-sdk:csv:customresourcedefinitions:type=spec
 	WakeUpTime string `json:"wakeUpAt,omitempty"`
 	// Time zone to set the schedule, in IANA time zone identifier.
 	// It is not required, default to UTC.
 	// For example, for the Italy time zone set Europe/Rome.
 	// +optional
+	//+operator-sdk:csv:customresourcedefinitions:type=spec
 	TimeZone string `json:"timeZone,omitempty"`
 	// ExcludeRef define the resource to exclude from the sleep.
 	// +optional
+	//+operator-sdk:csv:customresourcedefinitions:type=spec
 	ExcludeRef []ExcludeRef `json:"excludeRef,omitempty"`
 	// If SuspendCronjobs is set to true, on sleep the cronjobs of the namespace will be suspended.
 	// +optional
+	//+operator-sdk:csv:customresourcedefinitions:type=spec
 	SuspendCronjobs bool `json:"suspendCronJobs,omitempty"`
 }
 
@@ -60,10 +66,12 @@ type SleepInfoSpec struct {
 type SleepInfoStatus struct {
 	// Information when was the last time the run was successfully scheduled.
 	// +optional
+	//+operator-sdk:csv:customresourcedefinitions:type=status,displayName="Last Schedule Time"
 	LastScheduleTime metav1.Time `json:"lastScheduleTime,omitempty"`
 	// The operation type handled in last schedule. SLEEP or WAKE_UP are the
 	// possibilities
 	// +optional
+	//+operator-sdk:csv:customresourcedefinitions:type=status,displayName="Operation Type"
 	OperationType string `json:"operation,omitempty"`
 }
 
@@ -71,6 +79,7 @@ type SleepInfoStatus struct {
 //+kubebuilder:subresource:status
 //+kubebuilder:resource:path=sleepinfos
 // +genclient - this is required for auto generated docs
+//+operator-sdk:csv:customresourcedefinitions:displayName="Sleep Info",resources={{Deployment,v1},{CronJob,batch/v1}}
 
 // SleepInfo is the Schema for the sleepinfos API
 type SleepInfo struct {
