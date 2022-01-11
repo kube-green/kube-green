@@ -15,7 +15,7 @@ jobs:
         include:
           - go_version: 1.17
             os: macos-latest
-            k8s_version: '1.22'
+            k8s_version: '1.23'
     env:
       ENVTEST_K8S_VERSION: ${{matrix.k8s_version}}
     steps:
