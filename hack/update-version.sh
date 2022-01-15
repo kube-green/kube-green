@@ -20,5 +20,5 @@ else
 fi
 
 sed -i.bck "s|## Unreleased|## ${TAG_VALUE} - ${NOW_DATE}|g" "${SOURCE_DIR}/CHANGELOG.md"
-sed -i.bck "s|VERSION ?= [0-9]+.[0-9]+.[0-9]+.*|VERSION ?= ${TAG_VALUE_WITHOUT_V}|" "${SOURCE_DIR}/Makefile"
+sed -i.bck -E "s/VERSION \?= [0-9]+.[0-9]+.[0-9]+.*/VERSION ?= ${TAG_VALUE_WITHOUT_V}/" "${SOURCE_DIR}/Makefile"
 rm -fr "${SOURCE_DIR}/CHANGELOG.md.bck" "${SOURCE_DIR}/Makefile.bck"
