@@ -23,6 +23,3 @@ testbin/*
 *.swp
 *.swo
 *~
-
-# Bundle
-bundle
