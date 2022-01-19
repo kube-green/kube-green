@@ -3,11 +3,12 @@ kind: ClusterServiceVersion
 metadata:
   annotations:
     alm-examples: '[]'
-    capabilities: Basic Install
+    capabilities: Seamless Upgrades
     categories: Developer Tools
+    containerImage: kubegreen/kube-green:0.3.0
     createdAt: "2021-02-21T00:00:00Z"
-    description: An operator to suspend your pods when no-one's using them and restore
-      when necessary to save energy
+    description: Suspend your pods when no-one's using them to save energy and restore
+      when necessary
     repository: https://github.com/kube-green/kube-green
     support: kube-green Community
   name: kube-green.v0.0.0
@@ -102,15 +103,18 @@ spec:
   - green software
   - resources
   - downscale
+  - autoscale
   links:
-  - name: Kube Green
-    url: https://kube-green.domain
+  - name: Homepage
+    url: https://kube-green.dev
+  - name: Source Code
+    url: https://github.com/kube-green/kube-green
   maintainers:
-  - email: bianchidavide12@gmail.com
+  - email: bianchidavide12+kubegreen@gmail.com
     name: Davide
   maturity: alpha
   minKubeVersion: 1.19.0
   provider:
-    name: kube-green
+    name: kube-green Community
     url: https://kube-green.dev
   version: 0.0.0
