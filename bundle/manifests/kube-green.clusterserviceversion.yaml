@@ -27,8 +27,14 @@ metadata:
         }
       ]
     capabilities: Basic Install
+    categories: Developer Tools
+    createdAt: "2021-02-21T00:00:00Z"
+    description: An operator to suspend your pods when no-one's using them and restore
+      when necessary to save energy
     operators.operatorframework.io/builder: operator-sdk-v1.15.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
+    repository: https://github.com/kube-green/kube-green
+    support: kube-green Community
   name: kube-green.v0.3.0
   namespace: placeholder
 spec:
