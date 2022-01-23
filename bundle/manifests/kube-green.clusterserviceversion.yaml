@@ -1,0 +1,328 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: ClusterServiceVersion
+metadata:
+  annotations:
+    alm-examples: |-
+      [
+        {
+          "apiVersion": "kube-green.com/v1alpha1",
+          "kind": "SleepInfo",
+          "metadata": {
+            "name": "sleepinfo-sample"
+          },
+          "spec": {
+            "excludeRef": [
+              {
+                "apiVersion": "apps/v1",
+                "kind": "Deployment",
+                "name": "api-gateway"
+              }
+            ],
+            "sleepAt": "20:00",
+            "suspendCronJobs": true,
+            "timeZone": "Europe/Rome",
+            "wakeUpAt": "08:00",
+            "weekdays": "1-5"
+          }
+        }
+      ]
+    capabilities: Seamless Upgrades
+    categories: Developer Tools
+    containerImage: kubegreen/kube-green:0.3.0
+    createdAt: "2021-02-21T00:00:00Z"
+    description: Suspend your pods when no-one's using them to save energy and restore
+      when necessary
+    operators.operatorframework.io/builder: operator-sdk-v1.15.0
+    operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
+    repository: https://github.com/kube-green/kube-green
+    support: kube-green Community
+  name: kube-green.v0.3.0
+  namespace: placeholder
+spec:
+  apiservicedefinitions: {}
+  customresourcedefinitions:
+    owned:
+    - description: SleepInfo is the Schema for the sleepinfos API
+      displayName: Sleep Info
+      kind: SleepInfo
+      name: sleepinfos.kube-green.com
+      specDescriptors:
+      - description: ExcludeRef define the resource to exclude from the sleep.
+        displayName: Exclude Ref
+        path: excludeRef
+      - description: "Hours:Minutes \n Accept cron schedule for both hour and minute.
+          For example, *:*/2 is set to configure a run every even minute."
+        displayName: Sleep Time
+        path: sleepAt
+      - description: If SuspendCronjobs is set to true, on sleep the cronjobs of the
+          namespace will be suspended.
+        displayName: Suspend Cronjobs
+        path: suspendCronJobs
+      - description: Time zone to set the schedule, in IANA time zone identifier.
+          It is not required, default to UTC. For example, for the Italy time zone
+          set Europe/Rome.
+        displayName: Time Zone
+        path: timeZone
+      - description: "Hours:Minutes \n Accept cron schedule for both hour and minute.
+          For example, *:*/2 is set to configure a run every even minute. It is not
+          required."
+        displayName: Wake Up Time
+        path: wakeUpAt
+      - description: "Weekdays are in cron notation. \n For example, to configure
+          a schedule from monday to friday, set it to \"1-5\""
+        displayName: Weekdays
+        path: weekdays
+      statusDescriptors:
+      - description: Information when was the last time the run was successfully scheduled.
+        displayName: Last Schedule Time
+        path: lastScheduleTime
+      - description: The operation type handled in last schedule. SLEEP or WAKE_UP
+          are the possibilities
+        displayName: Operation Type
+        path: operation
+      version: v1alpha1
+  description: |
+    ## About this Operator
+
+    [kube-green](https://kube-green.dev) shuts down (some of) your resources when you don't need them, reducing the consumption of resources of the cluster.
+
+    Install this operator and apply the SleepInfo CRD to stop your dev namespaces from running during weekends, nights or when it is not necessary.
+    See the [docs](https://kube-green.dev/docs/getting-started/) for more information.
+    This operator is responsible to suspend and restart pods at specific times, defined by the SleepInfo CRD.
+
+    An example of SleepInfo:
+
+    ```yaml
+    apiVersion: kube-green.com/v1alpha1
+    kind: SleepInfo
+    metadata:
+      name: working-hours
+    spec:
+      weekdays: "1-5"
+      sleepAt: "20:00"
+      wakeUpAt: "08:00"
+      timeZone: "Europe/Rome"
+    ```
+
+    This configuration stop pods everyday from monday to friday at 20:00 and restore them at 8:00.
+    In this way, your cluster nodes could downscale, producing less CO2 and saving money.
+  displayName: kube-green
+  icon:
+  - base64data: PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHZpZXdCb3g9IjAgMCA4MCA4MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3QgeD0iNDgiIHk9IjM1IiB3aWR0aD0iMiIgaGVpZ2h0PSI0IiBmaWxsPSIjNTNERDZDIi8+CjxyZWN0IHdpZHRoPSIxNSIgaGVpZ2h0PSIxNyIgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMzMgMzUpIiBmaWxsPSIjNTNERDZDIi8+CjxwYXRoIGQ9Ik0zOS4yNzI0IDIuMjc1NTVDMzguMDUzNCAzLjAyMjIyIDM3LjgyNDggMy45NTE3NCAzOC4yMjEgNi41NDIyMkMzOC4zNTgyIDcuNTE3NDUgMzguNTI1OCA4Ljk4MDMxIDM4LjU1NjMgOS43ODc5M0MzOC42NDc3IDExLjIwNTEgMzguNjMyNCAxMS4zMTE3IDM4LjI1MTUgMTEuODYwM0MzOC4wMzgyIDEyLjE5NTUgMzcuODQwMSAxMi42NTI3IDM3LjgwOTYgMTIuODgxM0MzNy43NjM5IDEzLjMyMzIgMzcuNzQ4NiAxMy4zMjMyIDM2LjAxMTUgMTMuNTgyMkMzMy44OTM0IDEzLjg4NyAzMy4yNTM0IDE0LjAzOTQgMzEuMzMzNCAxNC42NDg5QzI3LjIzNDMgMTUuOTU5NCAyMy45NDI5IDE3Ljg3OTQgMjAuNTQ0OCAyMC45NTc1QzE5LjI0OTYgMjIuMTMwOCAxOS4xMTI0IDIyLjIyMjIgMTguODUzNCAyMi4wMjQxQzE4LjY4NTggMjEuOTAyMiAxOC4zMzUzIDIxLjc5NTUgMTguMDYxIDIxLjc5NTVDMTcuMjIyOSAyMS43OTU1IDE2LjY4OTYgMjEuMzk5NCAxNC4yMjEgMTguOTc2NUMxMi4zNjIgMTcuMTQ3OSAxMS43MjIgMTYuNjE0NiAxMS4yMTkxIDE2LjQ2MjJDOC44NzI0NCAxNS43NjEzIDcuMzQ4NjMgMTguNDI3OSA5LjEwMTAyIDIwLjE4MDNDOS4zOTA1NCAyMC40NTQ2IDEwLjQyNjcgMjEuMTcwOCAxMS40MzI0IDIxLjc2NTFDMTMuMzUyNCAyMi45MDc5IDE0Ljc1NDMgMjMuODk4NCAxNS4wNTkxIDI0LjM0MDNDMTUuMTY1OCAyNC40OTI3IDE1LjMwMjkgMjQuODQzMiAxNS4zNjM5IDI1LjExNzVDMTUuNDI0OCAyNS4zOTE3IDE1LjU5MjQgMjUuNjk2NSAxNS43NjAxIDI1LjgwMzJDMTUuOTEyNCAyNS44OTQ2IDE2LjA0OTYgMjYuMDMxNyAxNi4wNDk2IDI2LjA5MjdDMTYuMDQ5NiAyNi4xNjg5IDE1LjY4MzkgMjYuODU0NiAxNS4yNDIgMjcuNjMxN0MxMy40Mjg2IDMwLjc1NTUgMTIuMjU1MyAzNC4wNDcgMTEuNjE1MyAzNy43OTU1QzExLjQxNzIgMzguOTM4NCAxMS4zMjU4IDQzLjgxNDYgMTEuNDc4MiA0NS4zOTk0QzExLjU1NDMgNDYuMjA3IDExLjUzOTEgNDYuMjM3NSAxMS4xMTI0IDQ2LjM3NDZDMTAuODY4NiA0Ni40NTA4IDEwLjUwMjkgNDYuNzI1MSAxMC4yNzQzIDQ2Ljk2ODlDOS43NzE0OSA0Ny41MzI3IDguNzk2MjUgNDcuODA3IDYuNDQ5NTkgNDguMDIwM0MzLjc1MjQ0IDQ4LjI2NDEgMi42ODU3OCA0OC40NjIyIDIuMTY3NjggNDguODEyN0MwLjU5ODE1NyA0OS44Nzk0IDAuNjEzMzk1IDUxLjcyMzIgMi4xOTgxNiA1Mi41NDZDMy4xMTI0NCA1My4wMzM2IDMuOTUwNTQgNTIuOTI3IDYuMjIxMDEgNTIuMDI3OUM3LjIxMTQ5IDUxLjY0NyA4LjU4MjkyIDUxLjE4OTggOS4yODM4NyA1MS4wMDdDMTAuNDExNSA1MC43MTc1IDEwLjYwOTYgNTAuNzAyMiAxMS4wNTE1IDUwLjg4NTFDMTEuMzI1OCA1MS4wMDcgMTEuODEzNCA1MS4wOTg0IDEyLjE0ODYgNTEuMTEzNkwxMi43Mjc3IDUxLjEyODlMMTMuMTM5MSA1Mi4yNzE3QzE1LjIxMTUgNTcuODk0NiAxOS41MjM5IDYzLjI1ODQgMjQuNjI4NiA2Ni41MDQxQzI1LjM5MDUgNjYuOTkxNyAyNS40OTcyIDY3LjExMzYgMjUuMzkwNSA2Ny40MDMyQzI1LjMyOTYgNjcuNTg2IDI1LjI4MzkgNjguMTA0MSAyNS4zMTQzIDY4LjU0NkMyNS4zNjAxIDY5LjUzNjUgMjQuOTc5MSA3MC4zNTk0IDIzLjE4MSA3My4xMDIyQzIxLjc2MzkgNzUuMjgxMyAyMS40NTkxIDc2LjA3MzYgMjEuNzAyOSA3Ny4wMzM2QzIxLjk0NjcgNzcuOTkzNiAyMi41NTYzIDc4LjUxMTcgMjMuNTQ2NyA3OC42MDMyQzI0LjIxNzIgNzguNjQ4OSAyNC40NDU4IDc4LjYwMzIgMjQuODg3NyA3OC4yOTg0QzI1LjY5NTMgNzcuNzQ5OCAyNi4wMzA1IDc3LjEwOTggMjYuNzMxNSA3NC45MzA4QzI3Ljc1MjQgNzEuNjY5OCAyOC40MjI5IDcwLjM4OTggMjkuMjE1MyA3MC4xOTE3QzI5LjQxMzQgNzAuMTQ2IDI5LjY0MiA2OS45MzI3IDI5LjczMzQgNjkuNzE5NEMyOS44MjQ4IDY5LjUwNiAyOS45OTI0IDY5LjMzODQgMzAuMDgzOSA2OS4zMzg0QzMwLjE5MDUgNjkuMzM4NCAzMC44OTE1IDY5LjUzNjUgMzEuNjY4NiA2OS43OTU1QzM3LjI0NTggNzEuNTc4NCA0My40OTM0IDcxLjU2MzIgNDkuMDg1OCA2OS43NjUxQzUwLjQ3MjQgNjkuMzIzMiA1MC41NDg2IDY5LjMyMzIgNTAuNzQ2NyA2OS41ODIyQzUwLjg1MzQgNjkuNzM0NiA1MC45NDQ4IDY5LjkwMjIgNTAuOTQ0OCA2OS45NDc5QzUwLjk0NDggNjkuOTkzNiA1MS4xNzM0IDcwLjE2MTMgNTEuNDYyOSA3MC4yOTg0QzUyLjE5NDQgNzAuNjMzNiA1Mi42NTE1IDcxLjQ4NyA1My41NTA1IDc0LjIxNDZDNTMuOTYyIDc1LjQ5NDYgNTQuNDQ5NiA3Ni44MDUxIDU0LjYwMiA3Ny4xMDk4QzU1LjIxMTUgNzguMjk4NCA1Ni4zNTQ0IDc4Ljg0NyA1Ny40OTcyIDc4LjQ5NjVDNTguMjg5NiA3OC4yNjc5IDU4Ljc0NjcgNzcuNTgyMiA1OC44MzgyIDc2LjU3NjVDNTguOTE0NCA3NS42NDcgNTguNzAxIDc1LjE1OTQgNTcuMjY4NiA3Mi45OTU1QzU2LjczNTMgNzIuMjAzMiA1Ni4wNDk2IDcxLjA5MDggNTUuNzQ0OCA3MC41MTE3QzU1LjIyNjcgNjkuNTUxNyA1NS4xNjU4IDY5LjI5MjcgNTUuMjQyIDY4LjE5NTVDNTUuMjQyIDY4LjAyNzkgNTUuMjExNSA2Ny43MjMyIDU1LjE1MDUgNjcuNTA5OEM1NS4wNTkxIDY3LjE3NDYgNTUuMTM1MyA2Ny4wNjc5IDU1Ljc3NTMgNjYuNjcxN0M2MC44OTUzIDYzLjQ3MTcgNjUuMDQwMSA1OC4zNTE3IDY3LjM0MSA1Mi40MjQxQzY3LjgyODYgNTEuMTI4OSA2Ny44NDM5IDUxLjEyODkgNjguMzkyNCA1MS4xMTM2QzY4LjY5NzIgNTEuMDk4NCA2OS4wMTcyIDUxLjAyMjIgNjkuMTIzOSA1MC45MTU1QzY5LjU2NTggNTAuNDczNiA3MS4xMzUzIDUwLjgwODkgNzQuNDExNSA1Mi4wNDMyQzc3LjEzOTEgNTMuMDY0MSA3OC4zODg2IDUyLjk4NzkgNzkuMTUwNSA1MS43Njg5Qzc5LjYyMjkgNTEuMDA3IDc5LjQ4NTggNDkuODMzNiA3OC44MzA1IDQ5LjE0NzlDNzguMjA1OCA0OC41MDc5IDc3LjIwMDEgNDguMjMzNiA3NC40ODc3IDQ4LjAwNTFDNzEuNzQ0OCA0Ny43NzY1IDcwLjg2MSA0Ny41NDc5IDcwLjE3NTMgNDYuODkyN0M2OS44NTUzIDQ2LjYwMzIgNjkuNDc0MyA0Ni4zMjg5IDY5LjMwNjcgNDYuMjk4NEM2OS4wNzgyIDQ2LjI1MjcgNjkuMDAyIDQ2LjEzMDggNjkuMDE3MiA0NS43OTU1QzY5LjAzMjQgNDUuNTM2NSA2OS4wOTM0IDQ0LjUxNTUgNjkuMTU0MyA0My41MDk4QzY5LjQ3NDMgMzguMTkxNyA2Ny44NTkxIDMxLjkxMzYgNjQuOTc5MSAyNy4yMjAzTDY0LjMzOTEgMjYuMTY4OUw2NC43MjAxIDI1Ljc3MjdDNjQuOTMzNCAyNS41NDQxIDY1LjExNjMgMjUuMTkzNiA2NS4xMTYzIDI0Ljk5NTVDNjUuMTE2MyAyNC40MzE3IDY2LjQ4NzcgMjMuMjQzMiA2OC40ODM5IDIyLjA2OThDNzAuODYxIDIwLjY2NzkgNzEuNDcwNSAyMC4yMTA4IDcxLjgyMSAxOS41MDk4QzcyLjg0MiAxNy41MTM2IDcxLjA1OTEgMTUuNjY5OCA2OC45NzE1IDE2LjUzODRDNjguNjM2MyAxNi42NzU1IDY3LjU4NDggMTcuNjA1MSA2Ni4zNjU4IDE4LjgzOTRDNjQuMDY0OCAyMS4xNTU1IDYzLjM5NDQgMjEuNjczNiA2Mi42MzI0IDIxLjY3MzZDNjIuMzQyOSAyMS42NzM2IDYxLjkxNjMgMjEuNzk1NSA2MS42NzI0IDIxLjk0NzlMNjEuMjQ1OCAyMi4yMzc1TDYwLjAyNjcgMjEuMTI1MUM1Ny40ODIgMTguODM5NCA1NS4zMDI5IDE3LjM2MTMgNTIuNDIyOSAxNi4wMDUxQzQ5LjcxMDUgMTQuNzI1MSA0Ni4zMTI0IDEzLjc0OTggNDMuNjMwNSAxMy40NjAzQzQyLjc0NjcgMTMuMzY4OSA0Mi43MTYzIDEzLjM1MzYgNDIuNzE2MyAxMi45MjdDNDIuNzE2MyAxMi42Njc5IDQyLjU0ODYgMTIuMjcxNyA0Mi4zMzUzIDEyLjAxMjdDNDEuOTg0OCAxMS42MDEzIDQxLjk1NDQgMTEuNDMzNiA0MS45NTQ0IDEwLjE2ODlDNDEuOTU0NCA5LjM5MTc0IDQyLjA2MSA4LjA4MTI2IDQyLjE4MjkgNy4yNTg0MUM0Mi40ODc3IDUuMjE2NSA0Mi40NzI0IDMuODc1NTUgNDIuMTM3MiAzLjIwNTA3QzQxLjU4ODYgMi4xMDc5MyA0MC4yNjI5IDEuNjY2MDMgMzkuMjcyNCAyLjI3NTU1Wk00NS45OTI0IDE5LjgyOThDNDcuNzE0NCAyMC4yNzE3IDQ5LjcyNTggMjEuMDc5NCA1MS4zNDEgMjEuOTYzMkM1My4zODI5IDIzLjA5MDggNTYuNDAwMSAyNS40Mzc1IDU2LjIxNzIgMjUuNzQyMkM1Ni4xMTA1IDI1LjkwOTggNDcuMTA0OCAzMi4zMDk4IDQ2LjU3MTUgMzIuNTg0MUM0Ni4xMTQ0IDMyLjg0MzIgNDUuMjMwNSAzMi44MTI3IDQ0LjY5NzIgMzIuNTM4NEM0My44Mjg2IDMyLjA5NjUgNDMuNzUyNCAzMS43NDYgNDMuNDYyOSAyNi41OTU1QzQzLjMxMDUgMjMuOTg5OCA0My4xNTgyIDIxLjI3NzUgNDMuMDk3MiAyMC41NjEzTDQzLjAyMSAxOS4yNTA4TDQzLjg4OTYgMTkuMzg3OUM0NC4zNzcyIDE5LjQ2NDEgNDUuMzIyIDE5LjY2MjIgNDUuOTkyNCAxOS44Mjk4Wk0zNy4zODI5IDIwLjAyNzlDMzcuMzgyOSAyMS45MTc1IDM2Ljc0MjkgMzEuMzE5NCAzNi42MDU4IDMxLjU5MzZDMzYuMTAyOSAzMi41ODQxIDM1LjE0MjkgMzMuMDU2NSAzNC4yODk2IDMyLjc4MjJDMzMuNzU2MyAzMi41OTk0IDI0LjI0NzcgMjUuOTI1MSAyNC4xODY3IDI1LjY4MTNDMjQuMTI1OCAyNS40ODMyIDI1LjgwMiAyNC4wODEzIDI3LjI5NTMgMjMuMDQ1MUMyOC43MTI0IDIyLjA2OTggMzEuMDc0NCAyMC44OTY1IDMyLjczNTMgMjAuMzQ3OUMzNC4xNjc3IDE5Ljg2MDMgMzYuMTk0NCAxOS4zODc5IDM2Ljg5NTMgMTkuMzcyN0MzNy4zNjc3IDE5LjM1NzUgMzcuMzgyOSAxOS4zNzI3IDM3LjM4MjkgMjAuMDI3OVpNMjQuOTE4MiAzMy45NzA4QzI3LjIwMzkgMzYuMDEyNyAyOS4yNjEgMzcuOTE3NSAyOS41MDQ4IDM4LjIyMjJDMzAuMjY2NyAzOS4yMTI3IDI5LjkzMTUgNDAuNjc1NSAyOC44MzQzIDQxLjE3ODRDMjcuOTY1OCA0MS41NzQ2IDE3LjQyMSA0NC41NjEzIDE3LjI5OTEgNDQuNDM5NEMxNy4yMzgyIDQ0LjM3ODQgMTcuMTkyNCA0My4yODEzIDE3LjIwNzcgNDIuMDE2NUMxNy4yMjI5IDM5LjQxMDggMTcuNDgyIDM3LjYyNzkgMTguMTk4MiAzNS4zMTE3QzE4Ljg4MzkgMzMuMTAyMiAyMC4zMDEgMzAuMDg1MSAyMC42MjEgMzAuMjA3QzIwLjY5NzIgMzAuMjM3NSAyMi42MzI0IDMxLjkyODkgMjQuOTE4MiAzMy45NzA4Wk02MC44MDM5IDMxLjc3NjVDNjIuNDQ5NiAzNC45MzA4IDYzLjI4NzcgMzguNDk2NSA2My4yODc3IDQyLjMwNkM2My4yODc3IDQzLjUwOTggNjMuMjI2NyA0NC41MDAzIDYzLjE2NTggNDQuNTAwM0M2Mi44NDU4IDQ0LjUwMDMgNTEuOTk2MyA0MS4zMDAzIDUxLjU2OTYgNDEuMDg3QzUwLjU2MzkgNDAuNTUzNiA1MC4yMTM0IDM5LjMwNDEgNTAuODIyOSAzOC40MDUxQzUxLjI2NDggMzcuNzY1MSA1OS42NDU4IDMwLjE3NjUgNTkuODU5MSAzMC4yMzc1QzU5Ljk1MDUgMzAuMjUyNyA2MC4zNjIgMzAuOTUzNiA2MC44MDM5IDMxLjc3NjVaTTQ5LjgwMiAzNS45NjdDNDkuODQ3NyAzNi4wNDMyIDQ5LjQzNjMgMzYuNjM3NSA0OC44ODc3IDM3LjI5MjdDNDcuNTQ2NyAzOC44OTI3IDQ2LjgwMDEgNDAuNDc3NSA0Ni4xNDQ4IDQzLjAzNzVDNDUuODU1MyA0NC4xODAzIDQ1LjM5ODIgNDUuNTgyMiA0NS4xMzkxIDQ2LjE0NkM0NC40ODM5IDQ3LjUwMjIgNDMuMzU2MyA0OC42MTQ2IDQyLjIxMzQgNDkuMDQxM0M0MC41Njc3IDQ5LjY2NiAzNy43NjM5IDQ5LjM5MTcgMzYuNDk5MSA0OC40Nzc1QzM2LjI0MDEgNDguMzA5OCAzNS45NjU4IDQ4LjE1NzUgMzUuODg5NiA0OC4xNTc1QzM1LjcwNjcgNDguMTU3NSAzNC44Njg2IDUwLjE1MzYgMzQuNzMxNSA1MC45MzA4QzM0LjY1NTMgNTEuMzcyNyAzNC41NDg2IDUxLjUwOTggMzQuMzM1MyA1MS41MDk4QzMzLjkzOTEgNTEuNTA5OCAzMy45MzkxIDUxLjA2NzkgMzQuMzIwMSA0OS45NzA4QzM1LjUyMzkgNDYuNDUwOCAzOS4wMTM0IDQyLjE2ODkgNDIuMzA0OCA0MC4xNzI3QzQzLjExMjQgMzkuNjY5OCA0My43ODI5IDM5LjE2NyA0My43ODI5IDM5LjA2MDNDNDMuNzgyOSAzOC40MjAzIDQyLjU5NDQgMzguODkyNyA0MC42NTkxIDQwLjM0MDNDMzkuMDg5NiA0MS41MTM2IDM3LjA3ODIgNDMuNjYyMiAzNi4wMTE1IDQ1LjMwNzlDMzUuNTM5MSA0Ni4wNTQ2IDM1LjA2NjcgNDYuNjE4NCAzNC45Mjk2IDQ2LjYxODRDMzQuMzIwMSA0Ni42NDg5IDMzLjg0NzcgNDQuMjg3IDM0LjE2NzcgNDIuODM5NEMzNS4wOTcyIDM4LjUxMTcgNDAuMTcxNSAzNS45NjcgNDguMTU2MyAzNS44NDUxQzQ5LjAwOTYgMzUuODI5OCA0OS43NDEgMzUuODc1NSA0OS44MDIgMzUuOTY3Wk0zMS40NzA1IDQ4LjM4NkMzMS44OTcyIDQ4LjU1MzYgMzIuMzU0NCA0OS40Mzc1IDMyLjM1NDQgNTAuMDYyMkMzMi4zNTQ0IDUwLjQ0MzIgMzEuNjIyOSA1Mi40MDg5IDMwLjExNDMgNTYuMDk2NUMyOC44NjQ4IDU5LjA5ODQgMjcuODEzNCA2MS41NjcgMjcuNzUyNCA2MS41NjdDMjcuNzA2NyA2MS41NjcgMjcuMDk3MiA2MS4xNTU1IDI2LjQxMTUgNjAuNjM3NUMyMy45NzM0IDU4LjgzOTQgMjEuNjg3NyA1Ni4yMTg0IDIwLjA3MjQgNTMuMzg0MUMxOS40MDIgNTIuMTk1NSAxOC41MzM0IDUwLjE4NDEgMTguNjU1MyA1MC4wNzc1QzE4LjcxNjMgNTAuMDE2NSAyOS4wNzgyIDQ4LjIzMzYgMjkuOTkyNCA0OC4xMjdDMzAuNDM0MyA0OC4wODEzIDMwLjkyMiA0OC4xNTc1IDMxLjQ3MDUgNDguMzg2Wk01Ni4wMzQ0IDQ4Ljk5NTVDNTkuMjAzOSA0OS41Mjg5IDYxLjg0MDEgNTAuMDAxMyA2MS44ODU4IDUwLjA0N0M2MS45MzE1IDUwLjA5MjcgNjEuODQwMSA1MC40NTg0IDYxLjY4NzcgNTAuODU0NkM2MC43NDI5IDUzLjM4NDEgNTguNzYyIDU2LjM1NTUgNTYuNTgyOSA1OC41MTk0QzU1LjE2NTggNTkuOTM2NSA1Mi44ODAxIDYxLjczNDYgNTIuNzEyNCA2MS41NTE3QzUyLjQ5OTEgNjEuMzIzMiA0OC4xNTYzIDUwLjU2NTEgNDguMDk1MyA1MC4xMzg0QzQ3Ljk3MzQgNDkuMTYzMiA0OC45NzkxIDQ4LjAwNTEgNDkuOTU0NCA0OC4wMDUxQzUwLjEyMiA0OC4wMDUxIDUyLjg0OTYgNDguNDQ3IDU2LjAzNDQgNDguOTk1NVpNNDEuMjIyOSA1My4wNjQxQzQxLjM2MDEgNTMuMTI1MSA0MS42NDk2IDUzLjQxNDYgNDEuODQ3NyA1My42ODg5QzQyLjIxMzQgNTQuMTYxMyA0Ny4zMzM0IDYzLjM4MDMgNDcuNTE2MyA2My44Njc5QzQ3LjU5MjQgNjQuMDY2IDQ3LjM3OTEgNjQuMTg3OSA0Ni4zNDI5IDY0LjQ2MjJDNDQuMzAxIDY1LjAxMDggNDIuNjI0OCA2NS4yMjQxIDQwLjI3ODIgNjUuMjI0MUMzNy45MzE1IDY1LjIyNDEgMzYuMjU1MyA2NS4wMTA4IDM0LjIxMzQgNjQuNDYyMkMzMy4yMDc3IDY0LjE4NzkgMzIuOTQ4NiA2NC4wNjYgMzMuMDA5NiA2My44Njc5QzMzLjE0NjcgNjMuMzgwMyAzOC41NzE1IDUzLjczNDYgMzguOTA2NyA1My4zODQxQzM5LjQ3MDUgNTIuNzg5OCA0MC40NDU4IDUyLjY1MjcgNDEuMjIyOSA1My4wNjQxWiIgZmlsbD0iIzExNTAzMyIvPgo8L3N2Zz4K
+    mediatype: image/svg+xml
+  install:
+    spec:
+      clusterPermissions:
+      - rules:
+        - apiGroups:
+          - apps
+          resources:
+          - deployments
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - batch
+          resources:
+          - cronjobs
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - ""
+          resources:
+          - secrets
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - kube-green.com
+          resources:
+          - sleepinfos
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - kube-green.com
+          resources:
+          - sleepinfos/finalizers
+          verbs:
+          - update
+        - apiGroups:
+          - kube-green.com
+          resources:
+          - sleepinfos/status
+          verbs:
+          - get
+          - patch
+          - update
+        - apiGroups:
+          - authentication.k8s.io
+          resources:
+          - tokenreviews
+          verbs:
+          - create
+        - apiGroups:
+          - authorization.k8s.io
+          resources:
+          - subjectaccessreviews
+          verbs:
+          - create
+        serviceAccountName: default
+      deployments:
+      - name: kube-green-controller-manager
+        spec:
+          replicas: 1
+          selector:
+            matchLabels:
+              control-plane: controller-manager
+          strategy: {}
+          template:
+            metadata:
+              labels:
+                control-plane: controller-manager
+            spec:
+              containers:
+              - args:
+                - --secure-listen-address=0.0.0.0:8443
+                - --upstream=http://127.0.0.1:8080/
+                - --logtostderr=true
+                - --v=10
+                image: gcr.io/kubebuilder/kube-rbac-proxy:v0.5.0
+                name: kube-rbac-proxy
+                ports:
+                - containerPort: 8443
+                  name: https
+                resources: {}
+              - args:
+                - --health-probe-bind-address=:8081
+                - --metrics-bind-address=127.0.0.1:8080
+                - --leader-elect
+                command:
+                - /manager
+                image: kubegreen/kube-green:0.3.0
+                livenessProbe:
+                  httpGet:
+                    path: /healthz
+                    port: 8081
+                  initialDelaySeconds: 15
+                  periodSeconds: 20
+                name: manager
+                ports:
+                - containerPort: 9443
+                  name: webhook-server
+                  protocol: TCP
+                readinessProbe:
+                  httpGet:
+                    path: /readyz
+                    port: 8081
+                  initialDelaySeconds: 5
+                  periodSeconds: 10
+                resources:
+                  limits:
+                    cpu: 400m
+                    memory: 200Mi
+                  requests:
+                    cpu: 100m
+                    memory: 50Mi
+                securityContext:
+                  allowPrivilegeEscalation: false
+              securityContext:
+                runAsUser: 65532
+              terminationGracePeriodSeconds: 10
+      permissions:
+      - rules:
+        - apiGroups:
+          - ""
+          - coordination.k8s.io
+          resources:
+          - configmaps
+          - leases
+          verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+          - patch
+          - delete
+        - apiGroups:
+          - ""
+          resources:
+          - events
+          verbs:
+          - create
+          - patch
+        serviceAccountName: default
+    strategy: deployment
+  installModes:
+  - supported: false
+    type: OwnNamespace
+  - supported: false
+    type: SingleNamespace
+  - supported: false
+    type: MultiNamespace
+  - supported: true
+    type: AllNamespaces
+  keywords:
+  - green
+  - green software
+  - resources
+  - downscale
+  - autoscale
+  links:
+  - name: Homepage
+    url: https://kube-green.dev
+  - name: Source Code
+    url: https://github.com/kube-green/kube-green
+  maintainers:
+  - email: bianchidavide12+kubegreen@gmail.com
+    name: Davide
+  maturity: alpha
+  minKubeVersion: 1.19.0
+  provider:
+    name: kube-green Community
+    url: https://kube-green.dev
+  version: 0.3.0
+  webhookdefinitions:
+  - admissionReviewVersions:
+    - v1
+    - v1beta1
+    containerPort: 443
+    deploymentName: kube-green-controller-manager
+    failurePolicy: Fail
+    generateName: vsleepinfo.kb.io
+    rules:
+    - apiGroups:
+      - kube-green.com
+      apiVersions:
+      - v1alpha1
+      operations:
+      - CREATE
+      - UPDATE
+      resources:
+      - sleepinfos
+    sideEffects: None
+    targetPort: 9443
+    type: ValidatingAdmissionWebhook
+    webhookPath: /validate-kube-green-com-v1alpha1-sleepinfo

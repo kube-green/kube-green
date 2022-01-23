@@ -7,9 +7,10 @@ spec:
   conversion:
     strategy: Webhook
     webhook:
-      conversionReviewVersions: ["v1alpha1", "v1beta1"]
+      conversionReviewVersions: ["v1alpha1"]
       clientConfig:
         service:
           namespace: system
           name: webhook-service
           path: /convert
+          port: 443 # added this, used 443 bc it's the default from the k8s docs
