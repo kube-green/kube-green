@@ -6,7 +6,6 @@ spec:
   weekdays: "*"
   sleepAt: "20:00"
   wakeUpAt: "08:00"
-  timeZone: "Europe/Rome"
   suspendCronJobs: true
   excludeRef:
     - apiVersion: "apps/v1"
