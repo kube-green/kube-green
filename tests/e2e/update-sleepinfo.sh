@@ -25,4 +25,6 @@ else
   sed -i.bck "s|wakeUpAt: \"08:00\"|wakeUpAt: \"$(date -d '2 minutes' +"%H:%M")\"|g" "/tmp/sleepinfo.yaml"
 fi
 
+cat /tmp/sleepinfo.yaml
+
 kubectl apply -f /tmp/sleepinfo.yaml -n $NAMESPACE
