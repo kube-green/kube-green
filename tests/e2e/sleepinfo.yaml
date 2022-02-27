@@ -1,0 +1,13 @@
+apiVersion: kube-green.com/v1alpha1
+kind: SleepInfo
+metadata:
+  name: working-hours
+spec:
+  weekdays: "*"
+  sleepAt: "20:00"
+  wakeUpAt: "08:00"
+  suspendCronJobs: true
+  excludeRef:
+    - apiVersion: "apps/v1"
+      kind:       Deployment
+      name:       do-not-sleep
