@@ -44,7 +44,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
       - name: docker build
-        run: docker build -t kubegreen/kube-green:e2e-test .
+        run: make docker-test-build
       - name: Create k8s Kind Cluster
         uses: helm/kind-action@main
         with:
