@@ -1,0 +1,11 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: echo-service-replica-1
+spec:
+  replicas: 0
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: sleepinfo-working-hours
