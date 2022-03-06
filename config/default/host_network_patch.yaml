@@ -1,0 +1,23 @@
+# This patch inject a sidecar container which is a HTTP proxy for the
+# controller manager, it performs RBAC authorization against the Kubernetes API using SubjectAccessReviews.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: controller-manager
+  namespace: system
+spec:
+  template:
+    spec:
+      hostNetwork: true
+      containers:
+      - name: kube-rbac-proxy
+        ports:
+        - containerPort: 8443
+          hostPort: 8443
+          name: https
+      - name: manager
+        ports:
+        - containerPort: 9443
+          hostPort: 9443
+          name: webhook-server
+          protocol: TCP
