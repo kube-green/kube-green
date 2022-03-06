@@ -106,6 +106,9 @@ docker-build: test ## Build docker image with the manager.
 docker-push: ## Push docker image with the manager.
 	docker push ${IMG}
 
+docker-test-build: ## Build docker image for e2e test with the manager.
+	docker build -t $(DOCKER_IMAGE_NAME):e2e-test .
+
 ##@ Deployment
 
 install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.

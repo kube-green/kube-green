@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - support arm platform in docker image
 
+### Fixed
+
+- [issue-103](https://github.com/kube-green/kube-green/issues/103) when delete SleepInfo, also the corresponding secret is deleted
+
 ## v0.3.0 - 2022-01-15
 
 ### BREAKING CHANGES

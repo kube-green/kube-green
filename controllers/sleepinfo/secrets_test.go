@@ -102,6 +102,20 @@ func TestUpsertSecrets(t *testing.T) {
 		Namespace: namespace,
 		Replicas:  &replicas0,
 	})
+	sleepInfo := &kubegreenv1alpha1.SleepInfo{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "sleepinfo-name",
+			UID:  "sleepinfo-uid",
+		},
+	}
+	ownerRefs := []metav1.OwnerReference{
+		{
+			APIVersion: "kube-green.com/v1alpha1",
+			Kind:       "SleepInfo",
+			Name:       sleepInfo.Name,
+			UID:        sleepInfo.UID,
+		},
+	}
 
 	t.Run("insert and update secret - sleep and wake up", func(t *testing.T) {
 		client := &testutil.PossiblyErroringFakeCtrlRuntimeClient{
@@ -121,11 +135,11 @@ func TestUpsertSecrets(t *testing.T) {
 		resources, err := NewResources(context.Background(), resource.ResourceClient{
 			Client:    client,
 			Log:       testLogger,
-			SleepInfo: &kubegreenv1alpha1.SleepInfo{},
+			SleepInfo: sleepInfo,
 		}, namespace, sleepInfoData)
 		require.NoError(t, err)
 
-		err = r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, nil, sleepInfoData, resources)
+		err = r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, sleepInfo, nil, sleepInfoData, resources)
 		require.NoError(t, err)
 
 		secret, err := r.getSecret(context.Background(), secretName, namespace)
@@ -139,6 +153,7 @@ func TestUpsertSecrets(t *testing.T) {
 				Name:            secretName,
 				Namespace:       namespace,
 				ResourceVersion: "1",
+				OwnerReferences: ownerRefs,
 			},
 			Data: map[string][]byte{
 				lastOperationKey:       []byte(sleepOperation),
@@ -153,8 +168,7 @@ func TestUpsertSecrets(t *testing.T) {
 				CurrentOperationType: wakeUpOperation,
 				LastSchedule:         now,
 			}
-
-			err = r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, secret, sleepInfoData, resources)
+			err = r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, sleepInfo, secret, sleepInfoData, resources)
 			require.NoError(t, err)
 
 			secret, err := r.getSecret(context.Background(), secretName, namespace)
@@ -168,6 +182,7 @@ func TestUpsertSecrets(t *testing.T) {
 					Name:            secretName,
 					Namespace:       namespace,
 					ResourceVersion: "2",
+					OwnerReferences: ownerRefs,
 				},
 				Data: map[string][]byte{
 					lastOperationKey: []byte(wakeUpOperation),
@@ -195,11 +210,11 @@ func TestUpsertSecrets(t *testing.T) {
 		resources, err := NewResources(context.Background(), resource.ResourceClient{
 			Client:    client,
 			Log:       testLogger,
-			SleepInfo: &kubegreenv1alpha1.SleepInfo{},
+			SleepInfo: sleepInfo,
 		}, namespace, sleepInfoData)
 		require.NoError(t, err)
 
-		err = r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, nil, sleepInfoData, resources)
+		err = r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, sleepInfo, nil, sleepInfoData, resources)
 		require.NoError(t, err)
 
 		secret, err := r.getSecret(context.Background(), secretName, namespace)
@@ -213,6 +228,7 @@ func TestUpsertSecrets(t *testing.T) {
 				Name:            secretName,
 				Namespace:       namespace,
 				ResourceVersion: "1",
+				OwnerReferences: ownerRefs,
 			},
 			Data: map[string][]byte{
 				lastOperationKey:       []byte(sleepOperation),
@@ -245,11 +261,11 @@ func TestUpsertSecrets(t *testing.T) {
 			resources, err := NewResources(context.Background(), resource.ResourceClient{
 				Client:    client,
 				Log:       testLogger,
-				SleepInfo: &kubegreenv1alpha1.SleepInfo{},
+				SleepInfo: sleepInfo,
 			}, namespace, sleepInfoData)
 			require.NoError(t, err)
 
-			err = r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, secret, sleepInfoData, resources)
+			err = r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, sleepInfo, secret, sleepInfoData, resources)
 			require.NoError(t, err)
 
 			secret, err := r.getSecret(context.Background(), secretName, namespace)
@@ -263,6 +279,7 @@ func TestUpsertSecrets(t *testing.T) {
 					Name:            secretName,
 					Namespace:       namespace,
 					ResourceVersion: "2",
+					OwnerReferences: ownerRefs,
 				},
 				Data: map[string][]byte{
 					lastOperationKey:       []byte(sleepOperation),
@@ -289,11 +306,11 @@ func TestUpsertSecrets(t *testing.T) {
 		resources, err := NewResources(context.Background(), resource.ResourceClient{
 			Client:    client,
 			Log:       testLogger,
-			SleepInfo: &kubegreenv1alpha1.SleepInfo{},
+			SleepInfo: sleepInfo,
 		}, namespace, sleepInfoData)
 		require.NoError(t, err)
 
-		err = r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, nil, sleepInfoData, resources)
+		err = r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, sleepInfo, nil, sleepInfoData, resources)
 		require.NoError(t, err)
 
 		secret, err := r.getSecret(context.Background(), secretName, namespace)
@@ -307,6 +324,7 @@ func TestUpsertSecrets(t *testing.T) {
 				Name:            secretName,
 				Namespace:       namespace,
 				ResourceVersion: "1",
+				OwnerReferences: ownerRefs,
 			},
 			Data: map[string][]byte{
 				lastScheduleKey: []byte(now.Format(time.RFC3339)),
@@ -341,11 +359,11 @@ func TestUpsertSecrets(t *testing.T) {
 		resources, err := NewResources(context.Background(), resource.ResourceClient{
 			Client:    client,
 			Log:       testLogger,
-			SleepInfo: &kubegreenv1alpha1.SleepInfo{},
+			SleepInfo: sleepInfo,
 		}, namespace, sleepInfoData)
 		require.NoError(t, err)
 
-		err = r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, existentSecret, sleepInfoData, resources)
+		err = r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, sleepInfo, existentSecret, sleepInfoData, resources)
 		require.NoError(t, err)
 
 		secret, err := r.getSecret(context.Background(), secretName, namespace)
@@ -359,6 +377,7 @@ func TestUpsertSecrets(t *testing.T) {
 				Name:            secretName,
 				Namespace:       namespace,
 				ResourceVersion: "16",
+				OwnerReferences: ownerRefs,
 			},
 			Data: map[string][]byte{
 				lastScheduleKey: []byte(now.Format(time.RFC3339)),
@@ -388,11 +407,11 @@ func TestUpsertSecrets(t *testing.T) {
 				WithRuntimeObjects(&d1, &d2, &d3).
 				Build(),
 			Log:       testLogger,
-			SleepInfo: &kubegreenv1alpha1.SleepInfo{},
+			SleepInfo: sleepInfo,
 		}, namespace, sleepInfoData)
 		require.NoError(t, err)
 
-		err = r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, nil, sleepInfoData, resources)
+		err = r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, sleepInfo, nil, sleepInfoData, resources)
 		require.EqualError(t, err, "error during create")
 	})
 
@@ -428,11 +447,11 @@ func TestUpsertSecrets(t *testing.T) {
 				WithRuntimeObjects(&d1, &d2, &d3).
 				Build(),
 			Log:       testLogger,
-			SleepInfo: &kubegreenv1alpha1.SleepInfo{},
+			SleepInfo: sleepInfo,
 		}, namespace, sleepInfoData)
 		require.NoError(t, err)
 
-		err = r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, existentSecret, sleepInfoData, resources)
+		err = r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, sleepInfo, existentSecret, sleepInfoData, resources)
 		require.EqualError(t, err, "error during update")
 	})
 }

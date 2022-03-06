@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	kubegreenv1alpha1 "github.com/kube-green/kube-green/api/v1alpha1"
+
 	"github.com/go-logr/logr"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,6 +34,7 @@ func (r SleepInfoReconciler) upsertSecret(
 	logger logr.Logger,
 	now time.Time,
 	secretName, namespace string,
+	sleepInfo *kubegreenv1alpha1.SleepInfo,
 	secret *v1.Secret,
 	sleepInfoData SleepInfoData,
 	resources Resources,
@@ -46,6 +49,14 @@ func (r SleepInfoReconciler) upsertSecret(
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      secretName,
 			Namespace: namespace,
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion: kubegreenv1alpha1.GroupVersion.String(),
+					Kind:       "SleepInfo",
+					Name:       sleepInfo.Name,
+					UID:        sleepInfo.UID,
+				},
+			},
 		},
 		Data:       make(map[string][]byte),
 		StringData: make(map[string]string),

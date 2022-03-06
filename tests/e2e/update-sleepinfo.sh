@@ -18,11 +18,11 @@ cp ../sleepinfo.yaml /tmp/sleepinfo.yaml
 unamestr=$(uname)
 
 if [[ $unamestr == 'Darwin' ]]; then
-  sed -i.bck "s|sleepAt: \"20:00\"|sleepAt: \"$(date -v+1M +"%H:%M")\"|g" "/tmp/sleepinfo.yaml"
-  sed -i.bck "s|wakeUpAt: \"08:00\"|wakeUpAt: \"$(date -v+2M +"%H:%M")\"|g" "/tmp/sleepinfo.yaml"
+  sed -i.bck "s|sleepAt: \"20:00\"|sleepAt: \"$(date -u -v+1M +"%H:%M")\"|g" "/tmp/sleepinfo.yaml"
+  sed -i.bck "s|wakeUpAt: \"08:00\"|wakeUpAt: \"$(date -u -v+2M +"%H:%M")\"|g" "/tmp/sleepinfo.yaml"
 else
-  sed -i.bck "s|sleepAt: \"20:00\"|sleepAt: \"$(date -d '1 minutes' +"%H:%M")\"|g" "/tmp/sleepinfo.yaml"
-  sed -i.bck "s|wakeUpAt: \"08:00\"|wakeUpAt: \"$(date -d '2 minutes' +"%H:%M")\"|g" "/tmp/sleepinfo.yaml"
+  sed -i.bck "s|sleepAt: \"20:00\"|sleepAt: \"$(date -u -d '1 minutes' +"%H:%M")\"|g" "/tmp/sleepinfo.yaml"
+  sed -i.bck "s|wakeUpAt: \"08:00\"|wakeUpAt: \"$(date -u -d '2 minutes' +"%H:%M")\"|g" "/tmp/sleepinfo.yaml"
 fi
 
 cat /tmp/sleepinfo.yaml
