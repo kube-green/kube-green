@@ -8,15 +8,3 @@ spec:
   template:
     spec:
       hostNetwork: true
-      containers:
-      - name: kube-rbac-proxy
-        ports:
-        - containerPort: 8443
-          hostPort: 8443
-          name: https
-      - name: manager
-        ports:
-        - containerPort: 9443
-          hostPort: 9443
-          name: webhook-server
-          protocol: TCP
