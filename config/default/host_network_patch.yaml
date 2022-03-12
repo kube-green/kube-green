@@ -1,0 +1,10 @@
+# This patch inject the host network to work with custom CNI in controller manager
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: controller-manager
+  namespace: system
+spec:
+  template:
+    spec:
+      hostNetwork: true
