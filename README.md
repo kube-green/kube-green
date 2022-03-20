@@ -33,13 +33,13 @@ go get
 
 There are different types of tests in this repository.
 
-It is possible to run all the unit tests running
+It is possible to run all the unit tests with
 
 ```sh
 make test
 ```
 
-There are also some tests which run using [*kuttl*](https://kuttl.dev/). So, install *kuttl* follow [this guide](https://kuttl.dev/docs/#install-kuttl-cli).
+There are also some tests which run using [*kuttl*](https://kuttl.dev/). To install *kuttl* follow [this guide](https://kuttl.dev/docs/#install-kuttl-cli).
 
 To run this tests, set up a Kubernetes cluster using [kind](https://kind.sigs.k8s.io/)
 
@@ -56,7 +56,7 @@ make docker-test-build
 and load the docker image to test
 
 ```sh
-kind load docker-image kubegreen/kube-green:e2e-test --name chart-testing
+kind load docker-image kubegreen/kube-green:e2e-test --name kube-green-testing
 ```
 
 After this, it's possible to start the tests (skipping the cluster deletion)
@@ -75,7 +75,7 @@ The use of this operator is very simple. Once installed on the cluster, configur
 
 See [here](https://kube-green.dev/docs/configuration/) the documentation about the configuration of the CRD.
 
-### Examples
+### CRD Examples
 
 Pods running during working hours with Europe/Rome timezone, suspend CronJobs and exclude a deployment named `api-gateway`:
 
@@ -117,7 +117,7 @@ Please read [CONTRIBUTING.md](https://gist.github.com/PurpleBooth/b24679402957c6
 
 We use [SemVer](http://semver.org/) for versioning. For the versions available, see the [release on this repository](https://github.com/kube-green/kube-green/releases).
 
-### How to upgrade version
+### How to upgrade the version
 
 To upgrade the version:
 
