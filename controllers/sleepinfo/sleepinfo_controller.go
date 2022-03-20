@@ -272,7 +272,10 @@ func getSleepInfoData(secret *v1.Secret, sleepInfo *kubegreenv1alpha1.SleepInfo)
 	}
 	data := secret.Data
 
-	setOriginalResourceInfoToRestoreInSleepInfo(data, &sleepInfoData)
+	err = setOriginalResourceInfoToRestoreInSleepInfo(data, &sleepInfoData)
+	if err != nil {
+		return SleepInfoData{}, fmt.Errorf("fails to set original resource info to restore in SleepInfo %s: %s", sleepInfo.Name, err)
+	}
 
 	lastSchedule, err := time.Parse(time.RFC3339, string(data[lastScheduleKey]))
 	if err != nil {
