@@ -1,5 +1,6 @@
 [![Go Report Card][go-report-svg]][go-report-card]
-[![Test and build][test-and-build-svg]][test-and-build]
+[![Coverage][test-and-build-svg]][test-and-build]
+[![Security][security-badge]][security-pipelines]
 [![Test][test-badge]][test-pipelines]
 [![Coverage Status][coverage-badge]][coverage]
 [![Documentations][website-badge]][website]
@@ -106,6 +107,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 Special thanks to [JGiola](https://github.com/JGiola) for the tech review.
 
+## Give a Star! ⭐
+
+If you like or are using this project, please give it a star. Thanks!
+
 [go-report-svg]: https://goreportcard.com/badge/github.com/kube-green/kube-green
 [go-report-card]: https://goreportcard.com/report/github.com/kube-green/kube-green
 [test-and-build-svg]: https://github.com/kube-green/kube-green/actions/workflows/test.yml/badge.svg
@@ -116,3 +121,5 @@ Special thanks to [JGiola](https://github.com/JGiola) for the tech review.
 [website]: https://kube-green.dev
 [test-badge]: https://img.shields.io/github/workflow/status/kube-green/kube-green/Test%20and%20build?label=%F0%9F%A7%AA%20tests&style=flat
 [test-pipelines]: https://github.com/kube-green/kube-green/actions/workflows/test.yml
+[security-badge]: https://img.shields.io/github/workflow/status/kube-green/kube-green/Security?label=%F0%9F%94%91%20gosec&style=flat
+[security-pipelines]: https://github.com/kube-green/kube-green/actions/workflows/security.yml
