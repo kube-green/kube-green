@@ -1,4 +1,7 @@
-on: [push, pull_request]
+on:
+  pull_request:
+    types: [opened]
+  push:
 name: Security
 jobs:
   gosec:
