@@ -77,7 +77,7 @@ See [here](https://kube-green.dev/docs/configuration/) the documentation about t
 
 ### Examples
 
-Pods running during working hours with Europe/Rome timezone:
+Pods running during working hours with Europe/Rome timezone, suspend CronJobs and exclude a deployment named `api-gateway`:
 
 ```yaml
 apiVersion: kube-green.com/v1alpha1
@@ -96,7 +96,7 @@ spec:
       name:       api-gateway
 ```
 
-Pods sleep at night and weekends without restore:
+Pods sleep every night without restore:
 
 ```yaml
 apiVersion: kube-green.com/v1alpha1
@@ -104,13 +104,9 @@ kind: SleepInfo
 metadata:
   name: working-hours-no-wakeup
 spec:
-  excludeRef:
-  - apiVersion: apps/v1
-    kind: Deployment
-    name: api-gateway
   sleepAt: "20:00"
   timeZone: Europe/Rome
-  weekdays: 1-5
+  weekdays: "*"
 ```
 
 ## Contributing
