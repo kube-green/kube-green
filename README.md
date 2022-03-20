@@ -75,6 +75,44 @@ The use of this operator is very simple. Once installed on the cluster, configur
 
 See [here](https://kube-green.dev/docs/configuration/) the documentation about the configuration of the CRD.
 
+### Examples
+
+Pods running during working hours with Europe/Rome timezone:
+
+```yaml
+apiVersion: kube-green.com/v1alpha1
+kind: SleepInfo
+metadata:
+  name: working-hours
+spec:
+  weekdays: "1-5"
+  sleepAt: "20:00"
+  wakeUpAt: "08:00"
+  timeZone: "Europe/Rome"
+  suspendCronJobs: true
+  excludeRef:
+    - apiVersion: "apps/v1"
+      kind:       Deployment
+      name:       api-gateway
+```
+
+Pods sleep at night and weekends without restore:
+
+```yaml
+apiVersion: kube-green.com/v1alpha1
+kind: SleepInfo
+metadata:
+  name: working-hours-no-wakeup
+spec:
+  excludeRef:
+  - apiVersion: apps/v1
+    kind: Deployment
+    name: api-gateway
+  sleepAt: "20:00"
+  timeZone: Europe/Rome
+  weekdays: 1-5
+```
+
 ## Contributing
 
 Please read [CONTRIBUTING.md](https://gist.github.com/PurpleBooth/b24679402957c63ec426) for details on our code of conduct, and the process for submitting pull requests to us.
