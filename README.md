@@ -1,6 +1,8 @@
 [![Go Report Card][go-report-svg]][go-report-card]
 [![Test and build][test-and-build-svg]][test-and-build]
+[![Test][test-badge]][test-pipelines]
 [![Coverage Status][coverage-badge]][coverage]
+[![Documentations][website-badge]][website]
 
 <div align="center">
   <img src="https://github.com/kube-green/kube-green/raw/main/logo/logo.png" width="250" >
@@ -8,77 +10,79 @@
 
 How many of your dev/preview pods stay on during weekends? Or at night? It's a waste of resources! And money! But fear not, *kube-green* is here to the rescue.
 
-*kube-green* is a simple k8s addon that automatically shuts down (some of) your resources when you don't need them.
+*kube-green* is a simple **k8s addon** that automatically **shuts down** (some of) your **resources** when you don't need them.
 
-Keep reading to find out how to use it, and if you have ideas on how to improve *kube-green*, open an issue, we'd love to hear them!
+## Getting Started
 
-## Install
+These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See how to install the project on a live system in our [docs](https://kube-green.dev/docs/install/).
 
-To install *kube-green* just clone this repository, check out to the latest stable tag, and run:
+### Prerequisites
 
-```sh
-make deploy
+Make sure you have Go installed ([download](https://go.dev/dl/)). Version 1.17 or higher is required.
+
+## Installation
+
+To have *kube-green* running locally just clone this repository and install the dependencies running:
+
+```golang
+go get
 ```
 
-This will create a new namespace, *kube-green*, which contains the pod of the operator.
+## Running the tests
 
-For further information about the installation, [see here](docs/install.md)
+There are different types of tests in this repository.
+
+It is possible to run all the unit tests running
+
+```sh
+make test
+```
+
+There are also some tests which run using [*kuttl*](https://kuttl.dev/). So, install *kuttl* follow [this guide](https://kuttl.dev/docs/#install-kuttl-cli).
+
+To run this tests, set up a Kubernetes cluster using [kind](https://kind.sigs.k8s.io/)
+
+```sh
+kind create cluster --name kube-green-testing
+```
+
+Build the docker image
+
+```sh
+make docker-test-build
+```
+
+and load the docker image to test
+
+```sh
+kind load docker-image kubegreen/kube-green:e2e-test --name chart-testing
+```
+
+After this, it's possible to start the tests (skipping the cluster deletion)
+
+```sh
+kubectl kuttl test --skip-cluster-delete
+```
+
+## Deployment
+
+To deploy *kube-green* in live systems, follow the [docs](https://kube-green.dev/docs/install/).
 
 ## Usage
 
 The use of this operator is very simple. Once installed on the cluster, configure the desired CRD to make it works.
 
-### SleepInfo
+See [here](https://kube-green.dev/docs/configuration/) the documentation about the configuration of the CRD.
 
-In the namespace where you want to enable *kube-green*, apply the SleepInfo CRD.
-An example of CRD is accessible [at this link](testdata/working-hours.yml)
+## Contributing
 
-The SleepInfo spec contains:
-
-* **weekdays**: day of the week. `*` is every day, `1` is monday, `1-5` is from monday to friday
-* **sleepAt**: time in hours and minutes (HH:mm) when namespace will go to sleep. Valid values are, for example, 19:00or `*:*` for every minute and every hour. Resources sleep will be deployments (setting replicas value to 0) and, if `suspendCronjobs` option is set to true, cron jobs will be suspended.
-* **wakeUpAt** (*optional*): time in hours and minutes (HH:mm) when namespace should be restored to the initial state (before sleep). Valid values are, for example, 19:00or `*:*` for every minute and every hour. If wake up value is not set, pod in namespace will not be restored. So, you will need to deploy the initial namespace configuration to restore it.
-* **timeZone** (*optional*): time zone in IANA specification. For example for italian hour, set `Europe/Rome`.
-* **suspendCronJobs** (*optional*): if set to true, cronjobs will be suspended.
-* **excludeRef** (*optional*): an array of object containing the resource to exclude from sleep. It contains:
-  * **apiVersion**: version of the resource. Now it is supported *"apps/v1"*, *"batch/v1beta1"* and *"batch/v1"*
-  * **kind**: the kind of resource. Now it is supported *"Deployment"* and *"CronJob"*
-  * **name**: the name of the resource
-
-An example of a complete SleepInfo resource:
-
-```yaml
-apiVersion: kube-green.com/v1alpha1
-kind: SleepInfo
-metadata:
-  name: working-hours
-spec:
-  weekdays: "1-5"
-  sleepAt: "20:00"
-  wakeUpAt: "08:00"
-  timeZone: "Europe/Rome"
-  suspendCronJobs: true
-  excludeRef:
-    - apiVersion: "apps/v1"
-      kind:       Deployment
-      name:       api-gateway
-```
-
-#### Lifecycle
-
-TODO
-
-## Uninstall
-
-To uninstall the operator from the cluster, run:
-
-```sh
-make undeploy
-```
-
-> :warning: If you run undeploy command, the namespace of kube-green (by default `kube-green`), will be deleted.
+Please read [CONTRIBUTING.md](https://gist.github.com/PurpleBooth/b24679402957c63ec426) for details on our code of conduct, and the process for submitting pull requests to us.
 
 ## Versioning
+
+We use [SemVer](http://semver.org/) for versioning. For the versions available, see the [release on this repository](https://github.com/kube-green/kube-green/releases).
+
+### How to upgrade version
 
 To upgrade the version:
 
@@ -94,6 +98,10 @@ To upgrade the version:
 
 API reference is automatically generated with [this tool](https://github.com/ahmetb/gen-crd-api-reference-docs). To generate it automatically, are added in api versioned folder a file `doc.go` with the content of file `groupversion_info.go` and a comment with `+genclient` in the `sleepinfo_types.go` file for the resource type.
 
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
+
 ## Acknowledgement
 
 Special thanks to [JGiola](https://github.com/JGiola) for the tech review.
@@ -104,3 +112,7 @@ Special thanks to [JGiola](https://github.com/JGiola) for the tech review.
 [test-and-build]: https://github.com/kube-green/kube-green/actions/workflows/test.yml
 [coverage-badge]: https://coveralls.io/repos/github/kube-green/kube-green/badge.svg?branch=main
 [coverage]: https://coveralls.io/github/kube-green/kube-green?branch=main
+[website-badge]: https://img.shields.io/static/v1?label=kube-green&color=blue&message=docs&style=flat
+[website]: https://kube-green.dev
+[test-badge]: https://img.shields.io/github/workflow/status/kube-green/kube-green/Test%20and%20build?label=%F0%9F%A7%AA%20tests&style=flat
+[test-pipelines]: https://github.com/kube-green/kube-green/actions/workflows/test.yml
