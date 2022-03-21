@@ -76,6 +76,8 @@ func (c cronjobs) Sleep(ctx context.Context) error {
 
 func (c cronjobs) WakeUp(ctx context.Context) error {
 	for _, cronjob := range c.data {
+		cronjob := cronjob
+
 		cjLogger := c.Log.WithValues("cronjob", cronjob.GetName(), "namespace", cronjob.GetNamespace())
 		cronjobSuspended, found, err := getSuspendStatus(cronjob)
 		if err != nil {

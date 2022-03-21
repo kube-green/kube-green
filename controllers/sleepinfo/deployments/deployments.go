@@ -35,6 +35,8 @@ func (d deployments) HasResource() bool {
 
 func (d deployments) Sleep(ctx context.Context) error {
 	for _, deployment := range d.data {
+		deployment := deployment
+
 		deploymentReplicas := *deployment.Spec.Replicas
 		if deploymentReplicas == 0 {
 			continue
@@ -51,6 +53,8 @@ func (d deployments) Sleep(ctx context.Context) error {
 
 func (d deployments) WakeUp(ctx context.Context) error {
 	for _, deployment := range d.data {
+		deployment := deployment
+
 		deployLogger := d.Log.WithValues("deployment", deployment.Name, "namespace", deployment.Namespace)
 		if *deployment.Spec.Replicas != 0 {
 			deployLogger.Info("replicas not 0 during wake up")
