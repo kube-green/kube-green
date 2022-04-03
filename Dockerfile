@@ -1,7 +1,7 @@
 # Build the manager binary
 FROM golang:1.17 as builder
 
-ARG TARGETARCH=${TARGETARCH:-amd64}
+ARG ARCH=${TARGETARCH:-amd64}
 ARG TARGETOS=${TARGETOS:-linux}
 
 WORKDIR /workspace
