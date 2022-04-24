@@ -9,6 +9,7 @@ import (
 	kubegreenv1alpha1 "github.com/kube-green/kube-green/api/v1alpha1"
 	"github.com/kube-green/kube-green/controllers/internal/testutil"
 	"github.com/kube-green/kube-green/controllers/sleepinfo/deployments"
+	"github.com/kube-green/kube-green/controllers/sleepinfo/metrics"
 	"github.com/kube-green/kube-green/controllers/sleepinfo/resource"
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
@@ -79,6 +80,7 @@ func TestGetSecret(t *testing.T) {
 
 func TestUpsertSecrets(t *testing.T) {
 	testLogger := zap.New(zap.UseDevMode(true))
+	defaultMetrics := metrics.Metrics{}
 
 	now := time.Now()
 	secretName := "secret-name"
@@ -136,7 +138,7 @@ func TestUpsertSecrets(t *testing.T) {
 			Client:    client,
 			Log:       testLogger,
 			SleepInfo: sleepInfo,
-		}, namespace, sleepInfoData)
+		}, namespace, sleepInfoData, defaultMetrics)
 		require.NoError(t, err)
 
 		err = r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, sleepInfo, nil, sleepInfoData, resources)
@@ -211,7 +213,7 @@ func TestUpsertSecrets(t *testing.T) {
 			Client:    client,
 			Log:       testLogger,
 			SleepInfo: sleepInfo,
-		}, namespace, sleepInfoData)
+		}, namespace, sleepInfoData, defaultMetrics)
 		require.NoError(t, err)
 
 		err = r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, sleepInfo, nil, sleepInfoData, resources)
@@ -262,7 +264,7 @@ func TestUpsertSecrets(t *testing.T) {
 				Client:    client,
 				Log:       testLogger,
 				SleepInfo: sleepInfo,
-			}, namespace, sleepInfoData)
+			}, namespace, sleepInfoData, defaultMetrics)
 			require.NoError(t, err)
 
 			err = r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, sleepInfo, secret, sleepInfoData, resources)
@@ -307,7 +309,7 @@ func TestUpsertSecrets(t *testing.T) {
 			Client:    client,
 			Log:       testLogger,
 			SleepInfo: sleepInfo,
-		}, namespace, sleepInfoData)
+		}, namespace, sleepInfoData, defaultMetrics)
 		require.NoError(t, err)
 
 		err = r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, sleepInfo, nil, sleepInfoData, resources)
@@ -360,7 +362,7 @@ func TestUpsertSecrets(t *testing.T) {
 			Client:    client,
 			Log:       testLogger,
 			SleepInfo: sleepInfo,
-		}, namespace, sleepInfoData)
+		}, namespace, sleepInfoData, defaultMetrics)
 		require.NoError(t, err)
 
 		err = r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, sleepInfo, existentSecret, sleepInfoData, resources)
@@ -408,7 +410,7 @@ func TestUpsertSecrets(t *testing.T) {
 				Build(),
 			Log:       testLogger,
 			SleepInfo: sleepInfo,
-		}, namespace, sleepInfoData)
+		}, namespace, sleepInfoData, defaultMetrics)
 		require.NoError(t, err)
 
 		err = r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, sleepInfo, nil, sleepInfoData, resources)
@@ -448,7 +450,7 @@ func TestUpsertSecrets(t *testing.T) {
 				Build(),
 			Log:       testLogger,
 			SleepInfo: sleepInfo,
-		}, namespace, sleepInfoData)
+		}, namespace, sleepInfoData, defaultMetrics)
 		require.NoError(t, err)
 
 		err = r.upsertSecret(context.Background(), testLogger, now, secretName, namespace, sleepInfo, existentSecret, sleepInfoData, resources)

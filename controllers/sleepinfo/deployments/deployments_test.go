@@ -1,12 +1,16 @@
 package deployments
 
 import (
+	"bytes"
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/kube-green/kube-green/api/v1alpha1"
 	"github.com/kube-green/kube-green/controllers/internal/testutil"
+	"github.com/kube-green/kube-green/controllers/sleepinfo/metrics"
 	"github.com/kube-green/kube-green/controllers/sleepinfo/resource"
+	promTestutil "github.com/prometheus/client_golang/prometheus/testutil"
 
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
@@ -16,6 +20,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
+
+func getMetrics() metrics.Metrics {
+	return metrics.SetupMetricsOrDie("test_prefix")
+}
 
 func TestNewResource(t *testing.T) {
 	testLogger := zap.New(zap.UseDevMode(true))
@@ -109,7 +117,7 @@ func TestNewResource(t *testing.T) {
 				Client:    test.client,
 				Log:       testLogger,
 				SleepInfo: sleepInfo,
-			}, namespace, map[string]int32{})
+			}, namespace, map[string]int32{}, getMetrics())
 			if test.throws {
 				require.EqualError(t, err, "error during list")
 			} else {
@@ -134,7 +142,7 @@ func TestHasResource(t *testing.T) {
 			Client:    fake.NewClientBuilder().Build(),
 			Log:       testLogger,
 			SleepInfo: &v1alpha1.SleepInfo{},
-		}, namespace, map[string]int32{})
+		}, namespace, map[string]int32{}, getMetrics())
 		require.NoError(t, err)
 
 		require.False(t, d.HasResource())
@@ -145,7 +153,7 @@ func TestHasResource(t *testing.T) {
 			Client:    fake.NewClientBuilder().WithRuntimeObjects(&deployment1).Build(),
 			Log:       testLogger,
 			SleepInfo: &v1alpha1.SleepInfo{},
-		}, namespace, map[string]int32{})
+		}, namespace, map[string]int32{}, getMetrics())
 		require.NoError(t, err)
 
 		require.True(t, d.HasResource())
@@ -196,7 +204,7 @@ func TestSleep(t *testing.T) {
 			Client:    fakeClient,
 			Log:       testLogger,
 			SleepInfo: emptySleepInfo,
-		}, namespace, map[string]int32{})
+		}, namespace, map[string]int32{}, getMetrics())
 		require.NoError(t, err)
 
 		require.NoError(t, resource.Sleep(ctx))
@@ -240,7 +248,7 @@ func TestSleep(t *testing.T) {
 			Client:    fakeClient,
 			Log:       testLogger,
 			SleepInfo: emptySleepInfo,
-		}, namespace, map[string]int32{})
+		}, namespace, map[string]int32{}, getMetrics())
 		require.NoError(t, err)
 
 		require.EqualError(t, resource.Sleep(ctx), "error during patch")
@@ -256,7 +264,7 @@ func TestSleep(t *testing.T) {
 			Client:    fakeClient,
 			Log:       testLogger,
 			SleepInfo: emptySleepInfo,
-		}, namespace, map[string]int32{})
+		}, namespace, map[string]int32{}, getMetrics())
 		require.NoError(t, err)
 
 		err = c.DeleteAllOf(ctx, &appsv1.Deployment{}, &client.DeleteAllOfOptions{})
@@ -315,7 +323,7 @@ func TestWakeUp(t *testing.T) {
 		}, namespace, map[string]int32{
 			d1.Name: replica1,
 			d2.Name: replica5,
-		})
+		}, getMetrics())
 		require.NoError(t, err)
 
 		err = r.WakeUp(ctx)
@@ -362,7 +370,7 @@ func TestWakeUp(t *testing.T) {
 		}, namespace, map[string]int32{
 			d1.Name: replica1,
 			d2.Name: replica5,
-		})
+		}, getMetrics())
 		require.NoError(t, err)
 
 		err = r.WakeUp(ctx)
@@ -408,7 +416,7 @@ func TestDeploymentOriginalReplicas(t *testing.T) {
 		}, namespace, map[string]int32{
 			d1.Name: replica1,
 			d2.Name: replica5,
-		})
+		}, getMetrics())
 		require.NoError(t, err)
 
 		res, err := r.GetOriginalInfoToSave()
@@ -438,5 +446,72 @@ func TestDeploymentOriginalReplicas(t *testing.T) {
 		info, err := GetOriginalInfoToRestore([]byte(`{}`))
 		require.EqualError(t, err, "json: cannot unmarshal object into Go value of type []deployments.OriginalReplicas")
 		require.Nil(t, info)
+	})
+}
+
+func TestMetrics(t *testing.T) {
+	testLogger := zap.New(zap.UseDevMode(true))
+
+	var replica0 int32 = 0
+	var replica1 int32 = 1
+	var replica5 int32 = 5
+	namespace := "my-namespace"
+
+	d1 := GetMock(MockSpec{
+		Namespace:       namespace,
+		Name:            "d1",
+		Replicas:        &replica1,
+		ResourceVersion: "2",
+	})
+	d2 := GetMock(MockSpec{
+		Namespace:       namespace,
+		Name:            "d2",
+		Replicas:        &replica5,
+		ResourceVersion: "1",
+	})
+	dZeroReplicas := GetMock(MockSpec{
+		Namespace:       namespace,
+		Name:            "dZeroReplicas",
+		Replicas:        &replica0,
+		ResourceVersion: "1",
+	})
+
+	ctx := context.Background()
+	emptySleepInfo := &v1alpha1.SleepInfo{}
+
+	t.Run("ActualSleepReplicasTotal", func(t *testing.T) {
+		c := fake.NewClientBuilder().WithRuntimeObjects(&d1, &d2, &dZeroReplicas).Build()
+		fakeClient := &testutil.PossiblyErroringFakeCtrlRuntimeClient{
+			Client: c,
+		}
+
+		m := getMetrics()
+		res, err := NewResource(ctx, resource.ResourceClient{
+			Client:    fakeClient,
+			Log:       testLogger,
+			SleepInfo: emptySleepInfo,
+		}, namespace, map[string]int32{}, m)
+		require.NoError(t, err)
+
+		require.NoError(t, res.Sleep(ctx))
+
+		require.Equal(t, 1, promTestutil.CollectAndCount(m.ActualSleepReplicasTotal))
+		expected := bytes.NewBufferString(fmt.Sprintf(`
+			# HELP test_prefix_actual_sleep_replicas Actual number of replicas stopped by the controller
+			# TYPE test_prefix_actual_sleep_replicas gauge
+			test_prefix_actual_sleep_replicas{namespace="%s",resource_type="deployment"} 6
+			`, namespace))
+		require.NoError(t, promTestutil.CollectAndCompare(m.ActualSleepReplicasTotal, expected))
+
+		require.NoError(t, res.fetch(ctx, namespace))
+		require.NoError(t, res.WakeUp(ctx))
+
+		require.Equal(t, 1, promTestutil.CollectAndCount(m.ActualSleepReplicasTotal))
+		expected = bytes.NewBufferString(fmt.Sprintf(`
+		# HELP test_prefix_actual_sleep_replicas Actual number of replicas stopped by the controller
+		# TYPE test_prefix_actual_sleep_replicas gauge
+		test_prefix_actual_sleep_replicas{namespace="%s",resource_type="deployment"} 0
+		`, namespace))
+		require.NoError(t, promTestutil.CollectAndCompare(m.ActualSleepReplicasTotal, expected))
 	})
 }

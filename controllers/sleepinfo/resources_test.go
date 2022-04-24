@@ -10,6 +10,7 @@ import (
 	"github.com/kube-green/kube-green/controllers/internal/testutil"
 	"github.com/kube-green/kube-green/controllers/sleepinfo/cronjobs"
 	"github.com/kube-green/kube-green/controllers/sleepinfo/deployments"
+	"github.com/kube-green/kube-green/controllers/sleepinfo/metrics"
 	"github.com/kube-green/kube-green/controllers/sleepinfo/resource"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
@@ -34,9 +35,11 @@ func TestNewResources(t *testing.T) {
 		Namespace: namespace,
 	})
 
+	defaultMetrics := metrics.Metrics{}
+
 	t.Run("errors if client is not valid", func(t *testing.T) {
 		resClient := resource.ResourceClient{}
-		res, err := NewResources(context.Background(), resClient, namespace, SleepInfoData{})
+		res, err := NewResources(context.Background(), resClient, namespace, SleepInfoData{}, defaultMetrics)
 		require.True(t, strings.HasPrefix(err.Error(), "invalid client"))
 		require.Empty(t, res)
 	})
@@ -47,7 +50,7 @@ func TestNewResources(t *testing.T) {
 			Log:       zap.New(zap.UseDevMode(true)),
 			SleepInfo: &v1alpha1.SleepInfo{},
 		}
-		res, err := NewResources(context.Background(), resClient, namespace, SleepInfoData{})
+		res, err := NewResources(context.Background(), resClient, namespace, SleepInfoData{}, defaultMetrics)
 		require.NoError(t, err)
 		require.True(t, res.deployments.HasResource())
 		require.False(t, res.cronjobs.HasResource())
@@ -63,7 +66,7 @@ func TestNewResources(t *testing.T) {
 				},
 			},
 		}
-		res, err := NewResources(context.Background(), resClient, namespace, SleepInfoData{})
+		res, err := NewResources(context.Background(), resClient, namespace, SleepInfoData{}, defaultMetrics)
 		require.NoError(t, err)
 		require.True(t, res.deployments.HasResource())
 		require.True(t, res.cronjobs.HasResource())
@@ -81,7 +84,7 @@ func TestNewResources(t *testing.T) {
 			Log:       zap.New(zap.UseDevMode(true)),
 			SleepInfo: &v1alpha1.SleepInfo{},
 		}
-		res, err := NewResources(context.Background(), resClient, namespace, SleepInfoData{})
+		res, err := NewResources(context.Background(), resClient, namespace, SleepInfoData{}, defaultMetrics)
 		require.EqualError(t, err, "error during list")
 		require.Empty(t, res)
 	})
@@ -102,7 +105,7 @@ func TestNewResources(t *testing.T) {
 				},
 			},
 		}
-		res, err := NewResources(context.Background(), resClient, namespace, SleepInfoData{})
+		res, err := NewResources(context.Background(), resClient, namespace, SleepInfoData{}, defaultMetrics)
 		require.EqualError(t, err, fmt.Sprintf("%s: error during list", cronjobs.ErrFetchingCronJobs))
 		require.Empty(t, res)
 	})
@@ -110,6 +113,7 @@ func TestNewResources(t *testing.T) {
 
 func TestHasResources(t *testing.T) {
 	testLogger := zap.New(zap.UseDevMode(true))
+	defaultMetrics := metrics.Metrics{}
 
 	namespace := "my-namespace"
 	tests := []struct {
@@ -146,7 +150,7 @@ func TestHasResources(t *testing.T) {
 				Log:       testLogger,
 				Client:    getFakeClient().Build(),
 				SleepInfo: &v1alpha1.SleepInfo{},
-			}, namespace, SleepInfoData{})
+			}, namespace, SleepInfoData{}, defaultMetrics)
 			require.NoError(t, err)
 
 			resources.deployments = resource.GetResourceMock(resource.ResourceMock{

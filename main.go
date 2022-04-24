@@ -21,7 +21,12 @@ import (
 
 	kubegreencomv1alpha1 "github.com/kube-green/kube-green/api/v1alpha1"
 	sleepinfocontroller "github.com/kube-green/kube-green/controllers/sleepinfo"
+	"github.com/kube-green/kube-green/controllers/sleepinfo/metrics"
 	// +kubebuilder:scaffold:imports
+)
+
+const (
+	namespaceMetricPrefix = "kube_green"
 )
 
 var (
@@ -66,14 +71,18 @@ func main() {
 		os.Exit(1)
 	}
 
+	customMetrics := metrics.SetupMetricsOrDie(namespaceMetricPrefix)
 	if err = (&sleepinfocontroller.SleepInfoReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("SleepInfo"),
-		Scheme: mgr.GetScheme(),
+		Client:  mgr.GetClient(),
+		Log:     ctrl.Log.WithName("controllers").WithName("SleepInfo"),
+		Scheme:  mgr.GetScheme(),
+		Metrics: customMetrics,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "SleepInfo")
 		os.Exit(1)
 	}
+	customMetrics.MustRegister()
+
 	if err = (&kubegreencomv1alpha1.SleepInfo{}).SetupWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "SleepInfo")
 		os.Exit(1)

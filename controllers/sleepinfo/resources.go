@@ -5,6 +5,7 @@ import (
 
 	"github.com/kube-green/kube-green/controllers/sleepinfo/cronjobs"
 	"github.com/kube-green/kube-green/controllers/sleepinfo/deployments"
+	"github.com/kube-green/kube-green/controllers/sleepinfo/metrics"
 	"github.com/kube-green/kube-green/controllers/sleepinfo/resource"
 )
 
@@ -13,11 +14,11 @@ type Resources struct {
 	cronjobs    resource.Resource
 }
 
-func NewResources(ctx context.Context, resourceClient resource.ResourceClient, namespace string, sleepInfoData SleepInfoData) (Resources, error) {
+func NewResources(ctx context.Context, resourceClient resource.ResourceClient, namespace string, sleepInfoData SleepInfoData, metricsClient metrics.Metrics) (Resources, error) {
 	if err := resourceClient.IsClientValid(); err != nil {
 		return Resources{}, err
 	}
-	deployResource, err := deployments.NewResource(ctx, resourceClient, namespace, sleepInfoData.OriginalDeploymentsReplicas)
+	deployResource, err := deployments.NewResource(ctx, resourceClient, namespace, sleepInfoData.OriginalDeploymentsReplicas, metricsClient)
 	if err != nil {
 		resourceClient.Log.Error(err, "fails to init deployments")
 		return Resources{}, err
@@ -74,7 +75,6 @@ func (r Resources) getOriginalResourceInfoToSave() (map[string][]byte, error) {
 	if originalCronJobStatus != nil {
 		newData[originalCronjobStatusKey] = originalCronJobStatus
 	}
-
 	return newData, nil
 }
 

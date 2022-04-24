@@ -7,6 +7,7 @@ type ResourceMock struct {
 	MockSleep               func(context.Context) error
 	MockWakeUp              func(context.Context) error
 	MockOriginalInfoToSave  func() ([]byte, error)
+	MockType                string
 }
 
 func (r ResourceMock) HasResource() bool {
@@ -32,6 +33,10 @@ func (r ResourceMock) GetOriginalInfoToSave() ([]byte, error) {
 		return nil, nil
 	}
 	return r.MockOriginalInfoToSave()
+}
+
+func (r ResourceMock) GetType() string {
+	return r.MockType
 }
 
 func GetResourceMock(mock ResourceMock) Resource {
