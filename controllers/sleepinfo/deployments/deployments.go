@@ -3,7 +3,6 @@ package deployments
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 
 	kubegreenv1alpha1 "github.com/kube-green/kube-green/api/v1alpha1"
 	"github.com/kube-green/kube-green/controllers/sleepinfo/metrics"
@@ -26,6 +25,9 @@ type deployments struct {
 }
 
 func NewResource(ctx context.Context, res resource.ResourceClient, namespace string, originalReplicas map[string]int32, metricsClient metrics.Metrics) (deployments, error) {
+	if originalReplicas == nil {
+		originalReplicas = make(map[string]int32)
+	}
 	d := deployments{
 		ResourceClient:   res,
 		OriginalReplicas: originalReplicas,
@@ -97,7 +99,6 @@ func (d deployments) WakeUp(ctx context.Context) error {
 		}
 	}
 
-	fmt.Printf("WAKE UP %v %+v\n", wakeUpReplicas, d.data)
 	d.metricsClient.ActualSleepReplicasTotal.With(prometheus.Labels{
 		"resource_type": resourceType,
 		"namespace":     d.namespace,

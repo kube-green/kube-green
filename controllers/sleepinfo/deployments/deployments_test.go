@@ -117,7 +117,7 @@ func TestNewResource(t *testing.T) {
 				Client:    test.client,
 				Log:       testLogger,
 				SleepInfo: sleepInfo,
-			}, namespace, map[string]int32{}, getMetrics())
+			}, namespace, nil, getMetrics())
 			if test.throws {
 				require.EqualError(t, err, "error during list")
 			} else {

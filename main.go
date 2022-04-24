@@ -71,7 +71,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	customMetrics := metrics.SetupMetricsOrDie(namespaceMetricPrefix)
+	customMetrics := metrics.SetupMetricsOrDie(namespaceMetricPrefix).MustRegister()
 	if err = (&sleepinfocontroller.SleepInfoReconciler{
 		Client:  mgr.GetClient(),
 		Log:     ctrl.Log.WithName("controllers").WithName("SleepInfo"),
@@ -81,7 +81,6 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "SleepInfo")
 		os.Exit(1)
 	}
-	customMetrics.MustRegister()
 
 	if err = (&kubegreencomv1alpha1.SleepInfo{}).SetupWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "SleepInfo")

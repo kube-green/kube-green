@@ -41,13 +41,14 @@ func SetupMetricsOrDie(prefix string) Metrics {
 	return sleepInfoMetrics
 }
 
-func (customMetrics Metrics) MustRegister() {
+func (customMetrics Metrics) MustRegister() Metrics {
 	metrics.Registry.MustRegister(
 		customMetrics.TotalSleepWorkload,
 		customMetrics.SleepDurationSeconds,
 		customMetrics.ActualSleepReplicasTotal,
 		customMetrics.SleepInfoInfo,
 	)
+	return customMetrics
 }
 
 func getHour(n int) float64 {
