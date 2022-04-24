@@ -25,10 +25,6 @@ import (
 	// +kubebuilder:scaffold:imports
 )
 
-const (
-	namespaceMetricPrefix = "kube_green"
-)
-
 var (
 	scheme   = runtime.NewScheme()
 	setupLog = ctrl.Log.WithName("setup")
@@ -71,7 +67,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	customMetrics := metrics.SetupMetricsOrDie(namespaceMetricPrefix).MustRegister()
+	customMetrics := metrics.SetupMetricsOrDie("kube_green").MustRegister()
 	if err = (&sleepinfocontroller.SleepInfoReconciler{
 		Client:  mgr.GetClient(),
 		Log:     ctrl.Log.WithName("controllers").WithName("SleepInfo"),
