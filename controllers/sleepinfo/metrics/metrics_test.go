@@ -14,14 +14,36 @@ func getMetrics() Metrics {
 	return SetupMetricsOrDie("test_prefix")
 }
 
+func getAndUseMetrics() Metrics {
+	m := getMetrics()
+	m.ActualSleepReplicas.WithLabelValues("deployment", "test_namespace").Add(1)
+	m.ActualSleepReplicas.WithLabelValues("cronjob", "test_namespace").Add(1)
+	m.ActualSleepReplicas.WithLabelValues("deployment", "another_namespace").Add(13)
+
+	m.SleepWorkloadTotal.WithLabelValues("deployment", "test_namespace").Add(2)
+
+	m.SleepInfoInfo.With(prometheus.Labels{
+		"namespace":      "test_namespace",
+		"is_wake_up_set": "true",
+		"deployments":    "true",
+		"cronjobs":       "false",
+	}).Inc()
+
+	m.SleepDurationSeconds.With(prometheus.Labels{
+		"namespace": "test_namespace",
+	}).Observe(time.Hour.Seconds())
+	m.SleepDurationSeconds.With(prometheus.Labels{
+		"namespace": "test_namespace",
+	}).Observe(20 * time.Hour.Seconds())
+
+	return m
+}
+
 func TestMetrics(t *testing.T) {
 	t.Run("ActualSleepReplicasTotal", func(t *testing.T) {
-		m := getMetrics()
-		m.ActualSleepReplicasTotal.WithLabelValues("deployment", "test_namespace").Add(1)
-		m.ActualSleepReplicasTotal.WithLabelValues("cronjob", "test_namespace").Add(1)
-		m.ActualSleepReplicasTotal.WithLabelValues("deployment", "another_namespace").Add(13)
+		m := getAndUseMetrics()
 
-		prob, err := testutil.CollectAndLint(m.ActualSleepReplicasTotal)
+		prob, err := testutil.CollectAndLint(m.ActualSleepReplicas)
 		require.NoError(t, err)
 		require.Nil(t, prob)
 
@@ -32,14 +54,13 @@ func TestMetrics(t *testing.T) {
 		test_prefix_actual_sleep_replicas{namespace="test_namespace",resource_type="cronjob"} 1
 		test_prefix_actual_sleep_replicas{namespace="another_namespace",resource_type="deployment"} 13
 		`)
-		require.NoError(t, testutil.CollectAndCompare(m.ActualSleepReplicasTotal, buf))
+		require.NoError(t, testutil.CollectAndCompare(m.ActualSleepReplicas, buf))
 	})
 
 	t.Run("TotalSleepWorkload", func(t *testing.T) {
-		m := getMetrics()
-		m.TotalSleepWorkload.WithLabelValues("deployment", "test_namespace").Add(2)
+		m := getAndUseMetrics()
 
-		prob, err := testutil.CollectAndLint(m.TotalSleepWorkload)
+		prob, err := testutil.CollectAndLint(m.SleepWorkloadTotal)
 		require.NoError(t, err)
 		require.Nil(t, prob)
 
@@ -48,17 +69,11 @@ func TestMetrics(t *testing.T) {
 		# TYPE test_prefix_sleep_workload_total counter
 		test_prefix_sleep_workload_total{namespace="test_namespace",resource_type="deployment"} 2
 		`)
-		require.NoError(t, testutil.CollectAndCompare(m.TotalSleepWorkload, buf))
+		require.NoError(t, testutil.CollectAndCompare(m.SleepWorkloadTotal, buf))
 	})
 
 	t.Run("SleepInfoInfo", func(t *testing.T) {
-		m := getMetrics()
-		m.SleepInfoInfo.With(prometheus.Labels{
-			"namespace":      "test_namespace",
-			"is_wake_up_set": "true",
-			"deployments":    "true",
-			"cronjobs":       "false",
-		}).Inc()
+		m := getAndUseMetrics()
 
 		prob, err := testutil.CollectAndLint(m.SleepInfoInfo)
 		require.NoError(t, err)
@@ -73,13 +88,7 @@ func TestMetrics(t *testing.T) {
 	})
 
 	t.Run("SleepDurationSeconds", func(t *testing.T) {
-		m := getMetrics()
-		m.SleepDurationSeconds.With(prometheus.Labels{
-			"namespace": "test_namespace",
-		}).Observe(time.Hour.Seconds())
-		m.SleepDurationSeconds.With(prometheus.Labels{
-			"namespace": "test_namespace",
-		}).Observe(20 * time.Hour.Seconds())
+		m := getAndUseMetrics()
 
 		prob, err := testutil.CollectAndLint(m.SleepDurationSeconds)
 		require.NoError(t, err)
@@ -100,4 +109,13 @@ func TestMetrics(t *testing.T) {
 		`)
 		require.NoError(t, testutil.CollectAndCompare(m.SleepDurationSeconds, buf))
 	})
+}
+
+func TestSetupMetricsAndRegister(t *testing.T) {
+	registry := prometheus.NewPedanticRegistry()
+	getAndUseMetrics().MustRegister(registry)
+
+	count, err := testutil.GatherAndCount(registry)
+	require.NoError(t, err)
+	require.Equal(t, 6, count)
 }

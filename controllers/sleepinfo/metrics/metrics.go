@@ -8,20 +8,20 @@ import (
 )
 
 type Metrics struct {
-	TotalSleepWorkload       *prometheus.CounterVec
-	ActualSleepReplicasTotal *prometheus.GaugeVec
-	SleepInfoInfo            *prometheus.CounterVec
-	SleepDurationSeconds     *prometheus.HistogramVec
+	SleepWorkloadTotal   *prometheus.CounterVec
+	ActualSleepReplicas  *prometheus.GaugeVec
+	SleepInfoInfo        *prometheus.CounterVec
+	SleepDurationSeconds *prometheus.HistogramVec
 }
 
 func SetupMetricsOrDie(prefix string) Metrics {
 	sleepInfoMetrics := Metrics{
-		TotalSleepWorkload: prometheus.NewCounterVec(prometheus.CounterOpts{
+		SleepWorkloadTotal: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Namespace: prefix,
 			Name:      "sleep_workload_total",
 			Help:      "Total number of workload stopped by the controller",
 		}, []string{"resource_type", "namespace"}),
-		ActualSleepReplicasTotal: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		ActualSleepReplicas: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: prefix,
 			Name:      "actual_sleep_replicas",
 			Help:      "Actual number of replicas stopped by the controller",
@@ -41,11 +41,11 @@ func SetupMetricsOrDie(prefix string) Metrics {
 	return sleepInfoMetrics
 }
 
-func (customMetrics Metrics) MustRegister() Metrics {
-	metrics.Registry.MustRegister(
-		customMetrics.TotalSleepWorkload,
+func (customMetrics Metrics) MustRegister(registry metrics.RegistererGatherer) Metrics {
+	registry.MustRegister(
+		customMetrics.SleepWorkloadTotal,
 		customMetrics.SleepDurationSeconds,
-		customMetrics.ActualSleepReplicasTotal,
+		customMetrics.ActualSleepReplicas,
 		customMetrics.SleepInfoInfo,
 	)
 	return customMetrics

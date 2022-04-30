@@ -13,6 +13,7 @@ import (
 	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	promTestutil "github.com/prometheus/client_golang/prometheus/testutil"
 	appsv1 "k8s.io/api/apps/v1"
 	core "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -918,6 +919,15 @@ func assertCorrectSleepOperation(assert AssertOperation) {
 			RequeueAfter: assert.expectedNextRequeue,
 		}))
 	})
+
+	By("metrics correctly collected - quantitatively", func() {
+		metrics := sleepInfoReconciler.Metrics
+
+		Expect(promTestutil.CollectAndCount(metrics.SleepWorkloadTotal)).To(Equal(1))
+		Expect(promTestutil.CollectAndCount(metrics.ActualSleepReplicas)).To(Equal(1))
+		Expect(promTestutil.CollectAndCount(metrics.SleepInfoInfo)).To(Equal(0))
+		Expect(promTestutil.CollectAndCount(metrics.SleepDurationSeconds)).To(Equal(0))
+	})
 }
 
 func assertCorrectWakeUpOperation(assert AssertOperation) {
@@ -976,5 +986,14 @@ func assertCorrectWakeUpOperation(assert AssertOperation) {
 		Expect(result).Should(Equal(ctrl.Result{
 			RequeueAfter: assert.expectedNextRequeue,
 		}))
+	})
+
+	By("metrics correctly collected - quantitatively", func() {
+		metrics := sleepInfoReconciler.Metrics
+
+		Expect(promTestutil.CollectAndCount(metrics.SleepWorkloadTotal)).To(Equal(1))
+		Expect(promTestutil.CollectAndCount(metrics.ActualSleepReplicas)).To(Equal(1))
+		Expect(promTestutil.CollectAndCount(metrics.SleepInfoInfo)).To(Equal(0))
+		Expect(promTestutil.CollectAndCount(metrics.SleepDurationSeconds)).To(Equal(0))
 	})
 }

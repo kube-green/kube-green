@@ -47,6 +47,7 @@ func (d deployments) HasResource() bool {
 
 func (d deployments) Sleep(ctx context.Context) error {
 	sleepReplicas := float64(0)
+	numberOfDeploymentSleeped := float64(0)
 	for _, deployment := range d.data {
 		deployment := deployment
 
@@ -55,7 +56,10 @@ func (d deployments) Sleep(ctx context.Context) error {
 			continue
 		}
 		d.OriginalReplicas[deployment.Name] = deploymentReplicas
+
 		sleepReplicas += float64(deploymentReplicas)
+		numberOfDeploymentSleeped += 1
+
 		newDeploy := deployment.DeepCopy()
 		*newDeploy.Spec.Replicas = 0
 
@@ -64,7 +68,11 @@ func (d deployments) Sleep(ctx context.Context) error {
 		}
 	}
 
-	d.metricsClient.ActualSleepReplicasTotal.With(prometheus.Labels{
+	d.metricsClient.SleepWorkloadTotal.With(prometheus.Labels{
+		"resource_type": resourceType,
+		"namespace":     d.namespace,
+	}).Add(numberOfDeploymentSleeped)
+	d.metricsClient.ActualSleepReplicas.With(prometheus.Labels{
 		"resource_type": resourceType,
 		"namespace":     d.namespace,
 	}).Add(sleepReplicas)
@@ -99,7 +107,7 @@ func (d deployments) WakeUp(ctx context.Context) error {
 		}
 	}
 
-	d.metricsClient.ActualSleepReplicasTotal.With(prometheus.Labels{
+	d.metricsClient.ActualSleepReplicas.With(prometheus.Labels{
 		"resource_type": resourceType,
 		"namespace":     d.namespace,
 	}).Sub(wakeUpReplicas)
