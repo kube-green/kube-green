@@ -1,6 +1,7 @@
 package cronjobs
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"strconv"
@@ -8,8 +9,10 @@ import (
 
 	"github.com/kube-green/kube-green/api/v1alpha1"
 	"github.com/kube-green/kube-green/controllers/internal/testutil"
+	"github.com/kube-green/kube-green/controllers/sleepinfo/metrics"
 	"github.com/kube-green/kube-green/controllers/sleepinfo/resource"
 
+	promTestutil "github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -19,6 +22,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
+
+func getMetrics() metrics.Metrics {
+	return metrics.SetupMetricsOrDie("test_prefix")
+}
 
 func TestCronJobs(t *testing.T) {
 	testLogger := zap.New(zap.UseDevMode(true))
@@ -54,12 +61,23 @@ func TestCronJobs(t *testing.T) {
 		},
 	}
 
+	getNewResourceDisabled := func(t *testing.T, client client.Client, originalSuspendedCronJob map[string]bool) cronjobs {
+		c, err := NewResource(context.Background(), resource.ResourceClient{
+			Client:    client,
+			Log:       testLogger,
+			SleepInfo: &v1alpha1.SleepInfo{},
+		}, namespace, originalSuspendedCronJob, getMetrics())
+		require.NoError(t, err)
+
+		return c
+	}
+
 	getNewResource := func(t *testing.T, client client.Client, originalSuspendedCronJob map[string]bool) cronjobs {
 		c, err := NewResource(context.Background(), resource.ResourceClient{
 			Client:    client,
 			Log:       testLogger,
 			SleepInfo: sleepInfo,
-		}, namespace, originalSuspendedCronJob)
+		}, namespace, originalSuspendedCronJob, getMetrics())
 		require.NoError(t, err)
 
 		return c
@@ -144,7 +162,7 @@ func TestCronJobs(t *testing.T) {
 					SleepInfo: test.sleepInfo,
 				}
 
-				resource, err := NewResource(context.Background(), r, namespace, map[string]bool{})
+				resource, err := NewResource(context.Background(), r, namespace, map[string]bool{}, getMetrics())
 				if test.throws {
 					require.EqualError(t, err, fmt.Sprintf("%s: error during list", ErrFetchingCronJobs))
 				} else {
@@ -316,6 +334,72 @@ func TestCronJobs(t *testing.T) {
 				"cj2": true,
 				"cj3": false,
 			}, suspendedStatus)
+		})
+	})
+
+	t.Run("metrics", func(t *testing.T) {
+		t.Run("SleepWorkloadTotal", func(t *testing.T) {
+			t.Run("cronjob to suspend", func(t *testing.T) {
+				ctx := context.Background()
+				fakeClient := testutil.PossiblyErroringFakeCtrlRuntimeClient{
+					Client: getFakeClient().
+						WithRuntimeObjects(&cronJob1, &cronJob2, &suspendedCronJobs, &cronJobSuspendSetToFalseNotEmpty).
+						Build(),
+				}
+				c := getNewResource(t, fakeClient, nil)
+				m := c.metricsClient
+				require.NoError(t, c.Sleep(ctx))
+
+				require.Equal(t, 1, promTestutil.CollectAndCount(m.SleepWorkloadTotal))
+				expected := bytes.NewBufferString(fmt.Sprintf(`
+					# HELP test_prefix_sleep_workload_total Total number of workload stopped by the controller
+					# TYPE test_prefix_sleep_workload_total counter
+					test_prefix_sleep_workload_total{namespace="%s",resource_type="cronjob"} 3
+					`, namespace))
+				require.NoError(t, promTestutil.CollectAndCompare(m.SleepWorkloadTotal, expected))
+
+				require.NoError(t, c.fetch(ctx, namespace))
+				require.NoError(t, c.WakeUp(ctx))
+
+				require.Equal(t, 1, promTestutil.CollectAndCount(m.SleepWorkloadTotal))
+				expected = bytes.NewBufferString(fmt.Sprintf(`
+					# HELP test_prefix_sleep_workload_total Total number of workload stopped by the controller
+					# TYPE test_prefix_sleep_workload_total counter
+					test_prefix_sleep_workload_total{namespace="%s",resource_type="cronjob"} 3
+				`, namespace))
+				require.NoError(t, promTestutil.CollectAndCompare(m.SleepWorkloadTotal, expected))
+			})
+
+			t.Run("cronjob not to suspend", func(t *testing.T) {
+				ctx := context.Background()
+				fakeClient := testutil.PossiblyErroringFakeCtrlRuntimeClient{
+					Client: getFakeClient().
+						WithRuntimeObjects(&cronJob1, &cronJob2, &suspendedCronJobs, &cronJobSuspendSetToFalseNotEmpty).
+						Build(),
+				}
+				c := getNewResourceDisabled(t, fakeClient, nil)
+				m := c.metricsClient
+				require.NoError(t, c.Sleep(ctx))
+
+				require.Equal(t, 1, promTestutil.CollectAndCount(m.SleepWorkloadTotal))
+				expected := bytes.NewBufferString(fmt.Sprintf(`
+					# HELP test_prefix_sleep_workload_total Total number of workload stopped by the controller
+					# TYPE test_prefix_sleep_workload_total counter
+					test_prefix_sleep_workload_total{namespace="%s",resource_type="cronjob"} 0
+					`, namespace))
+				require.NoError(t, promTestutil.CollectAndCompare(m.SleepWorkloadTotal, expected))
+
+				require.NoError(t, c.fetch(ctx, namespace))
+				require.NoError(t, c.WakeUp(ctx))
+
+				require.Equal(t, 1, promTestutil.CollectAndCount(m.SleepWorkloadTotal))
+				expected = bytes.NewBufferString(fmt.Sprintf(`
+					# HELP test_prefix_sleep_workload_total Total number of workload stopped by the controller
+					# TYPE test_prefix_sleep_workload_total counter
+					test_prefix_sleep_workload_total{namespace="%s",resource_type="cronjob"} 0
+				`, namespace))
+				require.NoError(t, promTestutil.CollectAndCompare(m.SleepWorkloadTotal, expected))
+			})
 		})
 	})
 }

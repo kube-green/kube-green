@@ -923,7 +923,7 @@ func assertCorrectSleepOperation(assert AssertOperation) {
 	By("metrics correctly collected - quantitatively", func() {
 		metrics := sleepInfoReconciler.Metrics
 
-		Expect(promTestutil.CollectAndCount(metrics.SleepWorkloadTotal)).To(Equal(1))
+		Expect(promTestutil.CollectAndCount(metrics.SleepWorkloadTotal)).To(Equal(2))
 		Expect(promTestutil.CollectAndCount(metrics.ActualSleepReplicas)).To(Equal(1))
 		Expect(promTestutil.CollectAndCount(metrics.SleepInfoInfo)).To(Equal(0))
 		Expect(promTestutil.CollectAndCount(metrics.SleepDurationSeconds)).To(Equal(0))
@@ -991,7 +991,7 @@ func assertCorrectWakeUpOperation(assert AssertOperation) {
 	By("metrics correctly collected - quantitatively", func() {
 		metrics := sleepInfoReconciler.Metrics
 
-		Expect(promTestutil.CollectAndCount(metrics.SleepWorkloadTotal)).To(Equal(1))
+		Expect(promTestutil.CollectAndCount(metrics.SleepWorkloadTotal)).To(Equal(2))
 		Expect(promTestutil.CollectAndCount(metrics.ActualSleepReplicas)).To(Equal(1))
 		Expect(promTestutil.CollectAndCount(metrics.SleepInfoInfo)).To(Equal(0))
 		Expect(promTestutil.CollectAndCount(metrics.SleepDurationSeconds)).To(Equal(0))

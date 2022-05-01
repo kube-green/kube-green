@@ -23,7 +23,7 @@ func NewResources(ctx context.Context, resourceClient resource.ResourceClient, n
 		resourceClient.Log.Error(err, "fails to init deployments")
 		return Resources{}, err
 	}
-	cronJobResource, err := cronjobs.NewResource(ctx, resourceClient, namespace, sleepInfoData.OriginalCronJobStatus)
+	cronJobResource, err := cronjobs.NewResource(ctx, resourceClient, namespace, sleepInfoData.OriginalCronJobStatus, metricsClient)
 	if err != nil {
 		resourceClient.Log.Error(err, "fails to init cronjobs")
 		return Resources{}, err

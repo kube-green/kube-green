@@ -8,13 +8,17 @@ import (
 	"strings"
 
 	kubegreenv1alpha1 "github.com/kube-green/kube-green/api/v1alpha1"
+	"github.com/kube-green/kube-green/controllers/sleepinfo/metrics"
 	"github.com/kube-green/kube-green/controllers/sleepinfo/resource"
+	"github.com/prometheus/client_golang/prometheus"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
+
+const resourceType = "cronjob"
 
 var (
 	ErrFetchingCronJobs = errors.New("error fetching cronjobs")
@@ -26,14 +30,18 @@ type cronjobs struct {
 	data                  []unstructured.Unstructured
 	OriginalSuspendStatus OriginalSuspendStatus
 	areToSuspend          bool
+	metricsClient         metrics.Metrics
+	namespace             string
 }
 
-func NewResource(ctx context.Context, res resource.ResourceClient, namespace string, originalSuspendStatus map[string]bool) (cronjobs, error) {
+func NewResource(ctx context.Context, res resource.ResourceClient, namespace string, originalSuspendStatus map[string]bool, metricsClient metrics.Metrics) (cronjobs, error) {
 	d := cronjobs{
 		ResourceClient:        res,
 		OriginalSuspendStatus: originalSuspendStatus,
 		areToSuspend:          res.SleepInfo.IsCronjobsToSuspend(),
 		data:                  []unstructured.Unstructured{},
+		metricsClient:         metricsClient,
+		namespace:             namespace,
 	}
 	if !d.areToSuspend {
 		return d, nil
@@ -54,6 +62,8 @@ func getSuspendStatus(cronjob unstructured.Unstructured) (bool, bool, error) {
 }
 
 func (c cronjobs) Sleep(ctx context.Context) error {
+	numberOfCronjobSleeped := float64(0)
+
 	for _, cronjob := range c.data {
 		cronjobSuspended, found, err := getSuspendStatus(cronjob)
 		if err != nil {
@@ -62,6 +72,8 @@ func (c cronjobs) Sleep(ctx context.Context) error {
 		if found && cronjobSuspended {
 			continue
 		}
+		numberOfCronjobSleeped++
+
 		newCronJob := cronjob.DeepCopy()
 		if err = unstructured.SetNestedField(newCronJob.Object, true, "spec", "suspend"); err != nil {
 			return err
@@ -71,6 +83,12 @@ func (c cronjobs) Sleep(ctx context.Context) error {
 			return err
 		}
 	}
+
+	c.metricsClient.SleepWorkloadTotal.With(prometheus.Labels{
+		"resource_type": resourceType,
+		"namespace":     c.namespace,
+	}).Add(numberOfCronjobSleeped)
+
 	return nil
 }
 
