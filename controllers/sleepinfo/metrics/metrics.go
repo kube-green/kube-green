@@ -10,7 +10,7 @@ import (
 type Metrics struct {
 	SleepWorkloadTotal   *prometheus.CounterVec
 	ActualSleepReplicas  *prometheus.GaugeVec
-	SleepInfoInfo        *prometheus.CounterVec
+	SleepInfoInfo        *prometheus.GaugeVec
 	SleepDurationSeconds *prometheus.HistogramVec
 }
 
@@ -26,9 +26,9 @@ func SetupMetricsOrDie(prefix string) Metrics {
 			Name:      "actual_sleep_replicas",
 			Help:      "Actual number of replicas stopped by the controller",
 		}, []string{"resource_type", "namespace"}),
-		SleepInfoInfo: prometheus.NewCounterVec(prometheus.CounterOpts{
+		SleepInfoInfo: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: prefix,
-			Name:      "sleepinfo_info_total",
+			Name:      "sleepinfo_info",
 			Help:      "Info about SleepInfo resource",
 		}, []string{"namespace", "is_wake_up_set"}),
 		SleepDurationSeconds: prometheus.NewHistogramVec(prometheus.HistogramOpts{
