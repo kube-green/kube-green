@@ -1,8 +1,10 @@
 package sleepinfo
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	kubegreenv1alpha1 "github.com/kube-green/kube-green/api/v1alpha1"
@@ -76,8 +78,9 @@ var _ = Describe("SleepInfo Controller", func() {
 			Clock: mockClock{
 				now: sleepScheduleTime,
 			},
-			Client: k8sClient,
-			Log:    testLogger,
+			Client:  k8sClient,
+			Log:     testLogger,
+			Metrics: sleepInfoReconciler.Metrics,
 		}
 		result, err = sleepInfoReconciler.Reconcile(ctx, req)
 		Expect(err).NotTo(HaveOccurred())
@@ -118,6 +121,8 @@ var _ = Describe("SleepInfo Controller", func() {
 			},
 			Client: k8sClient,
 			Log:    testLogger,
+
+			Metrics: sleepInfoReconciler.Metrics,
 		}
 		result, err = sleepInfoReconciler.Reconcile(ctx, req)
 		Expect(err).NotTo(HaveOccurred())
@@ -925,7 +930,15 @@ func assertCorrectSleepOperation(assert AssertOperation) {
 
 		Expect(promTestutil.CollectAndCount(metrics.SleepWorkloadTotal)).To(Equal(2))
 		Expect(promTestutil.CollectAndCount(metrics.ActualSleepReplicas)).To(Equal(1))
-		Expect(promTestutil.CollectAndCount(metrics.SleepInfoInfo)).To(Equal(0))
+
+		Expect(promTestutil.CollectAndCount(metrics.SleepInfoInfo)).To(Equal(1))
+		expectedInfo := bytes.NewBufferString(fmt.Sprintf(`
+		# HELP kube_green_sleepinfo_info Info about SleepInfo resource
+		# TYPE kube_green_sleepinfo_info gauge
+		kube_green_sleepinfo_info{name="%s",namespace="%s"} 1
+`, assert.sleepInfoName, assert.namespace))
+		Expect(promTestutil.CollectAndCompare(metrics.SleepInfoInfo, expectedInfo)).NotTo(HaveOccurred())
+
 		Expect(promTestutil.CollectAndCount(metrics.SleepDurationSeconds)).To(Equal(0))
 	})
 }
@@ -993,7 +1006,7 @@ func assertCorrectWakeUpOperation(assert AssertOperation) {
 
 		Expect(promTestutil.CollectAndCount(metrics.SleepWorkloadTotal)).To(Equal(2))
 		Expect(promTestutil.CollectAndCount(metrics.ActualSleepReplicas)).To(Equal(1))
-		Expect(promTestutil.CollectAndCount(metrics.SleepInfoInfo)).To(Equal(0))
+		Expect(promTestutil.CollectAndCount(metrics.SleepInfoInfo)).To(Equal(1))
 		Expect(promTestutil.CollectAndCount(metrics.SleepDurationSeconds)).To(Equal(0))
 	})
 }

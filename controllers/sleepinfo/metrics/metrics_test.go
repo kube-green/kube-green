@@ -23,12 +23,8 @@ func getAndUseMetrics() Metrics {
 	m.SleepWorkloadTotal.WithLabelValues("deployment", "test_namespace").Add(2)
 
 	m.SleepInfoInfo.With(prometheus.Labels{
-		"namespace":      "test_namespace",
-		"is_wake_up_set": "true",
-	}).Set(1)
-	m.SleepInfoInfo.With(prometheus.Labels{
-		"namespace":      "test_namespace",
-		"is_wake_up_set": "true",
+		"name":      "test_name",
+		"namespace": "test_namespace",
 	}).Set(1)
 
 	m.SleepDurationSeconds.With(prometheus.Labels{
@@ -84,7 +80,7 @@ func TestMetrics(t *testing.T) {
 		buf := bytes.NewBufferString(`
 		# HELP test_prefix_sleepinfo_info Info about SleepInfo resource
 		# TYPE test_prefix_sleepinfo_info gauge
-		test_prefix_sleepinfo_info{is_wake_up_set="true",namespace="test_namespace"} 1
+		test_prefix_sleepinfo_info{name="test_name",namespace="test_namespace"} 1
 		`)
 		require.NoError(t, testutil.CollectAndCompare(m.SleepInfoInfo, buf))
 	})
