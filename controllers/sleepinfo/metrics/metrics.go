@@ -30,7 +30,7 @@ func SetupMetricsOrDie(prefix string) Metrics {
 			Namespace: prefix,
 			Name:      "sleepinfo_info_total",
 			Help:      "Info about SleepInfo resource",
-		}, []string{"namespace", "is_wake_up_set", "deployments", "cronjobs"}),
+		}, []string{"namespace", "is_wake_up_set"}),
 		SleepDurationSeconds: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 			Namespace: prefix,
 			Name:      "sleep_duration_seconds",
