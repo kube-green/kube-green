@@ -495,24 +495,8 @@ func TestMetrics(t *testing.T) {
 
 		require.NoError(t, res.Sleep(ctx))
 
-		require.Equal(t, 1, promTestutil.CollectAndCount(m.ActualSleepReplicas))
-		expected := bytes.NewBufferString(fmt.Sprintf(`
-			# HELP test_prefix_actual_sleep_replicas Actual number of replicas stopped by the controller
-			# TYPE test_prefix_actual_sleep_replicas gauge
-			test_prefix_actual_sleep_replicas{namespace="%s",resource_type="deployment"} 6
-			`, namespace))
-		require.NoError(t, promTestutil.CollectAndCompare(m.ActualSleepReplicas, expected))
-
 		require.NoError(t, res.fetch(ctx, namespace))
 		require.NoError(t, res.WakeUp(ctx))
-
-		require.Equal(t, 1, promTestutil.CollectAndCount(m.ActualSleepReplicas))
-		expected = bytes.NewBufferString(fmt.Sprintf(`
-		# HELP test_prefix_actual_sleep_replicas Actual number of replicas stopped by the controller
-		# TYPE test_prefix_actual_sleep_replicas gauge
-		test_prefix_actual_sleep_replicas{namespace="%s",resource_type="deployment"} 0
-		`, namespace))
-		require.NoError(t, promTestutil.CollectAndCompare(m.ActualSleepReplicas, expected))
 	})
 
 	t.Run("SleepWorkloadTotal", func(t *testing.T) {

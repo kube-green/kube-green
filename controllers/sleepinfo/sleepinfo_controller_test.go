@@ -929,7 +929,6 @@ func assertCorrectSleepOperation(assert AssertOperation) {
 		metrics := sleepInfoReconciler.Metrics
 
 		Expect(promTestutil.CollectAndCount(metrics.SleepWorkloadTotal)).To(Equal(2))
-		Expect(promTestutil.CollectAndCount(metrics.ActualSleepReplicas)).To(Equal(1))
 
 		Expect(promTestutil.CollectAndCount(metrics.SleepInfoInfo)).To(Equal(1))
 		expectedInfo := bytes.NewBufferString(fmt.Sprintf(`
@@ -938,8 +937,6 @@ func assertCorrectSleepOperation(assert AssertOperation) {
 		kube_green_sleepinfo_info{name="%s",namespace="%s"} 1
 `, assert.sleepInfoName, assert.namespace))
 		Expect(promTestutil.CollectAndCompare(metrics.SleepInfoInfo, expectedInfo)).NotTo(HaveOccurred())
-
-		Expect(promTestutil.CollectAndCount(metrics.SleepDurationSeconds)).To(Equal(0))
 	})
 }
 
@@ -1005,8 +1002,6 @@ func assertCorrectWakeUpOperation(assert AssertOperation) {
 		metrics := sleepInfoReconciler.Metrics
 
 		Expect(promTestutil.CollectAndCount(metrics.SleepWorkloadTotal)).To(Equal(2))
-		Expect(promTestutil.CollectAndCount(metrics.ActualSleepReplicas)).To(Equal(1))
 		Expect(promTestutil.CollectAndCount(metrics.SleepInfoInfo)).To(Equal(1))
-		Expect(promTestutil.CollectAndCount(metrics.SleepDurationSeconds)).To(Equal(0))
 	})
 }

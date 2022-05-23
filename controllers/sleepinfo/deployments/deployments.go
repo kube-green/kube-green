@@ -72,10 +72,6 @@ func (d deployments) Sleep(ctx context.Context) error {
 		"resource_type": resourceType,
 		"namespace":     d.namespace,
 	}).Add(numberOfDeploymentSleeped)
-	d.metricsClient.ActualSleepReplicas.With(prometheus.Labels{
-		"resource_type": resourceType,
-		"namespace":     d.namespace,
-	}).Add(sleepReplicas)
 
 	return nil
 }
@@ -106,11 +102,6 @@ func (d deployments) WakeUp(ctx context.Context) error {
 			return err
 		}
 	}
-
-	d.metricsClient.ActualSleepReplicas.With(prometheus.Labels{
-		"resource_type": resourceType,
-		"namespace":     d.namespace,
-	}).Sub(wakeUpReplicas)
 
 	return nil
 }
