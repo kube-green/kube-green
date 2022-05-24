@@ -18,7 +18,12 @@ func getAndUseMetrics() Metrics {
 
 	m.SleepWorkloadTotal.WithLabelValues("deployment", "test_namespace").Add(2)
 
-	m.SleepInfoInfo.With(prometheus.Labels{
+	m.CurrentSleepInfo.With(prometheus.Labels{
+		"name":      "test_name",
+		"namespace": "test_namespace",
+	}).Set(1)
+
+	m.CurrentPermanentSleepInfo.With(prometheus.Labels{
 		"name":      "test_name",
 		"namespace": "test_namespace",
 	}).Set(1)
@@ -42,19 +47,34 @@ func TestMetrics(t *testing.T) {
 		require.NoError(t, testutil.CollectAndCompare(m.SleepWorkloadTotal, buf))
 	})
 
-	t.Run("SleepInfoInfo", func(t *testing.T) {
+	t.Run("CurrentSleepInfo", func(t *testing.T) {
 		m := getAndUseMetrics()
 
-		prob, err := testutil.CollectAndLint(m.SleepInfoInfo)
+		prob, err := testutil.CollectAndLint(m.CurrentSleepInfo)
 		require.NoError(t, err)
 		require.Nil(t, prob)
 
 		buf := bytes.NewBufferString(`
-		# HELP test_prefix_sleepinfo_info Info about SleepInfo resource
-		# TYPE test_prefix_sleepinfo_info gauge
-		test_prefix_sleepinfo_info{name="test_name",namespace="test_namespace"} 1
+		# HELP test_prefix_current_sleepinfo Info about SleepInfo resource
+		# TYPE test_prefix_current_sleepinfo gauge
+		test_prefix_current_sleepinfo{name="test_name",namespace="test_namespace"} 1
 		`)
-		require.NoError(t, testutil.CollectAndCompare(m.SleepInfoInfo, buf))
+		require.NoError(t, testutil.CollectAndCompare(m.CurrentSleepInfo, buf))
+	})
+
+	t.Run("CurrentPermanentSleepInfo", func(t *testing.T) {
+		m := getAndUseMetrics()
+
+		prob, err := testutil.CollectAndLint(m.CurrentPermanentSleepInfo)
+		require.NoError(t, err)
+		require.Nil(t, prob)
+
+		buf := bytes.NewBufferString(`
+		# HELP test_prefix_current_permanent_sleepinfo Number of the currently SleepInfo resource without wakeUpAt set
+		# TYPE test_prefix_current_permanent_sleepinfo gauge
+		test_prefix_current_permanent_sleepinfo{name="test_name",namespace="test_namespace"} 1
+		`)
+		require.NoError(t, testutil.CollectAndCompare(m.CurrentPermanentSleepInfo, buf))
 	})
 }
 
@@ -64,5 +84,5 @@ func TestSetupMetricsAndRegister(t *testing.T) {
 
 	count, err := testutil.GatherAndCount(registry)
 	require.NoError(t, err)
-	require.Equal(t, 6, count)
+	require.Equal(t, 3, count)
 }

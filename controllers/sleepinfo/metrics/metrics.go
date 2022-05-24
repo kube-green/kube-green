@@ -1,15 +1,14 @@
 package metrics
 
 import (
-	"time"
-
 	"github.com/prometheus/client_golang/prometheus"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
 type Metrics struct {
-	SleepWorkloadTotal *prometheus.CounterVec
-	SleepInfoInfo      *prometheus.GaugeVec
+	SleepWorkloadTotal        *prometheus.CounterVec
+	CurrentSleepInfo          *prometheus.GaugeVec
+	CurrentPermanentSleepInfo *prometheus.GaugeVec
 }
 
 func SetupMetricsOrDie(prefix string) Metrics {
@@ -19,10 +18,15 @@ func SetupMetricsOrDie(prefix string) Metrics {
 			Name:      "sleep_workload_total",
 			Help:      "Total number of workload stopped by the controller",
 		}, []string{"resource_type", "namespace"}),
-		SleepInfoInfo: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		CurrentSleepInfo: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: prefix,
-			Name:      "sleepinfo_info",
+			Name:      "current_sleepinfo",
 			Help:      "Info about SleepInfo resource",
+		}, []string{"name", "namespace"}),
+		CurrentPermanentSleepInfo: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Namespace: prefix,
+			Name:      "current_permanent_sleepinfo",
+			Help:      "Number of the currently SleepInfo resource without wakeUpAt set",
 		}, []string{"name", "namespace"}),
 	}
 	return sleepInfoMetrics
@@ -31,11 +35,8 @@ func SetupMetricsOrDie(prefix string) Metrics {
 func (customMetrics Metrics) MustRegister(registry metrics.RegistererGatherer) Metrics {
 	registry.MustRegister(
 		customMetrics.SleepWorkloadTotal,
-		customMetrics.SleepInfoInfo,
+		customMetrics.CurrentSleepInfo,
+		customMetrics.CurrentPermanentSleepInfo,
 	)
 	return customMetrics
-}
-
-func getHour(n int) float64 {
-	return time.Duration(n * int(time.Hour)).Seconds()
 }

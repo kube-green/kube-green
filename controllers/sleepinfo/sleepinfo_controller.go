@@ -84,17 +84,27 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		// requeue (we'll need to wait for a new notification), and we can get them
 		// on deleted requests.
 		if apierrors.IsNotFound(err) {
-			r.Metrics.SleepInfoInfo.Delete(prometheus.Labels{
+			r.Metrics.CurrentSleepInfo.Delete(prometheus.Labels{
+				"name":      req.Name,
+				"namespace": req.Namespace,
+			})
+			r.Metrics.CurrentPermanentSleepInfo.Delete(prometheus.Labels{
 				"name":      req.Name,
 				"namespace": req.Namespace,
 			})
 		}
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
-	r.Metrics.SleepInfoInfo.With(prometheus.Labels{
+	r.Metrics.CurrentSleepInfo.With(prometheus.Labels{
 		"name":      req.Name,
 		"namespace": req.Namespace,
 	}).Set(1)
+	if sleepInfo.Spec.WakeUpTime == "" {
+		r.Metrics.CurrentPermanentSleepInfo.With(prometheus.Labels{
+			"name":      req.Name,
+			"namespace": req.Namespace,
+		}).Set(1)
+	}
 
 	secretName := getSecretName(req.Name)
 	secret, err := r.getSecret(ctx, secretName, req.Namespace)

@@ -18,6 +18,7 @@ import (
 	promTestutil "github.com/prometheus/client_golang/prometheus/testutil"
 	appsv1 "k8s.io/api/apps/v1"
 	core "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -723,6 +724,84 @@ var _ = Describe("SleepInfo Controller", func() {
 		assertCorrectWakeUpOperation(assertContextInfo.withSchedule("2021-03-23T20:19:50.100Z").withRequeue(45*60 + 9.9))
 		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T21:05:00.000Z").withRequeue(15 * 60))
 	})
+
+	It("reconcile - delete SleepInfo", func() {
+		namespace := "delete-sleepinfo"
+		req, originalResources := setupNamespaceWithResources(ctx, sleepInfoName, namespace, sleepInfoReconciler, mockNow, setupOptions{})
+
+		assertContextInfo := AssertOperation{
+			testLogger:          testLogger,
+			ctx:                 ctx,
+			req:                 req,
+			namespace:           namespace,
+			sleepInfoName:       sleepInfoName,
+			originalDeployments: originalResources.deploymentList,
+			reconciler:          sleepInfoReconciler,
+		}
+		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T20:05:59.000Z").withRequeue(14*60 + 1))
+
+		m := sleepInfoReconciler.Metrics
+		Expect(promTestutil.CollectAndCount(m.CurrentSleepInfo)).To(Equal(1))
+		Expect(promTestutil.CollectAndCount(m.CurrentPermanentSleepInfo)).To(Equal(0))
+
+		By("delete sleep info", func() {
+			sleepInfo, err := sleepInfoReconciler.getSleepInfo(ctx, req)
+			Expect(err).NotTo(HaveOccurred())
+			err = k8sClient.Delete(ctx, sleepInfo)
+			Expect(err).NotTo(HaveOccurred())
+
+			Eventually(func() bool {
+				_, err := sleepInfoReconciler.getSleepInfo(ctx, req)
+				return apierrors.IsNotFound(err)
+			}, "100ms", "5s").Should(BeTrue())
+		})
+
+		_, err := sleepInfoReconciler.Reconcile(ctx, req)
+		Expect(err).NotTo(HaveOccurred())
+
+		Expect(promTestutil.CollectAndCount(m.CurrentSleepInfo)).To(Equal(0))
+		Expect(promTestutil.CollectAndCount(m.CurrentPermanentSleepInfo)).To(Equal(0))
+	})
+
+	It("reconcile - delete SleepInfo with empty wake up time", func() {
+		namespace := "delete-sleepinfo-no-wakeup"
+		req, originalResources := setupNamespaceWithResources(ctx, sleepInfoName, namespace, sleepInfoReconciler, mockNow, setupOptions{
+			unsetWakeUpTime: true,
+		})
+
+		assertContextInfo := AssertOperation{
+			testLogger:          testLogger,
+			ctx:                 ctx,
+			req:                 req,
+			namespace:           namespace,
+			sleepInfoName:       sleepInfoName,
+			originalDeployments: originalResources.deploymentList,
+			reconciler:          sleepInfoReconciler,
+		}
+		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T20:05:59.000Z").withRequeue(59*60 + 1))
+
+		m := sleepInfoReconciler.Metrics
+		Expect(promTestutil.CollectAndCount(m.CurrentSleepInfo)).To(Equal(1))
+		Expect(promTestutil.CollectAndCount(m.CurrentPermanentSleepInfo)).To(Equal(1))
+
+		By("delete sleep info", func() {
+			sleepInfo, err := sleepInfoReconciler.getSleepInfo(ctx, req)
+			Expect(err).NotTo(HaveOccurred())
+			err = k8sClient.Delete(ctx, sleepInfo)
+			Expect(err).NotTo(HaveOccurred())
+
+			Eventually(func() bool {
+				_, err := sleepInfoReconciler.getSleepInfo(ctx, req)
+				return apierrors.IsNotFound(err)
+			}, "100ms", "5s").Should(BeTrue())
+		})
+
+		_, err := sleepInfoReconciler.Reconcile(ctx, req)
+		Expect(err).NotTo(HaveOccurred())
+
+		Expect(promTestutil.CollectAndCount(m.CurrentSleepInfo)).To(Equal(0))
+		Expect(promTestutil.CollectAndCount(m.CurrentPermanentSleepInfo)).To(Equal(0))
+	})
 })
 
 type mockClock struct {
@@ -930,13 +1009,28 @@ func assertCorrectSleepOperation(assert AssertOperation) {
 
 		Expect(promTestutil.CollectAndCount(metrics.SleepWorkloadTotal)).To(Equal(2))
 
-		Expect(promTestutil.CollectAndCount(metrics.SleepInfoInfo)).To(Equal(1))
+		Expect(promTestutil.CollectAndCount(metrics.CurrentSleepInfo)).To(Equal(1))
 		expectedInfo := bytes.NewBufferString(fmt.Sprintf(`
-		# HELP kube_green_sleepinfo_info Info about SleepInfo resource
-		# TYPE kube_green_sleepinfo_info gauge
-		kube_green_sleepinfo_info{name="%s",namespace="%s"} 1
+		# HELP kube_green_current_sleepinfo Info about SleepInfo resource
+		# TYPE kube_green_current_sleepinfo gauge
+		kube_green_current_sleepinfo{name="%s",namespace="%s"} 1
 `, assert.sleepInfoName, assert.namespace))
-		Expect(promTestutil.CollectAndCompare(metrics.SleepInfoInfo, expectedInfo)).NotTo(HaveOccurred())
+		Expect(promTestutil.CollectAndCompare(metrics.CurrentSleepInfo, expectedInfo)).NotTo(HaveOccurred())
+
+		sleepInfo, err := sleepInfoReconciler.getSleepInfo(assert.ctx, assert.req)
+		Expect(err).NotTo(HaveOccurred())
+
+		if sleepInfo.Spec.WakeUpTime == "" {
+			Expect(promTestutil.CollectAndCount(metrics.CurrentPermanentSleepInfo)).To(Equal(1))
+			expectedCurrentPermanentInfo := bytes.NewBufferString(fmt.Sprintf(`
+		# HELP kube_green_current_permanent_sleepinfo Number of the currently SleepInfo resource without wakeUpAt set
+		# TYPE kube_green_current_permanent_sleepinfo gauge
+		kube_green_current_permanent_sleepinfo{name="%s",namespace="%s"} 1
+`, assert.sleepInfoName, assert.namespace))
+			Expect(promTestutil.CollectAndCompare(metrics.CurrentPermanentSleepInfo, expectedCurrentPermanentInfo)).NotTo(HaveOccurred())
+		} else {
+			Expect(promTestutil.CollectAndCount(metrics.CurrentPermanentSleepInfo)).To(Equal(0))
+		}
 	})
 }
 
@@ -1002,6 +1096,7 @@ func assertCorrectWakeUpOperation(assert AssertOperation) {
 		metrics := sleepInfoReconciler.Metrics
 
 		Expect(promTestutil.CollectAndCount(metrics.SleepWorkloadTotal)).To(Equal(2))
-		Expect(promTestutil.CollectAndCount(metrics.SleepInfoInfo)).To(Equal(1))
+		Expect(promTestutil.CollectAndCount(metrics.CurrentSleepInfo)).To(Equal(1))
+		Expect(promTestutil.CollectAndCount(metrics.CurrentPermanentSleepInfo)).To(Equal(0))
 	})
 }
