@@ -5,22 +5,34 @@ import (
 	"encoding/json"
 
 	kubegreenv1alpha1 "github.com/kube-green/kube-green/api/v1alpha1"
+	"github.com/kube-green/kube-green/controllers/sleepinfo/metrics"
 	"github.com/kube-green/kube-green/controllers/sleepinfo/resource"
+	"github.com/prometheus/client_golang/prometheus"
 
 	appsv1 "k8s.io/api/apps/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+const resourceType = "deployment"
+
 type deployments struct {
 	resource.ResourceClient
-	data             []appsv1.Deployment
 	OriginalReplicas map[string]int32
+
+	data          []appsv1.Deployment
+	metricsClient metrics.Metrics
+	namespace     string
 }
 
-func NewResource(ctx context.Context, res resource.ResourceClient, namespace string, originalReplicas map[string]int32) (deployments, error) {
+func NewResource(ctx context.Context, res resource.ResourceClient, namespace string, originalReplicas map[string]int32, metricsClient metrics.Metrics) (deployments, error) {
+	if originalReplicas == nil {
+		originalReplicas = make(map[string]int32)
+	}
 	d := deployments{
 		ResourceClient:   res,
 		OriginalReplicas: originalReplicas,
+		metricsClient:    metricsClient,
+		namespace:        namespace,
 	}
 	if err := d.fetch(ctx, namespace); err != nil {
 		return deployments{}, err
@@ -34,6 +46,8 @@ func (d deployments) HasResource() bool {
 }
 
 func (d deployments) Sleep(ctx context.Context) error {
+	sleepReplicas := float64(0)
+	numberOfDeploymentSleeped := float64(0)
 	for _, deployment := range d.data {
 		deployment := deployment
 
@@ -41,6 +55,11 @@ func (d deployments) Sleep(ctx context.Context) error {
 		if deploymentReplicas == 0 {
 			continue
 		}
+		d.OriginalReplicas[deployment.Name] = deploymentReplicas
+
+		sleepReplicas += float64(deploymentReplicas)
+		numberOfDeploymentSleeped += 1
+
 		newDeploy := deployment.DeepCopy()
 		*newDeploy.Spec.Replicas = 0
 
@@ -48,10 +67,18 @@ func (d deployments) Sleep(ctx context.Context) error {
 			return err
 		}
 	}
+
+	d.metricsClient.SleepWorkloadTotal.With(prometheus.Labels{
+		"resource_type": resourceType,
+		"namespace":     d.namespace,
+	}).Add(numberOfDeploymentSleeped)
+
 	return nil
 }
 
 func (d deployments) WakeUp(ctx context.Context) error {
+	wakeUpReplicas := float64(0)
+
 	for _, deployment := range d.data {
 		deployment := deployment
 
@@ -66,6 +93,7 @@ func (d deployments) WakeUp(ctx context.Context) error {
 			deployLogger.Info("original deploy info not correctly set")
 			continue
 		}
+		wakeUpReplicas += float64(replica)
 
 		newDeploy := deployment.DeepCopy()
 		*newDeploy.Spec.Replicas = replica
@@ -74,6 +102,7 @@ func (d deployments) WakeUp(ctx context.Context) error {
 			return err
 		}
 	}
+
 	return nil
 }
 
