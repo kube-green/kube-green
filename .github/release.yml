@@ -1,5 +1,7 @@
 changelog:
   exclude:
+    labels:
+      - dependencies
     authors:
       - dependabot
   categories:
