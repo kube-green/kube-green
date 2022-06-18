@@ -1,7 +1,5 @@
 changelog:
   exclude:
-    labels:
-      - dependencies
     authors:
       - dependabot
   categories:
@@ -14,6 +12,9 @@ changelog:
     - title: Bug fixes 🎉
       labels:
         - bug
+    - title: Security Fixes 🔐
+      labels:
+        - security-fix
     - title: Other Changes
       labels:
         - "*"
