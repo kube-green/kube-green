@@ -9,13 +9,13 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/go-logr/logr"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	kubegreenv1alpha1 "github.com/kube-green/kube-green/api/v1alpha1"
@@ -38,7 +38,6 @@ const (
 // SleepInfoReconciler reconciles a SleepInfo object
 type SleepInfoReconciler struct {
 	client.Client
-	Log    logr.Logger
 	Scheme *runtime.Scheme
 	Clock
 }
@@ -70,7 +69,8 @@ var sleepDelta int64 = 60
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.7.2/pkg/reconcile
 func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := r.Log.WithValues("sleepinfo", req.NamespacedName)
+	logger := log.FromContext(ctx).WithName("controllers").WithName("SleepInfo")
+	log := logger.WithValues("sleepinfo", req.NamespacedName)
 
 	sleepInfo, err := r.getSleepInfo(ctx, req)
 	if err != nil {
@@ -94,7 +94,7 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 	now := r.Clock.Now()
 
-	isToExecute, nextSchedule, requeueAfter, err := r.getNextSchedule(sleepInfoData, now, sleepDelta)
+	isToExecute, nextSchedule, requeueAfter, err := r.getNextSchedule(ctx, sleepInfoData, now, sleepDelta)
 	if err != nil {
 		log.Error(err, "unable to update deployment with 0 replicas")
 		return ctrl.Result{}, err

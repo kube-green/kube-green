@@ -19,7 +19,6 @@ import (
 )
 
 func TestGetSecret(t *testing.T) {
-	testLogger := zap.New(zap.UseDevMode(true))
 	secretName := "secret-name"
 	namespace := "my-namespace"
 
@@ -39,7 +38,6 @@ func TestGetSecret(t *testing.T) {
 		}
 		r := SleepInfoReconciler{
 			Client: client,
-			Log:    testLogger,
 		}
 
 		secret, err := r.getSecret(context.Background(), secretName, namespace)
@@ -68,7 +66,6 @@ func TestGetSecret(t *testing.T) {
 		}
 		r := SleepInfoReconciler{
 			Client: client,
-			Log:    testLogger,
 		}
 
 		secret, err := r.getSecret(context.Background(), secretName, namespace)
@@ -127,7 +124,6 @@ func TestUpsertSecrets(t *testing.T) {
 
 		r := SleepInfoReconciler{
 			Client: client,
-			Log:    testLogger,
 		}
 		sleepInfoData := SleepInfoData{
 			CurrentOperationType: sleepOperation,
@@ -202,7 +198,6 @@ func TestUpsertSecrets(t *testing.T) {
 
 		r := SleepInfoReconciler{
 			Client: client,
-			Log:    testLogger,
 		}
 		sleepInfoData := SleepInfoData{
 			CurrentOperationType: sleepOperation,
@@ -298,7 +293,6 @@ func TestUpsertSecrets(t *testing.T) {
 		}
 		r := SleepInfoReconciler{
 			Client: client,
-			Log:    testLogger,
 		}
 		sleepInfoData := SleepInfoData{
 			CurrentOperationType: sleepOperation,
@@ -351,7 +345,6 @@ func TestUpsertSecrets(t *testing.T) {
 
 		r := SleepInfoReconciler{
 			Client: client,
-			Log:    testLogger,
 		}
 		sleepInfoData := SleepInfoData{
 			CurrentOperationType: sleepOperation,
@@ -396,7 +389,6 @@ func TestUpsertSecrets(t *testing.T) {
 		}
 		r := SleepInfoReconciler{
 			Client: client,
-			Log:    testLogger,
 		}
 		sleepInfoData := SleepInfoData{
 			CurrentOperationType: sleepOperation,
@@ -436,7 +428,6 @@ func TestUpsertSecrets(t *testing.T) {
 		}
 		r := SleepInfoReconciler{
 			Client: client,
-			Log:    testLogger,
 		}
 		sleepInfoData := SleepInfoData{
 			CurrentOperationType: sleepOperation,

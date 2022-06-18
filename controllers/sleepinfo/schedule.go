@@ -1,13 +1,16 @@
 package sleepinfo
 
 import (
+	"context"
 	"fmt"
 	"time"
 
 	"github.com/robfig/cron/v3"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-func (r *SleepInfoReconciler) getNextSchedule(data SleepInfoData, now time.Time, scheduleDeltaSeconds int64) (bool, time.Time, time.Duration, error) {
+func (r *SleepInfoReconciler) getNextSchedule(ctx context.Context, data SleepInfoData, now time.Time, scheduleDeltaSeconds int64) (bool, time.Time, time.Duration, error) {
+	logger := log.FromContext(ctx).WithName("controllers").WithName("SleepInfo")
 	scheduleDelta := time.Duration(scheduleDeltaSeconds) * time.Second
 	sched, err := getCronParsed(data.CurrentOperationSchedule)
 	if err != nil {
@@ -38,7 +41,7 @@ func (r *SleepInfoReconciler) getNextSchedule(data SleepInfoData, now time.Time,
 		nextSchedule = nextOpSched.Next(now.Add(scheduleDelta))
 	}
 	requeueAfter = getRequeueAfter(nextSchedule, now)
-	r.Log.Info("is time to execute", "execute", isToExecute, "next", nextSchedule, "last", lastSchedule, "now", now)
+	logger.Info("is time to execute", "execute", isToExecute, "next", nextSchedule, "last", lastSchedule, "now", now)
 
 	return isToExecute, nextSchedule, requeueAfter, nil
 }

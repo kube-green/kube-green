@@ -68,7 +68,6 @@ func main() {
 
 	if err = (&sleepinfocontroller.SleepInfoReconciler{
 		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("SleepInfo"),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "SleepInfo")

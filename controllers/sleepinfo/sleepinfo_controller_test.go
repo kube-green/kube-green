@@ -9,7 +9,6 @@ import (
 	"github.com/kube-green/kube-green/controllers/internal/testutil"
 	"github.com/kube-green/kube-green/controllers/sleepinfo/cronjobs"
 
-	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
@@ -20,6 +19,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -41,11 +41,11 @@ var _ = Describe("SleepInfo Controller", func() {
 				now: mockNow,
 			},
 			Client: k8sClient,
-			Log:    testLogger,
 		}
 	})
 
 	ctx := context.Background()
+	ctx = log.IntoContext(ctx, testLogger)
 
 	namespace := "zero-deployments"
 	It("reconcile - zero deployments", func() {
@@ -73,7 +73,6 @@ var _ = Describe("SleepInfo Controller", func() {
 				now: sleepScheduleTime,
 			},
 			Client: k8sClient,
-			Log:    testLogger,
 		}
 		result, err = sleepInfoReconciler.Reconcile(ctx, req)
 		Expect(err).NotTo(HaveOccurred())
@@ -113,7 +112,6 @@ var _ = Describe("SleepInfo Controller", func() {
 				now: "2021-03-23T20:07:00.000Z",
 			},
 			Client: k8sClient,
-			Log:    testLogger,
 		}
 		result, err = sleepInfoReconciler.Reconcile(ctx, req)
 		Expect(err).NotTo(HaveOccurred())
@@ -271,7 +269,6 @@ var _ = Describe("SleepInfo Controller", func() {
 		req, originalResources := setupNamespaceWithResources(ctx, sleepInfoName, namespace, sleepInfoReconciler, mockNow, setupOptions{})
 
 		assertContextInfo := AssertOperation{
-			testLogger:          testLogger,
 			ctx:                 ctx,
 			req:                 req,
 			namespace:           namespace,
@@ -289,7 +286,6 @@ var _ = Describe("SleepInfo Controller", func() {
 		req, originalResources := setupNamespaceWithResources(ctx, sleepInfoName, namespace, sleepInfoReconciler, mockNow, setupOptions{})
 
 		assertContextInfo := AssertOperation{
-			testLogger:          testLogger,
 			ctx:                 ctx,
 			req:                 req,
 			namespace:           namespace,
@@ -318,7 +314,6 @@ var _ = Describe("SleepInfo Controller", func() {
 		req, originalResources := setupNamespaceWithResources(ctx, sleepInfoName, namespace, sleepInfoReconciler, mockNow, setupOptions{})
 
 		assertContextInfo := AssertOperation{
-			testLogger:          testLogger,
 			ctx:                 ctx,
 			req:                 req,
 			namespace:           namespace,
@@ -349,7 +344,6 @@ var _ = Describe("SleepInfo Controller", func() {
 		req, originalResources := setupNamespaceWithResources(ctx, sleepInfoName, namespace, sleepInfoReconciler, mockNow, setupOptions{})
 
 		assertContextInfo := AssertOperation{
-			testLogger:          testLogger,
 			ctx:                 ctx,
 			req:                 req,
 			namespace:           namespace,
@@ -372,7 +366,6 @@ var _ = Describe("SleepInfo Controller", func() {
 		})
 
 		assertContextInfo := AssertOperation{
-			testLogger:          testLogger,
 			ctx:                 ctx,
 			req:                 req,
 			namespace:           namespace,
@@ -428,7 +421,6 @@ var _ = Describe("SleepInfo Controller", func() {
 				now: "2021-03-23T20:05:59.999Z",
 			},
 			Client: k8sClient,
-			Log:    testLogger,
 		}
 		result, err := sleepInfoReconciler.Reconcile(ctx, req)
 		Expect(err).NotTo(HaveOccurred())
@@ -450,7 +442,6 @@ var _ = Describe("SleepInfo Controller", func() {
 		req, originalResources := setupNamespaceWithResources(ctx, sleepInfoName, namespace, sleepInfoReconciler, mockNow, setupOptions{})
 
 		assertContextInfo := AssertOperation{
-			testLogger:          testLogger,
 			ctx:                 ctx,
 			req:                 req,
 			namespace:           namespace,
@@ -534,7 +525,6 @@ var _ = Describe("SleepInfo Controller", func() {
 		})
 
 		assertContextInfo := AssertOperation{
-			testLogger:          testLogger,
 			ctx:                 ctx,
 			req:                 req,
 			namespace:           namespace,
@@ -556,7 +546,6 @@ var _ = Describe("SleepInfo Controller", func() {
 		})
 
 		assertContextInfo := AssertOperation{
-			testLogger:    testLogger,
 			ctx:           ctx,
 			req:           req,
 			namespace:     namespace,
@@ -580,7 +569,6 @@ var _ = Describe("SleepInfo Controller", func() {
 		})
 
 		assertContextInfo := AssertOperation{
-			testLogger:    testLogger,
 			ctx:           ctx,
 			req:           req,
 			namespace:     namespace,
@@ -604,7 +592,6 @@ var _ = Describe("SleepInfo Controller", func() {
 		})
 
 		assertContextInfo := AssertOperation{
-			testLogger:    testLogger,
 			ctx:           ctx,
 			req:           req,
 			namespace:     namespace,
@@ -640,7 +627,6 @@ var _ = Describe("SleepInfo Controller", func() {
 		})
 
 		assertContextInfo := AssertOperation{
-			testLogger:          testLogger,
 			ctx:                 ctx,
 			req:                 req,
 			namespace:           namespace,
@@ -666,7 +652,6 @@ var _ = Describe("SleepInfo Controller", func() {
 		})
 
 		assertContextInfo := AssertOperation{
-			testLogger:    testLogger,
 			ctx:           ctx,
 			req:           req,
 			namespace:     namespace,
@@ -740,7 +725,6 @@ func getTime(mockNowRaw string) time.Time {
 }
 
 type AssertOperation struct {
-	testLogger    logr.Logger
 	ctx           context.Context
 	req           ctrl.Request
 	namespace     string
@@ -783,7 +767,6 @@ func assertCorrectSleepOperation(assert AssertOperation) {
 			now: assert.scheduleTime,
 		},
 		Client: k8sClient,
-		Log:    assert.testLogger,
 	}
 	result, err := sleepInfoReconciler.Reconcile(assert.ctx, assert.req)
 	Expect(err).NotTo(HaveOccurred())
@@ -910,7 +893,6 @@ func assertCorrectWakeUpOperation(assert AssertOperation) {
 			now: assert.scheduleTime,
 		},
 		Client: k8sClient,
-		Log:    assert.testLogger,
 	}
 	result, err := sleepInfoReconciler.Reconcile(assert.ctx, assert.req)
 	Expect(err).NotTo(HaveOccurred())

@@ -1,11 +1,13 @@
 package sleepinfo
 
 import (
+	"context"
 	"fmt"
 	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
@@ -14,8 +16,9 @@ var _ = Describe("Test Schedule", func() {
 
 	sleepInfoReconciler := SleepInfoReconciler{
 		Client: k8sClient,
-		Log:    testLogger,
 	}
+	ctx := context.Background()
+	ctx = log.IntoContext(ctx, testLogger)
 
 	type expected struct {
 		isToExecute  bool
@@ -388,7 +391,7 @@ var _ = Describe("Test Schedule", func() {
 			if scheduleDeltaSeconds == 0 {
 				scheduleDeltaSeconds = 1
 			}
-			isToExecute, nextSchedule, requeueAfter, err := sleepInfoReconciler.getNextSchedule(test.data, getTime(test.now), scheduleDeltaSeconds)
+			isToExecute, nextSchedule, requeueAfter, err := sleepInfoReconciler.getNextSchedule(ctx, test.data, getTime(test.now), scheduleDeltaSeconds)
 
 			expected := test.expected
 			if expected.err != "" {
