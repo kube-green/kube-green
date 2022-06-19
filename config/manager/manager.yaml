@@ -20,6 +20,8 @@ spec:
   replicas: 1
   template:
     metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: manager
       labels:
         app: kube-green
         control-plane: controller-manager
