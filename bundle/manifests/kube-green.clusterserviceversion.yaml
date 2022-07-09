@@ -311,7 +311,6 @@ spec:
   webhookdefinitions:
   - admissionReviewVersions:
     - v1
-    - v1beta1
     containerPort: 443
     deploymentName: kube-green-controller-manager
     failurePolicy: Fail
