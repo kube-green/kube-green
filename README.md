@@ -123,13 +123,8 @@ We use [SemVer](http://semver.org/) for versioning. For the versions available, 
 
 To upgrade the version:
 
-1. `export TAG_VERSION=v{{NEW_VERSION_TO_TAG}}` where `{{NEW_VERSION_TO_TAG}}` should be replaced with the next version to upgrade. N.B.: version should include `v` as first char.
-2. run `./hack/update-version.sh $TAG_VERSION`
-3. run `make`
-4. run `make bundle` to generate the bundle
-5. add, commit and push
-6. git tag $TAG_VERSION
-7. `git push --tags origin $TAG_VERSION`
+1. make release version=v{{NEW_VERSION_TO_TAG}} where `{{NEW_VERSION_TO_TAG}}` should be replaced with the next version to upgrade. N.B.: version should include `v` as first char.
+2. `git push --tags origin v{{NEW_VERSION_TO_TAG}}`
 
 ## API Reference documentation
 
