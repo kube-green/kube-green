@@ -240,3 +240,13 @@ catalog-build: opm ## Build a catalog image.
 .PHONY: catalog-push
 catalog-push: ## Push a catalog image.
 	$(MAKE) docker-push IMG=$(CATALOG_IMG)
+
+# version upgrade
+.PHONY: release
+release:
+	./hack/update-version.sh $(version)
+	$(MAKE)
+	$(MAKE) bundle
+	git add .
+	git commit -m "Upgrade to $(version)"
+	git tag $(version)
