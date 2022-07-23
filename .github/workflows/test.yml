@@ -91,7 +91,7 @@ jobs:
           password: ${{ secrets.DOCKER_TOKEN }}
 
       - name: Cache build
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ${{ env.context }}build
           key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ github.sha }}
