@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - support to golang 1.18
 - switch config to use kustomize v4
 - support to Kubernetes 1.24
+- build in platform arm/v7
 
 ## v0.3.1 - 2022-03-06
 
