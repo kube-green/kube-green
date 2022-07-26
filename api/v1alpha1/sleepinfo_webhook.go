@@ -27,14 +27,14 @@ var _ webhook.Validator = &SleepInfo{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (s *SleepInfo) ValidateCreate() error {
-	sleepinfolog.Info("validate create", "name", s.Name)
+	sleepinfolog.Info("validate create", "name", s.Name, "namespace", s.Namespace)
 
 	return s.validateSleepInfo()
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
 func (s *SleepInfo) ValidateUpdate(old runtime.Object) error {
-	sleepinfolog.Info("validate update", "name", s.Name)
+	sleepinfolog.Info("validate update", "name", s.Name, "namespace", s.Namespace)
 
 	return s.validateSleepInfo()
 }
