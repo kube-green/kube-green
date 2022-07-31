@@ -1,8 +1,11 @@
 name: Test and build
 on:
-  pull_request:
-    types: [opened]
   push:
+    branches:
+      - "main"
+  pull_request:
+    branches:
+      - "main"
 jobs:
   tests:
     name: Test k8s ${{ matrix.k8s_version }} on os ${{matrix.os}} - go version ${{ matrix.go_version }}
