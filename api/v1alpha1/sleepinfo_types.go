@@ -133,7 +133,7 @@ func (s SleepInfo) IsDeploymentsToSuspend() bool {
 	if s.Spec.SuspendDeployments == nil {
 		return true
 	}
-	return s.Spec.SuspendCronjobs
+	return *s.Spec.SuspendDeployments
 }
 
 //+kubebuilder:object:root=true

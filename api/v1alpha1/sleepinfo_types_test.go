@@ -196,6 +196,82 @@ func TestSleepInfo(t *testing.T) {
 		})
 	})
 
+	t.Run("suspend deployment options", func(t *testing.T) {
+		t.Run("true", func(t *testing.T) {
+			sleepInfo := SleepInfo{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "SleepInfo",
+					APIVersion: "v1alpha1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "sleep-test-1",
+					Namespace: "namespace",
+				},
+				Spec: SleepInfoSpec{
+					SuspendDeployments: getPtr(true),
+				},
+			}
+
+			isDeploymentToSuspend := sleepInfo.IsDeploymentsToSuspend()
+			require.True(t, isDeploymentToSuspend)
+		})
+
+		t.Run("false", func(t *testing.T) {
+			sleepInfo := SleepInfo{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "SleepInfo",
+					APIVersion: "v1alpha1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "sleep-test-1",
+					Namespace: "namespace",
+				},
+				Spec: SleepInfoSpec{
+					SuspendDeployments: getPtr(false),
+				},
+			}
+
+			isDeploymentToSuspend := sleepInfo.IsDeploymentsToSuspend()
+			require.False(t, isDeploymentToSuspend)
+		})
+
+		t.Run("empty - default to true", func(t *testing.T) {
+			sleepInfo := SleepInfo{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "SleepInfo",
+					APIVersion: "v1alpha1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "sleep-test-1",
+					Namespace: "namespace",
+				},
+				Spec: SleepInfoSpec{},
+			}
+
+			isDeploymentToSuspend := sleepInfo.IsDeploymentsToSuspend()
+			require.True(t, isDeploymentToSuspend)
+		})
+
+		t.Run("nil - default to true", func(t *testing.T) {
+			sleepInfo := SleepInfo{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "SleepInfo",
+					APIVersion: "v1alpha1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "sleep-test-1",
+					Namespace: "namespace",
+				},
+				Spec: SleepInfoSpec{
+					SuspendDeployments: nil,
+				},
+			}
+
+			isDeploymentToSuspend := sleepInfo.IsDeploymentsToSuspend()
+			require.True(t, isDeploymentToSuspend)
+		})
+	})
+
 	t.Run("fails if weekday is empty", func(t *testing.T) {
 		sleepInfo := SleepInfo{
 			TypeMeta: metav1.TypeMeta{
@@ -238,4 +314,8 @@ func TestSleepInfo(t *testing.T) {
 			require.Empty(t, schedule)
 		})
 	})
+}
+
+func getPtr[T any](item T) *T {
+	return &item
 }

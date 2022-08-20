@@ -69,14 +69,14 @@ func TestNewResource(t *testing.T) {
 			expected: []appsv1.Deployment{},
 		},
 		{
-			name: "disabled cronjob suspend",
+			name: "disabled deployment suspend",
 			client: fake.
 				NewClientBuilder().
 				WithRuntimeObjects([]runtime.Object{&deployment1, &deployment2, &deploymentOtherNamespace}...).
 				Build(),
 			sleepInfo: &v1alpha1.SleepInfo{
 				Spec: v1alpha1.SleepInfoSpec{
-					SuspendDeployments: getPtr(true),
+					SuspendDeployments: getPtr(false),
 				},
 			},
 			expected: []appsv1.Deployment{},
@@ -452,6 +452,28 @@ func TestDeploymentOriginalReplicas(t *testing.T) {
 		require.EqualError(t, err, "json: cannot unmarshal object into Go value of type []deployments.OriginalReplicas")
 		require.Nil(t, info)
 	})
+
+	t.Run("do nothing if deployments are not to suspend", func(t *testing.T) {
+		c := fake.NewClientBuilder().WithRuntimeObjects(&d1, &d2, &dZeroReplicas).Build()
+		r, err := NewResource(ctx, resource.ResourceClient{
+			Client: c,
+			Log:    testLogger,
+			SleepInfo: &v1alpha1.SleepInfo{
+				Spec: v1alpha1.SleepInfoSpec{
+					SuspendDeployments: getPtr(false),
+				},
+			},
+		}, namespace, map[string]int32{
+			d1.Name: replica1,
+			d2.Name: replica5,
+		})
+		require.NoError(t, err)
+
+		res, err := r.GetOriginalInfoToSave()
+		require.NoError(t, err)
+		require.Nil(t, res)
+	})
+
 }
 
 func getPtr[T any](item T) *T {

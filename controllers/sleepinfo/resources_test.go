@@ -287,7 +287,6 @@ func TestGetOriginalResourceInfoToSave(t *testing.T) {
 		data, err := r.getOriginalResourceInfoToSave()
 		require.NoError(t, err)
 		require.Equal(t, map[string][]byte{
-			replicasBeforeSleepKey:   nil,
 			originalCronjobStatusKey: []byte("[]"),
 		}, data)
 

@@ -39,7 +39,7 @@ func (r SleepInfoReconciler) upsertSecret(
 	sleepInfoData SleepInfoData,
 	resources Resources,
 ) error {
-	logger.Info("update secret")
+	logger.Info("update secret", "name", secretName)
 
 	var newSecret = &v1.Secret{
 		TypeMeta: metav1.TypeMeta{
