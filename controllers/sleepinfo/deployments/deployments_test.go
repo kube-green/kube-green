@@ -69,6 +69,19 @@ func TestNewResource(t *testing.T) {
 			expected: []appsv1.Deployment{},
 		},
 		{
+			name: "disabled cronjob suspend",
+			client: fake.
+				NewClientBuilder().
+				WithRuntimeObjects([]runtime.Object{&deployment1, &deployment2, &deploymentOtherNamespace}...).
+				Build(),
+			sleepInfo: &v1alpha1.SleepInfo{
+				Spec: v1alpha1.SleepInfoSpec{
+					SuspendDeployments: getPtr(true),
+				},
+			},
+			expected: []appsv1.Deployment{},
+		},
+		{
 			name: "with deployment to exclude",
 			client: fake.
 				NewClientBuilder().
@@ -439,4 +452,8 @@ func TestDeploymentOriginalReplicas(t *testing.T) {
 		require.EqualError(t, err, "json: cannot unmarshal object into Go value of type []deployments.OriginalReplicas")
 		require.Nil(t, info)
 	})
+}
+
+func getPtr[T any](item T) *T {
+	return &item
 }
