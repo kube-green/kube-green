@@ -1,0 +1,13 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: cj-1
+spec:
+  suspend: true
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: do-not-suspend
+spec:
+  suspend: false
