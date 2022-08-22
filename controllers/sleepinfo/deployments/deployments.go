@@ -15,12 +15,18 @@ type deployments struct {
 	resource.ResourceClient
 	data             []appsv1.Deployment
 	OriginalReplicas map[string]int32
+	areToSuspend     bool
 }
 
 func NewResource(ctx context.Context, res resource.ResourceClient, namespace string, originalReplicas map[string]int32) (deployments, error) {
 	d := deployments{
 		ResourceClient:   res,
 		OriginalReplicas: originalReplicas,
+		data:             []appsv1.Deployment{},
+		areToSuspend:     res.SleepInfo.IsDeploymentsToSuspend(),
+	}
+	if !d.areToSuspend {
+		return d, nil
 	}
 	if err := d.fetch(ctx, namespace); err != nil {
 		return deployments{}, err
@@ -128,6 +134,9 @@ type OriginalReplicas struct {
 }
 
 func (d deployments) GetOriginalInfoToSave() ([]byte, error) {
+	if !d.areToSuspend {
+		return nil, nil
+	}
 	originalDeploymentsReplicas := []OriginalReplicas{}
 	for _, deployment := range d.data {
 		originalReplicas := *deployment.Spec.Replicas

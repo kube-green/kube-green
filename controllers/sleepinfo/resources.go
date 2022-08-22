@@ -65,7 +65,9 @@ func (r Resources) getOriginalResourceInfoToSave() (map[string][]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	newData[replicasBeforeSleepKey] = originalDeploymentInfo
+	if originalDeploymentInfo != nil {
+		newData[replicasBeforeSleepKey] = originalDeploymentInfo
+	}
 
 	originalCronJobStatus, err := r.cronjobs.GetOriginalInfoToSave()
 	if err != nil {

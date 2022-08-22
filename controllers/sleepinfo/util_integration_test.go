@@ -25,21 +25,24 @@ import (
 )
 
 type setupOptions struct {
-	excludeRef      []kubegreenv1alpha1.ExcludeRef
-	unsetWakeUpTime bool
-	suspendCronjobs bool
-	insertCronjobs  bool
+	excludeRef         []kubegreenv1alpha1.ExcludeRef
+	unsetWakeUpTime    bool
+	suspendCronjobs    bool
+	insertCronjobs     bool
+	suspendDeployments *bool
 }
 
 type originalResources struct {
 	deploymentList []appsv1.Deployment
 	cronjobList    []unstructured.Unstructured
+
+	sleepInfo kubegreenv1alpha1.SleepInfo
 }
 
 func setupNamespaceWithResources(ctx context.Context, sleepInfoName, namespace string, reconciler SleepInfoReconciler, now string, opts setupOptions) (ctrl.Request, originalResources) {
 	cleanupNamespace(reconciler.Client, namespace)
 
-	createSleepInfo(ctx, sleepInfoName, namespace, opts)
+	sleepInfo := createSleepInfo(ctx, sleepInfoName, namespace, opts)
 
 	By("create deployments")
 	originalDeployments := upsertDeployments(ctx, namespace, false)
@@ -82,6 +85,8 @@ func setupNamespaceWithResources(ctx context.Context, sleepInfoName, namespace s
 	return req, originalResources{
 		deploymentList: originalDeployments,
 		cronjobList:    originalCronJobs,
+
+		sleepInfo: sleepInfo,
 	}
 }
 
@@ -167,8 +172,8 @@ func createSleepInfo(ctx context.Context, sleepInfoName, namespace string, opts 
 		},
 		Spec: kubegreenv1alpha1.SleepInfoSpec{
 			Weekdays:   "*",
-			SleepTime:  "*:05", // every 5 minute
-			WakeUpTime: "*:20", // every 20 minute
+			SleepTime:  "*:05", // at minute 5
+			WakeUpTime: "*:20", // at minute 20
 		},
 	}
 	if opts.unsetWakeUpTime {
@@ -179,6 +184,9 @@ func createSleepInfo(ctx context.Context, sleepInfoName, namespace string, opts 
 	}
 	if opts.suspendCronjobs {
 		sleepInfo.Spec.SuspendCronjobs = opts.suspendCronjobs
+	}
+	if opts.suspendDeployments != nil {
+		sleepInfo.Spec.SuspendDeployments = opts.suspendDeployments
 	}
 
 	Expect(k8sClient.Create(ctx, sleepInfo)).Should(Succeed())

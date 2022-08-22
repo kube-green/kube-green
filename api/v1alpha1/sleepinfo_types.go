@@ -60,6 +60,10 @@ type SleepInfoSpec struct {
 	// +optional
 	//+operator-sdk:csv:customresourcedefinitions:type=spec
 	SuspendCronjobs bool `json:"suspendCronJobs,omitempty"`
+	// If SuspendDeployments is set to false, on sleep the deployment of the namespace will not be suspended. By default Deployment will be suspended.
+	// +optional
+	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	SuspendDeployments *bool `json:"suspendDeployments,omitempty"`
 }
 
 // SleepInfoStatus defines the observed state of SleepInfo
@@ -123,6 +127,13 @@ func (s SleepInfo) getScheduleFromWeekdayAndTime(hourAndMinute string) (string, 
 
 func (s SleepInfo) IsCronjobsToSuspend() bool {
 	return s.Spec.SuspendCronjobs
+}
+
+func (s SleepInfo) IsDeploymentsToSuspend() bool {
+	if s.Spec.SuspendDeployments == nil {
+		return true
+	}
+	return *s.Spec.SuspendDeployments
 }
 
 //+kubebuilder:object:root=true

@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: echo-service-replica-1
+status:
+  readyReplicas: 1
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: echo-service-replica-4
+status:
+  readyReplicas: 4
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: do-not-sleep
+status:
+  readyReplicas: 1
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: cj-1
+spec:
+  suspend: false
