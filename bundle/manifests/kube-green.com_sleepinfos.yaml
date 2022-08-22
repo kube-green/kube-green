@@ -3,7 +3,7 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     cert-manager.io/inject-ca-from: kube-green/kube-green-serving-cert
-    controller-gen.kubebuilder.io/version: v0.8.0
+    controller-gen.kubebuilder.io/version: v0.9.2
   creationTimestamp: null
   name: sleepinfos.kube-green.com
 spec:
@@ -65,6 +65,11 @@ spec:
                 description: If SuspendCronjobs is set to true, on sleep the cronjobs
                   of the namespace will be suspended.
                 type: boolean
+              suspendDeployments:
+                description: If SuspendDeployments is set to false, on sleep the deployment
+                  of the namespace will not be suspended. By default Deployment will
+                  be suspended.
+                type: boolean
               timeZone:
                 description: Time zone to set the schedule, in IANA time zone identifier.
                   It is not required, default to UTC. For example, for the Italy time
@@ -105,5 +110,5 @@ status:
   acceptedNames:
     kind: ""
     plural: ""
-  conditions: []
-  storedVersions: []
+  conditions: null
+  storedVersions: null
