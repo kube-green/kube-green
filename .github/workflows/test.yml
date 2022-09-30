@@ -1,5 +1,6 @@
 name: Test and build
 on:
+  workflow_dispatch:
   push:
     branches:
       - "main"
@@ -8,7 +9,6 @@ on:
   pull_request:
     branches:
       - "main"
-  workflow_dispatch: []
 jobs:
   tests:
     name: Test k8s ${{ matrix.k8s_version }} on os ${{matrix.os}} - go version ${{ matrix.go_version }}
