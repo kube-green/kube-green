@@ -6,8 +6,16 @@
 [![Documentations][website-badge]][website]
 
 <div align="center">
-  <img src="https://github.com/kube-green/kube-green/raw/main/logo/logo.svg" width="250" >
+  <img src="#gh-light-mode-only">
+
 </div>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://github.com/kube-green/kube-green/raw/main/logo/logo.svg">
+  <img alt="Dark kube-green logo" src="https://github.com/kube-green/kube-green/raw/main/logo/logo-dark.svg">
+</picture>
+
+<!-- #gh-dark-mode-only -->
 
 How many of your dev/preview pods stay on during weekends? Or at night? It's a waste of resources! And money! But fear not, *kube-green* is here to the rescue.
 
