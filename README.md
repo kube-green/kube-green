@@ -5,14 +5,9 @@
 [![Coverage Status][coverage-badge]][coverage]
 [![Documentations][website-badge]][website]
 
-<div align="center">
-  <img src="#gh-light-mode-only">
-
-</div>
-
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://github.com/kube-green/kube-green/raw/main/logo/logo.svg">
-  <img alt="Dark kube-green logo" src="https://github.com/kube-green/kube-green/raw/main/logo/logo-dark.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/kube-green/kube-green/change-readme-image/logo/logo-dark.svg">
+  <img alt="Dark kube-green logo" src="https://raw.githubusercontent.com/kube-green/kube-green/main/logo/logo.svg">
 </picture>
 
 <!-- #gh-dark-mode-only -->
