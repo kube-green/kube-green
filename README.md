@@ -6,7 +6,7 @@
 [![Documentations][website-badge]][website]
 
 <div align="center">
-  <img src="https://github.com/kube-green/kube-green/raw/main/logo/logo.png" width="250" >
+  <img src="https://github.com/kube-green/kube-green/raw/main/logo/logo.svg" width="250" >
 </div>
 
 How many of your dev/preview pods stay on during weekends? Or at night? It's a waste of resources! And money! But fear not, *kube-green* is here to the rescue.
