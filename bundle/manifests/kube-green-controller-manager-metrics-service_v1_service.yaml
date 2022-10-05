@@ -3,6 +3,7 @@ kind: Service
 metadata:
   creationTimestamp: null
   labels:
+    app: kube-green
     control-plane: controller-manager
   name: kube-green-controller-manager-metrics-service
 spec:
@@ -12,6 +13,7 @@ spec:
     protocol: TCP
     targetPort: https
   selector:
+    app: kube-green
     control-plane: controller-manager
 status:
   loadBalancer: {}

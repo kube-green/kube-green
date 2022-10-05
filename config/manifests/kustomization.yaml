@@ -25,3 +25,8 @@ patchesJson6902:
     # Update the indices in this path if adding or removing volumes in the manager's Deployment.
     - op: remove
       path: /spec/template/spec/volumes/0
+
+labels:
+- includeSelectors: true
+  pairs:
+    app: kube-green

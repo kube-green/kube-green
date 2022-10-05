@@ -14,4 +14,6 @@ data:
       resourceName: 2bd226ed.kube-green.com
 kind: ConfigMap
 metadata:
+  labels:
+    app: kube-green
   name: kube-green-manager-config

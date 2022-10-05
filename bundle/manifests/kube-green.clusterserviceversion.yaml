@@ -8,6 +8,9 @@ metadata:
           "apiVersion": "kube-green.com/v1alpha1",
           "kind": "SleepInfo",
           "metadata": {
+            "labels": {
+              "app": "kube-green"
+            },
             "name": "sleepinfo-sample"
           },
           "spec": {
@@ -28,14 +31,16 @@ metadata:
       ]
     capabilities: Seamless Upgrades
     categories: Developer Tools
-    containerImage: kubegreen/kube-green:0.4.0
+    containerImage: docker.io/kubegreen/kube-green:0.4.0
     createdAt: "2021-02-21T00:00:00Z"
     description: Suspend your pods when no-one's using them to save energy and restore
       when necessary
-    operators.operatorframework.io/builder: operator-sdk-v1.22.1
+    operators.operatorframework.io/builder: operator-sdk-v1.23.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
     repository: https://github.com/kube-green/kube-green
     support: kube-green Community
+  labels:
+    app: kube-green
   name: kube-green.v0.4.0
   namespace: placeholder
 spec:
@@ -202,6 +207,7 @@ spec:
           replicas: 1
           selector:
             matchLabels:
+              app: kube-green
               control-plane: controller-manager
           strategy: {}
           template:
@@ -254,7 +260,7 @@ spec:
                 - --upstream=http://127.0.0.1:8080/
                 - --logtostderr=true
                 - --v=0
-                image: gcr.io/kubebuilder/kube-rbac-proxy:v0.12.0
+                image: gcr.io/kubebuilder/kube-rbac-proxy:v0.13.0
                 name: kube-rbac-proxy
                 ports:
                 - containerPort: 8443
