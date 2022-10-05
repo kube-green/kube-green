@@ -9,10 +9,10 @@ namespace: kube-green
 namePrefix: kube-green-
 
 # Labels to add to all resources and selectors.
-#labels:
-#- includeSelectors: true
-#  pairs:
-#    someName: someValue
+# labels:
+# - includeSelectors: true
+#   pairs:
+#     app: kube-green
 
 resources:
 - ../crd
