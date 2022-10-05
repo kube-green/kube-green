@@ -3,7 +3,7 @@
 # To re-generate a bundle for another specific version without changing the standard setup, you can:
 # - use the VERSION as arg of the bundle target (e.g make bundle VERSION=0.0.2)
 # - use environment variables to overwrite this value (e.g export VERSION=0.0.2)
-VERSION ?= 0.4.0
+VERSION ?= 0.4.1
 DOCKER_IMAGE_NAME ?= kubegreen/kube-green
 
 # CHANNELS define the bundle channels used in the bundle.
@@ -247,6 +247,7 @@ release:
 	./hack/update-version.sh $(version)
 	$(MAKE)
 	$(MAKE) bundle
+	git checkout bundle/tests/scorecard/config.yaml
 	git add .
 	git commit -m "Upgrade to $(version)"
 	git tag $(version)
