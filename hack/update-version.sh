@@ -21,5 +21,5 @@ fi
 
 sed -i.bck -E "s|VERSION \?= [0-9]+.[0-9]+.[0-9]+.*|VERSION ?= ${TAG_VALUE_WITHOUT_V}|" "${SOURCE_DIR}/Makefile"
 sed -i.bck -E "s|newTag: [0-9]+.[0-9]+.[0-9]+.*|newTag: ${TAG_VALUE_WITHOUT_V}|" "${SOURCE_DIR}/config/manager/kustomization.yaml"
-sed -i.bck -E "s|containerImage: kubegreen/kube-green:[0-9]+.[0-9]+.[0-9]+.*|containerImage: kubegreen/kube-green:${TAG_VALUE_WITHOUT_V}|" "${SOURCE_DIR}/config/manifests/bases/kube-green.clusterserviceversion.yaml"
+sed -i.bck -E "s|containerImage:.*kubegreen/kube-green:[0-9]+.[0-9]+.[0-9]+.*|containerImage:.*kubegreen/kube-green:${TAG_VALUE_WITHOUT_V}|" "${SOURCE_DIR}/config/manifests/bases/kube-green.clusterserviceversion.yaml"
 rm -fr "${SOURCE_DIR}/Makefile.bck" "${SOURCE_DIR}/config/manager/kustomization.yaml.bck" "${SOURCE_DIR}/config/manifests/bases/kube-green.clusterserviceversion.yaml.bck"
