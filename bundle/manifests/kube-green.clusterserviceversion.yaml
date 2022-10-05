@@ -41,7 +41,7 @@ metadata:
     support: kube-green Community
   labels:
     app: kube-green
-  name: kube-green.v0.4.0
+  name: kube-green.v0.4.1
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -225,7 +225,7 @@ spec:
                 - --leader-elect
                 command:
                 - /manager
-                image: kubegreen/kube-green:0.4.0
+                image: kubegreen/kube-green:0.4.1
                 livenessProbe:
                   httpGet:
                     path: /healthz
@@ -347,7 +347,7 @@ spec:
   provider:
     name: kube-green Community
     url: https://kube-green.dev
-  version: 0.4.0
+  version: 0.4.1
   webhookdefinitions:
   - admissionReviewVersions:
     - v1
