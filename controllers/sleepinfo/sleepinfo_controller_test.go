@@ -47,8 +47,8 @@ var _ = Describe("SleepInfo Controller", func() {
 
 	ctx := context.Background()
 
-	namespace := "zero-deployments"
 	It("reconcile - zero deployments", func() {
+		namespace := testutil.RandString(32)
 		createdSleepInfo := createSleepInfo(ctx, sleepInfoName, namespace, setupOptions{})
 
 		req := reconcile.Request{
@@ -145,7 +145,7 @@ var _ = Describe("SleepInfo Controller", func() {
 		req := reconcile.Request{
 			NamespacedName: types.NamespacedName{
 				Name:      "not-exists",
-				Namespace: namespace,
+				Namespace: testutil.RandString(32),
 			},
 		}
 		result, err := sleepInfoReconciler.Reconcile(ctx, req)
@@ -154,7 +154,7 @@ var _ = Describe("SleepInfo Controller", func() {
 	})
 
 	It("not valid sleep schedule", func() {
-		namespace := "not-valid-sleep-schedule"
+		namespace := testutil.RandString(32)
 		err := testutil.CreateNamespace(ctx, k8sClient, namespace)
 		Expect(err).NotTo(HaveOccurred())
 
@@ -187,7 +187,7 @@ var _ = Describe("SleepInfo Controller", func() {
 	})
 
 	It("not valid wake up schedule", func() {
-		namespace := "not-valid-wake-up-schedule"
+		namespace := testutil.RandString(32)
 		err := testutil.CreateNamespace(ctx, k8sClient, namespace)
 		Expect(err).NotTo(HaveOccurred())
 
@@ -221,7 +221,7 @@ var _ = Describe("SleepInfo Controller", func() {
 	})
 
 	It("not valid weekday", func() {
-		namespace := "not-valid-weekday"
+		namespace := testutil.RandString(32)
 		err := testutil.CreateNamespace(ctx, k8sClient, namespace)
 		Expect(err).NotTo(HaveOccurred())
 
@@ -267,7 +267,7 @@ var _ = Describe("SleepInfo Controller", func() {
 	})
 
 	It("reconcile - with deployments", func() {
-		namespace := "multiple-deployments"
+		namespace := testutil.RandString(32)
 		req, originalResources := setupNamespaceWithResources(ctx, sleepInfoName, namespace, sleepInfoReconciler, mockNow, setupOptions{})
 
 		assertContextInfo := AssertOperation{
@@ -285,7 +285,7 @@ var _ = Describe("SleepInfo Controller", func() {
 	})
 
 	It("reconcile - deploy between sleep and wake up", func() {
-		namespace := "deploy-between-sleep-and-wake-up"
+		namespace := testutil.RandString(32)
 		req, originalResources := setupNamespaceWithResources(ctx, sleepInfoName, namespace, sleepInfoReconciler, mockNow, setupOptions{})
 
 		assertContextInfo := AssertOperation{
@@ -314,7 +314,7 @@ var _ = Describe("SleepInfo Controller", func() {
 	})
 
 	It("reconcile - change single deployment replicas between sleep and wake up", func() {
-		namespace := "change-replicas-between-sleep-and-wake-up"
+		namespace := testutil.RandString(32)
 		req, originalResources := setupNamespaceWithResources(ctx, sleepInfoName, namespace, sleepInfoReconciler, mockNow, setupOptions{})
 
 		assertContextInfo := AssertOperation{
@@ -345,7 +345,7 @@ var _ = Describe("SleepInfo Controller", func() {
 	})
 
 	It("reconcile - twice consecutive sleep operation", func() {
-		namespace := "twice-sleep"
+		namespace := testutil.RandString(32)
 		req, originalResources := setupNamespaceWithResources(ctx, sleepInfoName, namespace, sleepInfoReconciler, mockNow, setupOptions{})
 
 		assertContextInfo := AssertOperation{
@@ -366,7 +366,7 @@ var _ = Describe("SleepInfo Controller", func() {
 	})
 
 	It("reconcile - only sleep, wake up set to nil", func() {
-		namespace := "without-wake-up"
+		namespace := testutil.RandString(32)
 		req, originalResources := setupNamespaceWithResources(ctx, sleepInfoName, namespace, sleepInfoReconciler, mockNow, setupOptions{
 			unsetWakeUpTime: true,
 		})
@@ -397,7 +397,7 @@ var _ = Describe("SleepInfo Controller", func() {
 	})
 
 	It("reconcile - sleep info not present in namespace", func() {
-		namespace := "no-sleepinfo"
+		namespace := testutil.RandString(32)
 		err := testutil.CreateNamespace(ctx, k8sClient, namespace)
 		Expect(err).ShouldNot(HaveOccurred())
 
@@ -413,7 +413,7 @@ var _ = Describe("SleepInfo Controller", func() {
 	})
 
 	It("reconcile - sleepinfo deployed when should be triggered", func() {
-		namespace := "immediately-triggered"
+		namespace := testutil.RandString(32)
 		createSleepInfo(ctx, sleepInfoName, namespace, setupOptions{})
 		originalDeployments := upsertDeployments(ctx, namespace, false)
 
@@ -446,7 +446,7 @@ var _ = Describe("SleepInfo Controller", func() {
 	})
 
 	It("reconcile - create deployment between sleep and wake up", func() {
-		namespace := "create-deployment-between-sleep-and-wake-up"
+		namespace := testutil.RandString(32)
 		req, originalResources := setupNamespaceWithResources(ctx, sleepInfoName, namespace, sleepInfoReconciler, mockNow, setupOptions{})
 
 		assertContextInfo := AssertOperation{
@@ -517,7 +517,7 @@ var _ = Describe("SleepInfo Controller", func() {
 	})
 
 	It("reconcile - with deployments to exclude", func() {
-		namespace := "multiple-deployments-exclude"
+		namespace := testutil.RandString(32)
 		req, originalResources := setupNamespaceWithResources(ctx, sleepInfoName, namespace, sleepInfoReconciler, mockNow, setupOptions{
 			excludeRef: []kubegreenv1alpha1.ExcludeRef{
 				{
@@ -549,7 +549,7 @@ var _ = Describe("SleepInfo Controller", func() {
 	})
 
 	It("reconcile - with deployments and cron jobs", func() {
-		namespace := "deployments-cronjobs-suspend"
+		namespace := testutil.RandString(32)
 		req, originalResources := setupNamespaceWithResources(ctx, sleepInfoName, namespace, sleepInfoReconciler, mockNow, setupOptions{
 			suspendCronjobs: true,
 			insertCronjobs:  true,
@@ -574,7 +574,7 @@ var _ = Describe("SleepInfo Controller", func() {
 	})
 
 	It("reconcile - with only cron jobs to suspend", func() {
-		namespace := "only-cronjobs-suspend"
+		namespace := testutil.RandString(32)
 		req, originalResources := setupNamespaceWithResources(ctx, sleepInfoName, namespace, sleepInfoReconciler, mockNow, setupOptions{
 			suspendCronjobs:    true,
 			insertCronjobs:     true,
@@ -600,7 +600,7 @@ var _ = Describe("SleepInfo Controller", func() {
 	})
 
 	It("reconcile - with deployments - suspend cron jobs active but not cron job in namespace", func() {
-		namespace := "deployments-cron-job-in-namespace"
+		namespace := testutil.RandString(32)
 		req, originalResources := setupNamespaceWithResources(ctx, sleepInfoName, namespace, sleepInfoReconciler, mockNow, setupOptions{
 			suspendCronjobs: true,
 		})
@@ -624,7 +624,7 @@ var _ = Describe("SleepInfo Controller", func() {
 	})
 
 	It("reconcile - with deployments and only cron jobs not to suspend", func() {
-		namespace := "deployments-sleep-cronjobs-not-suspend"
+		namespace := testutil.RandString(32)
 		req, originalResources := setupNamespaceWithResources(ctx, sleepInfoName, namespace, sleepInfoReconciler, mockNow, setupOptions{
 			insertCronjobs: true,
 		})
@@ -647,7 +647,7 @@ var _ = Describe("SleepInfo Controller", func() {
 	})
 
 	It("reconcile - with both deployments and cron jobs not to suspend", func() {
-		namespace := "deployments-and-cronjobs-not-suspend"
+		namespace := testutil.RandString(32)
 		req, originalResources := setupNamespaceWithResources(ctx, sleepInfoName, namespace, sleepInfoReconciler, mockNow, setupOptions{
 			insertCronjobs:     true,
 			suspendCronjobs:    false,
@@ -672,7 +672,7 @@ var _ = Describe("SleepInfo Controller", func() {
 	})
 
 	It("reconcile - with deployments and cron job to exclude", func() {
-		namespace := "multiple-cronjob-exclude"
+		namespace := testutil.RandString(32)
 		req, originalResources := setupNamespaceWithResources(ctx, sleepInfoName, namespace, sleepInfoReconciler, mockNow, setupOptions{
 			suspendCronjobs: true,
 			insertCronjobs:  true,
@@ -710,7 +710,7 @@ var _ = Describe("SleepInfo Controller", func() {
 	})
 
 	It("reconcile - with deployments and cron jobs - deploy between sleep and wakeup", func() {
-		namespace := "deployments-cronjobs-suspend-redeploy"
+		namespace := testutil.RandString(32)
 		req, originalResources := setupNamespaceWithResources(ctx, sleepInfoName, namespace, sleepInfoReconciler, mockNow, setupOptions{
 			suspendCronjobs: true,
 			insertCronjobs:  true,
