@@ -63,6 +63,7 @@ func (c cronjobs) Sleep(ctx context.Context) error {
 			continue
 		}
 		newCronJob := cronjob.DeepCopy()
+		unstructured.RemoveNestedField(newCronJob.Object, "metadata", "resourceVersion")
 		if err = unstructured.SetNestedField(newCronJob.Object, true, "spec", "suspend"); err != nil {
 			return err
 		}
