@@ -19,6 +19,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	kubegreenv1alpha1 "github.com/kube-green/kube-green/api/v1alpha1"
+	"github.com/kube-green/kube-green/controllers/sleepinfo/metrics"
 	"github.com/kube-green/kube-green/controllers/sleepinfo/resource"
 )
 
@@ -41,6 +42,7 @@ type SleepInfoReconciler struct {
 	Log    logr.Logger
 	Scheme *runtime.Scheme
 	Clock
+	Metrics metrics.Metrics
 }
 
 type realClock struct{}
