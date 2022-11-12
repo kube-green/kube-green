@@ -33,6 +33,11 @@ func TestNewResource(t *testing.T) {
 		Name:      "deploymentOtherNamespace",
 		Namespace: "other-namespace",
 	})
+	deploymentWithLabels := GetMock(MockSpec{
+		Name:      "deploymentWithLabels",
+		Namespace: namespace,
+		Labels:    map[string]string{"foo": "foo", "bar": "bar"},
+	})
 	emptySleepInfo := &v1alpha1.SleepInfo{}
 
 	listDeploymentsTests := []struct {
@@ -104,6 +109,35 @@ func TestNewResource(t *testing.T) {
 							ApiVersion: "apps/v2",
 							Kind:       "Deployment",
 							Name:       deployment1.Name,
+						},
+					},
+				},
+			},
+			expected: []appsv1.Deployment{deployment1},
+		},
+		{
+			name: "with deployment to exclude with matchLabels",
+			client: fake.
+				NewClientBuilder().
+				WithRuntimeObjects([]runtime.Object{&deployment1, &deployment2, &deploymentOtherNamespace, &deploymentWithLabels}...).
+				Build(),
+			sleepInfo: &v1alpha1.SleepInfo{
+				Spec: v1alpha1.SleepInfoSpec{
+					ExcludeRef: []v1alpha1.ExcludeRef{
+						{
+							ApiVersion: "apps/v1",
+							Kind:       "Deployment",
+							Name:       deployment2.Name,
+						},
+						{
+							ApiVersion: "apps/v1",
+							Kind:       "resource",
+							Name:       "foo",
+						},
+						{
+							ApiVersion:  "apps/v1",
+							Kind:        "Deployment",
+							MatchLabels: deploymentWithLabels.Labels,
 						},
 					},
 				},
