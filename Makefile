@@ -130,6 +130,9 @@ docker-push: ## Push docker image with the manager.
 docker-test-build: ## Build docker image for e2e test with the manager.
 	docker build -t $(DOCKER_IMAGE_NAME):e2e-test .
 
+.PHONY: load-test-build-image
+load-test-build-image: docker-test-build
+	kind load docker-image kubegreen/kube-green:e2e-test --name kube-green-test
 ##@ Deployment
 
 ifndef ignore-not-found
