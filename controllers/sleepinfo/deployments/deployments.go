@@ -125,24 +125,29 @@ func shouldExcludeDeployment(deployment appsv1.Deployment, sleepInfo *kubegreenv
 		if exclusion.Name != "" && deployment.Name == exclusion.Name {
 			return true
 		}
-		// TODO: check again
-		if len(exclusion.MatchLabels) == 0 {
-			continue
-		}
-		labelMatched := true
-		for key, value := range exclusion.MatchLabels {
-			v, ok := deployment.Labels[key]
-			if !ok || v != value {
-				labelMatched = false
-				break
-			}
-		}
-		if labelMatched {
+		if labelMatch(deployment.Labels, exclusion.MatchLabels) {
 			return true
 		}
 	}
 
 	return false
+}
+
+func labelMatch(labels, matchLabels map[string]string) bool {
+	if len(matchLabels) == 0 {
+		return false
+	}
+
+	matched := true
+	for key, value := range matchLabels {
+		v, ok := labels[key]
+		if !ok || v != value {
+			matched = false
+			break
+		}
+	}
+
+	return matched
 }
 
 type OriginalReplicas struct {
