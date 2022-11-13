@@ -36,7 +36,7 @@ func TestNewResource(t *testing.T) {
 	deploymentWithLabels := GetMock(MockSpec{
 		Name:      "deploymentWithLabels",
 		Namespace: namespace,
-		Labels:    map[string]string{"foo": "foo", "bar": "bar"},
+		Labels:    map[string]string{"foo-key": "foo-value", "bar-key": "bar-value"},
 	})
 	emptySleepInfo := &v1alpha1.SleepInfo{}
 
@@ -508,6 +508,55 @@ func TestDeploymentOriginalReplicas(t *testing.T) {
 		require.Nil(t, res)
 	})
 
+}
+
+func TestLabelMatch(t *testing.T) {
+	testCases := []struct {
+		name        string
+		labels      map[string]string
+		matchLabels map[string]string
+		expected    bool
+	}{
+		{
+			name:     "Missing labels and matchLabels",
+			expected: false,
+		},
+		{
+			name: "Missing labels",
+			matchLabels: map[string]string{
+				"app-key": "app-value",
+			},
+			expected: false,
+		},
+		{
+			name: "Match failed",
+			labels: map[string]string{
+				"foo-key": "foo-value",
+			},
+			matchLabels: map[string]string{
+				"app-key": "app-value",
+			},
+			expected: false,
+		},
+		{
+			name: "Match sucess",
+			labels: map[string]string{
+				"app-key": "app-value",
+			},
+			matchLabels: map[string]string{
+				"app-key": "app-value",
+			},
+			expected: true,
+		},
+	}
+
+	for _, test := range testCases {
+		t.Run(test.name, func(t *testing.T) {
+			got := labelMatch(test.labels, test.matchLabels)
+			require.Equal(t, test.expected, got)
+		})
+
+	}
 }
 
 func getPtr[T any](item T) *T {
