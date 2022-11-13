@@ -1,19 +1,24 @@
 package sleepinfo
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	kubegreenv1alpha1 "github.com/kube-green/kube-green/api/v1alpha1"
 	"github.com/kube-green/kube-green/controllers/internal/testutil"
 	"github.com/kube-green/kube-green/controllers/sleepinfo/cronjobs"
+	"github.com/kube-green/kube-green/controllers/sleepinfo/metrics"
 
 	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	promTestutil "github.com/prometheus/client_golang/prometheus/testutil"
 	appsv1 "k8s.io/api/apps/v1"
 	core "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -40,8 +45,9 @@ var _ = Describe("SleepInfo Controller", func() {
 			Clock: mockClock{
 				now: mockNow,
 			},
-			Client: k8sClient,
-			Log:    testLogger,
+			Client:  k8sClient,
+			Log:     testLogger,
+			Metrics: metrics.SetupMetricsOrDie("kube_green"),
 		}
 	})
 
@@ -72,8 +78,9 @@ var _ = Describe("SleepInfo Controller", func() {
 			Clock: mockClock{
 				now: sleepScheduleTime,
 			},
-			Client: k8sClient,
-			Log:    testLogger,
+			Client:  k8sClient,
+			Log:     testLogger,
+			Metrics: sleepInfoReconciler.Metrics,
 		}
 		result, err = sleepInfoReconciler.Reconcile(ctx, req)
 		Expect(err).NotTo(HaveOccurred())
@@ -112,8 +119,9 @@ var _ = Describe("SleepInfo Controller", func() {
 			Clock: mockClock{
 				now: "2021-03-23T20:07:00.000Z",
 			},
-			Client: k8sClient,
-			Log:    testLogger,
+			Client:  k8sClient,
+			Log:     testLogger,
+			Metrics: sleepInfoReconciler.Metrics,
 		}
 		result, err = sleepInfoReconciler.Reconcile(ctx, req)
 		Expect(err).NotTo(HaveOccurred())
@@ -277,6 +285,7 @@ var _ = Describe("SleepInfo Controller", func() {
 			namespace:           namespace,
 			sleepInfoName:       sleepInfoName,
 			originalDeployments: originalResources.deploymentList,
+			reconciler:          sleepInfoReconciler,
 		}
 
 		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T20:05:59.000Z").withRequeue(14*60 + 1))
@@ -295,6 +304,7 @@ var _ = Describe("SleepInfo Controller", func() {
 			namespace:           namespace,
 			sleepInfoName:       sleepInfoName,
 			originalDeployments: originalResources.deploymentList,
+			reconciler:          sleepInfoReconciler,
 		}
 
 		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T20:05:59.000Z").withRequeue(14*60 + 1))
@@ -324,6 +334,7 @@ var _ = Describe("SleepInfo Controller", func() {
 			namespace:           namespace,
 			sleepInfoName:       sleepInfoName,
 			originalDeployments: originalResources.deploymentList,
+			reconciler:          sleepInfoReconciler,
 		}
 		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T20:05:59.000Z").withRequeue(14*60 + 1))
 
@@ -355,6 +366,7 @@ var _ = Describe("SleepInfo Controller", func() {
 			namespace:           namespace,
 			sleepInfoName:       sleepInfoName,
 			originalDeployments: originalResources.deploymentList,
+			reconciler:          sleepInfoReconciler,
 		}
 		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T20:05:59.000Z").withRequeue(14*60 + 1))
 		assertCorrectSleepOperation(
@@ -378,6 +390,7 @@ var _ = Describe("SleepInfo Controller", func() {
 			namespace:           namespace,
 			sleepInfoName:       sleepInfoName,
 			originalDeployments: originalResources.deploymentList,
+			reconciler:          sleepInfoReconciler,
 		}
 		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T20:05:59.000Z").withRequeue(59*60 + 1))
 		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T21:05:00.000Z").withRequeue(60 * 60))
@@ -427,8 +440,9 @@ var _ = Describe("SleepInfo Controller", func() {
 			Clock: mockClock{
 				now: "2021-03-23T20:05:59.999Z",
 			},
-			Client: k8sClient,
-			Log:    testLogger,
+			Client:  k8sClient,
+			Log:     testLogger,
+			Metrics: sleepInfoReconciler.Metrics,
 		}
 		result, err := sleepInfoReconciler.Reconcile(ctx, req)
 		Expect(err).NotTo(HaveOccurred())
@@ -456,6 +470,7 @@ var _ = Describe("SleepInfo Controller", func() {
 			namespace:           namespace,
 			sleepInfoName:       sleepInfoName,
 			originalDeployments: originalResources.deploymentList,
+			reconciler:          sleepInfoReconciler,
 		}
 
 		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T20:05:59.000Z").withRequeue(14*60 + 1))
@@ -541,6 +556,7 @@ var _ = Describe("SleepInfo Controller", func() {
 			sleepInfoName:       sleepInfoName,
 			originalDeployments: originalResources.deploymentList,
 			excludedDeployment:  []string{"service-1", "zero-replicas"},
+			reconciler:          sleepInfoReconciler,
 		}
 
 		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T20:05:59.000Z").withRequeue(14*60 + 1))
@@ -562,6 +578,7 @@ var _ = Describe("SleepInfo Controller", func() {
 			namespace:     namespace,
 			sleepInfoName: sleepInfoName,
 			sleepInfo:     originalResources.sleepInfo,
+			reconciler:    sleepInfoReconciler,
 
 			originalDeployments: originalResources.deploymentList,
 
@@ -588,6 +605,7 @@ var _ = Describe("SleepInfo Controller", func() {
 			namespace:     namespace,
 			sleepInfoName: sleepInfoName,
 			sleepInfo:     originalResources.sleepInfo,
+			reconciler:    sleepInfoReconciler,
 
 			originalDeployments: originalResources.deploymentList,
 
@@ -612,6 +630,7 @@ var _ = Describe("SleepInfo Controller", func() {
 			namespace:     namespace,
 			sleepInfoName: sleepInfoName,
 			sleepInfo:     originalResources.sleepInfo,
+			reconciler:    sleepInfoReconciler,
 
 			originalDeployments: originalResources.deploymentList,
 
@@ -635,6 +654,7 @@ var _ = Describe("SleepInfo Controller", func() {
 			req:           req,
 			namespace:     namespace,
 			sleepInfoName: sleepInfoName,
+			reconciler:    sleepInfoReconciler,
 
 			originalDeployments: originalResources.deploymentList,
 
@@ -661,6 +681,7 @@ var _ = Describe("SleepInfo Controller", func() {
 			namespace:     namespace,
 			sleepInfoName: sleepInfoName,
 			sleepInfo:     originalResources.sleepInfo,
+			reconciler:    sleepInfoReconciler,
 
 			originalDeployments: originalResources.deploymentList,
 
@@ -699,6 +720,7 @@ var _ = Describe("SleepInfo Controller", func() {
 			originalDeployments: originalResources.deploymentList,
 			excludedDeployment:  []string{"service-1"},
 			sleepInfo:           originalResources.sleepInfo,
+			reconciler:          sleepInfoReconciler,
 
 			originalCronJobs: originalResources.cronjobList,
 			excludedCronJob:  []string{"cronjob-2"},
@@ -723,6 +745,7 @@ var _ = Describe("SleepInfo Controller", func() {
 			namespace:     namespace,
 			sleepInfoName: sleepInfoName,
 			sleepInfo:     originalResources.sleepInfo,
+			reconciler:    sleepInfoReconciler,
 
 			originalDeployments: originalResources.deploymentList,
 
@@ -751,6 +774,42 @@ var _ = Describe("SleepInfo Controller", func() {
 
 		assertCorrectWakeUpOperation(assertContextInfo.withSchedule("2021-03-23T20:19:50.100Z").withRequeue(45*60 + 9.9))
 		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T21:05:00.000Z").withRequeue(15 * 60))
+	})
+
+	It("reconcile - delete SleepInfo", func() {
+		namespace := testutil.RandString(32)
+		req, originalResources := setupNamespaceWithResources(ctx, sleepInfoName, namespace, sleepInfoReconciler, mockNow, setupOptions{})
+
+		assertContextInfo := AssertOperation{
+			testLogger:          testLogger,
+			ctx:                 ctx,
+			req:                 req,
+			namespace:           namespace,
+			sleepInfoName:       sleepInfoName,
+			originalDeployments: originalResources.deploymentList,
+			reconciler:          sleepInfoReconciler,
+		}
+		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T20:05:59.000Z").withRequeue(14*60 + 1))
+
+		m := sleepInfoReconciler.Metrics
+		Expect(promTestutil.CollectAndCount(m.CurrentSleepInfo)).To(Equal(1))
+
+		By("delete sleep info", func() {
+			sleepInfo, err := sleepInfoReconciler.getSleepInfo(ctx, req)
+			Expect(err).NotTo(HaveOccurred())
+			err = k8sClient.Delete(ctx, sleepInfo)
+			Expect(err).NotTo(HaveOccurred())
+
+			Eventually(func() bool {
+				_, err := sleepInfoReconciler.getSleepInfo(ctx, req)
+				return apierrors.IsNotFound(err)
+			}, "100ms", "5s").Should(BeTrue())
+		})
+
+		_, err := sleepInfoReconciler.Reconcile(ctx, req)
+		Expect(err).NotTo(HaveOccurred())
+
+		Expect(promTestutil.CollectAndCount(m.CurrentSleepInfo)).To(Equal(0))
 	})
 })
 
@@ -798,6 +857,7 @@ type AssertOperation struct {
 	sleepInfoName string
 	scheduleTime  string
 	sleepInfo     kubegreenv1alpha1.SleepInfo
+	reconciler    SleepInfoReconciler
 	// optional - default is equal to scheduleTime
 	expectedScheduleTime string
 	expectedNextRequeue  time.Duration
@@ -833,8 +893,9 @@ func assertCorrectSleepOperation(assert AssertOperation) {
 		Clock: mockClock{
 			now: assert.scheduleTime,
 		},
-		Client: k8sClient,
-		Log:    assert.testLogger,
+		Client:  k8sClient,
+		Log:     assert.testLogger,
+		Metrics: assert.reconciler.Metrics,
 	}
 	result, err := sleepInfoReconciler.Reconcile(assert.ctx, assert.req)
 	Expect(err).NotTo(HaveOccurred())
@@ -976,6 +1037,18 @@ func assertCorrectSleepOperation(assert AssertOperation) {
 			RequeueAfter: assert.expectedNextRequeue,
 		}))
 	})
+
+	By("metrics correctly collected - quantitatively", func() {
+		metrics := sleepInfoReconciler.Metrics
+
+		Expect(promTestutil.CollectAndCount(metrics.CurrentSleepInfo)).To(Equal(1))
+		expectedInfo := bytes.NewBufferString(fmt.Sprintf(`
+		# HELP kube_green_current_sleepinfo Info about SleepInfo resource
+		# TYPE kube_green_current_sleepinfo gauge
+		kube_green_current_sleepinfo{name="%s",namespace="%s"} 1
+`, assert.sleepInfoName, assert.namespace))
+		Expect(promTestutil.CollectAndCompare(metrics.CurrentSleepInfo, expectedInfo)).NotTo(HaveOccurred())
+	})
 }
 
 func assertCorrectWakeUpOperation(assert AssertOperation) {
@@ -984,8 +1057,9 @@ func assertCorrectWakeUpOperation(assert AssertOperation) {
 		Clock: mockClock{
 			now: assert.scheduleTime,
 		},
-		Client: k8sClient,
-		Log:    assert.testLogger,
+		Client:  k8sClient,
+		Log:     assert.testLogger,
+		Metrics: assert.reconciler.Metrics,
 	}
 	result, err := sleepInfoReconciler.Reconcile(assert.ctx, assert.req)
 	Expect(err).NotTo(HaveOccurred())
@@ -1033,6 +1107,12 @@ func assertCorrectWakeUpOperation(assert AssertOperation) {
 		Expect(result).Should(Equal(ctrl.Result{
 			RequeueAfter: assert.expectedNextRequeue,
 		}))
+	})
+
+	By("metrics correctly collected - quantitatively", func() {
+		metrics := sleepInfoReconciler.Metrics
+
+		Expect(promTestutil.CollectAndCount(metrics.CurrentSleepInfo)).To(Equal(1))
 	})
 }
 
