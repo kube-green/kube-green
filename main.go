@@ -18,9 +18,11 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	ctrlMetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	kubegreencomv1alpha1 "github.com/kube-green/kube-green/api/v1alpha1"
 	sleepinfocontroller "github.com/kube-green/kube-green/controllers/sleepinfo"
+	"github.com/kube-green/kube-green/controllers/sleepinfo/metrics"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -68,10 +70,13 @@ func main() {
 		os.Exit(1)
 	}
 
+	customMetrics := metrics.SetupMetricsOrDie("kube_green").MustRegister(ctrlMetrics.Registry)
+
 	if err = (&sleepinfocontroller.SleepInfoReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("SleepInfo"),
-		Scheme: mgr.GetScheme(),
+		Client:  mgr.GetClient(),
+		Log:     ctrl.Log.WithName("controllers").WithName("SleepInfo"),
+		Scheme:  mgr.GetScheme(),
+		Metrics: customMetrics,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "SleepInfo")
 		os.Exit(1)
