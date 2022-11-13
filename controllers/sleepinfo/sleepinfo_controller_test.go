@@ -279,13 +279,13 @@ var _ = Describe("SleepInfo Controller", func() {
 		req, originalResources := setupNamespaceWithResources(ctx, sleepInfoName, namespace, sleepInfoReconciler, mockNow, setupOptions{})
 
 		assertContextInfo := AssertOperation{
-			testLogger:          testLogger,
-			ctx:                 ctx,
-			req:                 req,
-			namespace:           namespace,
-			sleepInfoName:       sleepInfoName,
-			originalDeployments: originalResources.deploymentList,
-			reconciler:          sleepInfoReconciler,
+			testLogger:        testLogger,
+			ctx:               ctx,
+			req:               req,
+			namespace:         namespace,
+			sleepInfoName:     sleepInfoName,
+			originalResources: originalResources,
+			reconciler:        sleepInfoReconciler,
 		}
 
 		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T20:05:59.000Z").withRequeue(14*60 + 1))
@@ -298,13 +298,13 @@ var _ = Describe("SleepInfo Controller", func() {
 		req, originalResources := setupNamespaceWithResources(ctx, sleepInfoName, namespace, sleepInfoReconciler, mockNow, setupOptions{})
 
 		assertContextInfo := AssertOperation{
-			testLogger:          testLogger,
-			ctx:                 ctx,
-			req:                 req,
-			namespace:           namespace,
-			sleepInfoName:       sleepInfoName,
-			originalDeployments: originalResources.deploymentList,
-			reconciler:          sleepInfoReconciler,
+			testLogger:        testLogger,
+			ctx:               ctx,
+			req:               req,
+			namespace:         namespace,
+			sleepInfoName:     sleepInfoName,
+			originalResources: originalResources,
+			reconciler:        sleepInfoReconciler,
 		}
 
 		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T20:05:59.000Z").withRequeue(14*60 + 1))
@@ -328,13 +328,13 @@ var _ = Describe("SleepInfo Controller", func() {
 		req, originalResources := setupNamespaceWithResources(ctx, sleepInfoName, namespace, sleepInfoReconciler, mockNow, setupOptions{})
 
 		assertContextInfo := AssertOperation{
-			testLogger:          testLogger,
-			ctx:                 ctx,
-			req:                 req,
-			namespace:           namespace,
-			sleepInfoName:       sleepInfoName,
-			originalDeployments: originalResources.deploymentList,
-			reconciler:          sleepInfoReconciler,
+			testLogger:        testLogger,
+			ctx:               ctx,
+			req:               req,
+			namespace:         namespace,
+			sleepInfoName:     sleepInfoName,
+			originalResources: originalResources,
+			reconciler:        sleepInfoReconciler,
 		}
 		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T20:05:59.000Z").withRequeue(14*60 + 1))
 
@@ -360,13 +360,13 @@ var _ = Describe("SleepInfo Controller", func() {
 		req, originalResources := setupNamespaceWithResources(ctx, sleepInfoName, namespace, sleepInfoReconciler, mockNow, setupOptions{})
 
 		assertContextInfo := AssertOperation{
-			testLogger:          testLogger,
-			ctx:                 ctx,
-			req:                 req,
-			namespace:           namespace,
-			sleepInfoName:       sleepInfoName,
-			originalDeployments: originalResources.deploymentList,
-			reconciler:          sleepInfoReconciler,
+			testLogger:        testLogger,
+			ctx:               ctx,
+			req:               req,
+			namespace:         namespace,
+			sleepInfoName:     sleepInfoName,
+			originalResources: originalResources,
+			reconciler:        sleepInfoReconciler,
 		}
 		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T20:05:59.000Z").withRequeue(14*60 + 1))
 		assertCorrectSleepOperation(
@@ -384,13 +384,13 @@ var _ = Describe("SleepInfo Controller", func() {
 		})
 
 		assertContextInfo := AssertOperation{
-			testLogger:          testLogger,
-			ctx:                 ctx,
-			req:                 req,
-			namespace:           namespace,
-			sleepInfoName:       sleepInfoName,
-			originalDeployments: originalResources.deploymentList,
-			reconciler:          sleepInfoReconciler,
+			testLogger:        testLogger,
+			ctx:               ctx,
+			req:               req,
+			namespace:         namespace,
+			sleepInfoName:     sleepInfoName,
+			originalResources: originalResources,
+			reconciler:        sleepInfoReconciler,
 		}
 		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T20:05:59.000Z").withRequeue(59*60 + 1))
 		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T21:05:00.000Z").withRequeue(60 * 60))
@@ -464,13 +464,13 @@ var _ = Describe("SleepInfo Controller", func() {
 		req, originalResources := setupNamespaceWithResources(ctx, sleepInfoName, namespace, sleepInfoReconciler, mockNow, setupOptions{})
 
 		assertContextInfo := AssertOperation{
-			testLogger:          testLogger,
-			ctx:                 ctx,
-			req:                 req,
-			namespace:           namespace,
-			sleepInfoName:       sleepInfoName,
-			originalDeployments: originalResources.deploymentList,
-			reconciler:          sleepInfoReconciler,
+			testLogger:        testLogger,
+			ctx:               ctx,
+			req:               req,
+			namespace:         namespace,
+			sleepInfoName:     sleepInfoName,
+			originalResources: originalResources,
+			reconciler:        sleepInfoReconciler,
 		}
 
 		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T20:05:59.000Z").withRequeue(14*60 + 1))
@@ -515,7 +515,7 @@ var _ = Describe("SleepInfo Controller", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			newOriginalDeployments := append(originalResources.deploymentList, deployToCreate)
-			assertContextInfo.originalDeployments = newOriginalDeployments
+			assertContextInfo.originalResources.deploymentList = newOriginalDeployments
 
 			By("check replicas")
 			deployments := listDeployments(ctx, namespace)
@@ -549,14 +549,14 @@ var _ = Describe("SleepInfo Controller", func() {
 		})
 
 		assertContextInfo := AssertOperation{
-			testLogger:          testLogger,
-			ctx:                 ctx,
-			req:                 req,
-			namespace:           namespace,
-			sleepInfoName:       sleepInfoName,
-			originalDeployments: originalResources.deploymentList,
-			excludedDeployment:  []string{"service-1", "zero-replicas"},
-			reconciler:          sleepInfoReconciler,
+			testLogger:         testLogger,
+			ctx:                ctx,
+			req:                req,
+			namespace:          namespace,
+			sleepInfoName:      sleepInfoName,
+			originalResources:  originalResources,
+			excludedDeployment: []string{"service-1", "zero-replicas"},
+			reconciler:         sleepInfoReconciler,
 		}
 
 		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T20:05:59.000Z").withRequeue(14*60 + 1))
@@ -572,17 +572,13 @@ var _ = Describe("SleepInfo Controller", func() {
 		})
 
 		assertContextInfo := AssertOperation{
-			testLogger:    testLogger,
-			ctx:           ctx,
-			req:           req,
-			namespace:     namespace,
-			sleepInfoName: sleepInfoName,
-			sleepInfo:     originalResources.sleepInfo,
-			reconciler:    sleepInfoReconciler,
-
-			originalDeployments: originalResources.deploymentList,
-
-			originalCronJobs: originalResources.cronjobList,
+			testLogger:        testLogger,
+			ctx:               ctx,
+			req:               req,
+			namespace:         namespace,
+			sleepInfoName:     sleepInfoName,
+			reconciler:        sleepInfoReconciler,
+			originalResources: originalResources,
 		}
 
 		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T20:05:59.000Z").withRequeue(14*60 + 1))
@@ -599,17 +595,13 @@ var _ = Describe("SleepInfo Controller", func() {
 		})
 
 		assertContextInfo := AssertOperation{
-			testLogger:    testLogger,
-			ctx:           ctx,
-			req:           req,
-			namespace:     namespace,
-			sleepInfoName: sleepInfoName,
-			sleepInfo:     originalResources.sleepInfo,
-			reconciler:    sleepInfoReconciler,
-
-			originalDeployments: originalResources.deploymentList,
-
-			originalCronJobs: originalResources.cronjobList,
+			testLogger:        testLogger,
+			ctx:               ctx,
+			req:               req,
+			namespace:         namespace,
+			sleepInfoName:     sleepInfoName,
+			reconciler:        sleepInfoReconciler,
+			originalResources: originalResources,
 		}
 
 		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T20:05:59.000Z").withRequeue(14*60 + 1))
@@ -624,17 +616,13 @@ var _ = Describe("SleepInfo Controller", func() {
 		})
 
 		assertContextInfo := AssertOperation{
-			testLogger:    testLogger,
-			ctx:           ctx,
-			req:           req,
-			namespace:     namespace,
-			sleepInfoName: sleepInfoName,
-			sleepInfo:     originalResources.sleepInfo,
-			reconciler:    sleepInfoReconciler,
-
-			originalDeployments: originalResources.deploymentList,
-
-			originalCronJobs: originalResources.cronjobList,
+			testLogger:        testLogger,
+			ctx:               ctx,
+			req:               req,
+			namespace:         namespace,
+			sleepInfoName:     sleepInfoName,
+			reconciler:        sleepInfoReconciler,
+			originalResources: originalResources,
 		}
 
 		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T20:05:59.000Z").withRequeue(14*60 + 1))
@@ -649,16 +637,13 @@ var _ = Describe("SleepInfo Controller", func() {
 		})
 
 		assertContextInfo := AssertOperation{
-			testLogger:    testLogger,
-			ctx:           ctx,
-			req:           req,
-			namespace:     namespace,
-			sleepInfoName: sleepInfoName,
-			reconciler:    sleepInfoReconciler,
-
-			originalDeployments: originalResources.deploymentList,
-
-			originalCronJobs: originalResources.cronjobList,
+			testLogger:        testLogger,
+			ctx:               ctx,
+			req:               req,
+			namespace:         namespace,
+			sleepInfoName:     sleepInfoName,
+			reconciler:        sleepInfoReconciler,
+			originalResources: originalResources,
 		}
 
 		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T20:05:59.000Z").withRequeue(14*60 + 1))
@@ -675,17 +660,13 @@ var _ = Describe("SleepInfo Controller", func() {
 		})
 
 		assertContextInfo := AssertOperation{
-			testLogger:    testLogger,
-			ctx:           ctx,
-			req:           req,
-			namespace:     namespace,
-			sleepInfoName: sleepInfoName,
-			sleepInfo:     originalResources.sleepInfo,
-			reconciler:    sleepInfoReconciler,
-
-			originalDeployments: originalResources.deploymentList,
-
-			originalCronJobs: originalResources.cronjobList,
+			testLogger:        testLogger,
+			ctx:               ctx,
+			req:               req,
+			namespace:         namespace,
+			sleepInfoName:     sleepInfoName,
+			reconciler:        sleepInfoReconciler,
+			originalResources: originalResources,
 		}
 
 		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T20:05:59.000Z").withRequeue(59*60 + 1))
@@ -712,18 +693,16 @@ var _ = Describe("SleepInfo Controller", func() {
 		})
 
 		assertContextInfo := AssertOperation{
-			testLogger:          testLogger,
-			ctx:                 ctx,
-			req:                 req,
-			namespace:           namespace,
-			sleepInfoName:       sleepInfoName,
-			originalDeployments: originalResources.deploymentList,
-			excludedDeployment:  []string{"service-1"},
-			sleepInfo:           originalResources.sleepInfo,
-			reconciler:          sleepInfoReconciler,
+			testLogger:         testLogger,
+			ctx:                ctx,
+			req:                req,
+			namespace:          namespace,
+			sleepInfoName:      sleepInfoName,
+			excludedDeployment: []string{"service-1"},
+			reconciler:         sleepInfoReconciler,
 
-			originalCronJobs: originalResources.cronjobList,
-			excludedCronJob:  []string{"cronjob-2"},
+			originalResources: originalResources,
+			excludedCronJob:   []string{"cronjob-2"},
 		}
 
 		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T20:05:59.000Z").withRequeue(14*60 + 1))
@@ -744,12 +723,9 @@ var _ = Describe("SleepInfo Controller", func() {
 			req:           req,
 			namespace:     namespace,
 			sleepInfoName: sleepInfoName,
-			sleepInfo:     originalResources.sleepInfo,
 			reconciler:    sleepInfoReconciler,
 
-			originalDeployments: originalResources.deploymentList,
-
-			originalCronJobs: originalResources.cronjobList,
+			originalResources: originalResources,
 		}
 		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T20:05:59.000Z").withRequeue(14*60 + 1))
 
@@ -781,13 +757,13 @@ var _ = Describe("SleepInfo Controller", func() {
 		req, originalResources := setupNamespaceWithResources(ctx, sleepInfoName, namespace, sleepInfoReconciler, mockNow, setupOptions{})
 
 		assertContextInfo := AssertOperation{
-			testLogger:          testLogger,
-			ctx:                 ctx,
-			req:                 req,
-			namespace:           namespace,
-			sleepInfoName:       sleepInfoName,
-			originalDeployments: originalResources.deploymentList,
-			reconciler:          sleepInfoReconciler,
+			testLogger:        testLogger,
+			ctx:               ctx,
+			req:               req,
+			namespace:         namespace,
+			sleepInfoName:     sleepInfoName,
+			originalResources: originalResources,
+			reconciler:        sleepInfoReconciler,
 		}
 		assertCorrectSleepOperation(assertContextInfo.withSchedule("2021-03-23T20:05:59.000Z").withRequeue(14*60 + 1))
 
@@ -856,17 +832,15 @@ type AssertOperation struct {
 	namespace     string
 	sleepInfoName string
 	scheduleTime  string
-	sleepInfo     kubegreenv1alpha1.SleepInfo
 	reconciler    SleepInfoReconciler
 	// optional - default is equal to scheduleTime
 	expectedScheduleTime string
 	expectedNextRequeue  time.Duration
 
-	originalDeployments []appsv1.Deployment
-	excludedDeployment  []string
+	originalResources originalResources
 
-	originalCronJobs []unstructured.Unstructured
-	excludedCronJob  []string
+	excludedDeployment []string
+	excludedCronJob    []string
 }
 
 func (a AssertOperation) withSchedule(schedule string) AssertOperation {
@@ -902,13 +876,13 @@ func assertCorrectSleepOperation(assert AssertOperation) {
 
 	By("replicas are set to 0 to all deployments set to sleep", func() {
 		deployments := listDeployments(assert.ctx, assert.namespace)
-		if assert.sleepInfo.IsDeploymentsToSuspend() {
+		if assert.originalResources.sleepInfo.IsDeploymentsToSuspend() {
 			if len(assert.excludedDeployment) == 0 {
-				assertAllReplicasSetToZero(deployments, assert.originalDeployments)
+				assertAllReplicasSetToZero(deployments, assert.originalResources.deploymentList)
 			} else {
 				for _, deployment := range deployments {
 					if contains(assert.excludedDeployment, deployment.Name) {
-						originalDeployment := findDeployByName(assert.originalDeployments, deployment.GetName())
+						originalDeployment := findDeployByName(assert.originalResources.deploymentList, deployment.GetName())
 						Expect(*deployment.Spec.Replicas).To(Equal(*originalDeployment.Spec.Replicas))
 						continue
 					}
@@ -917,7 +891,7 @@ func assertCorrectSleepOperation(assert AssertOperation) {
 			}
 		} else {
 			for _, deployment := range deployments {
-				originalDeployment := findDeployByName(assert.originalDeployments, deployment.GetName())
+				originalDeployment := findDeployByName(assert.originalResources.deploymentList, deployment.GetName())
 				Expect(*deployment.Spec.Replicas).To(Equal(*originalDeployment.Spec.Replicas))
 			}
 		}
@@ -925,12 +899,12 @@ func assertCorrectSleepOperation(assert AssertOperation) {
 
 	By("cron jobs are correctly suspended", func() {
 		cronJobs := listCronJobs(assert.ctx, assert.namespace)
-		if assert.sleepInfo.IsCronjobsToSuspend() {
+		if assert.originalResources.sleepInfo.IsCronjobsToSuspend() {
 			if len(assert.excludedCronJob) == 0 {
-				assertAllCronJobsSuspended(cronJobs, assert.originalCronJobs)
+				assertAllCronJobsSuspended(cronJobs, assert.originalResources.cronjobList)
 			} else {
 				for _, cronJob := range cronJobs {
-					originalCronJob := findResourceByName(assert.originalCronJobs, cronJob.GetName())
+					originalCronJob := findResourceByName(assert.originalResources.cronjobList, cronJob.GetName())
 					originalUnstructuredCronJob, err := runtime.DefaultUnstructuredConverter.ToUnstructured(originalCronJob)
 					Expect(err).NotTo(HaveOccurred())
 					if contains(assert.excludedCronJob, cronJob.GetName()) {
@@ -944,7 +918,7 @@ func assertCorrectSleepOperation(assert AssertOperation) {
 			}
 		} else {
 			for _, cronJob := range cronJobs {
-				originalCronJob := findResourceByName(assert.originalCronJobs, cronJob.GetName())
+				originalCronJob := findResourceByName(assert.originalResources.cronjobList, cronJob.GetName())
 				originalUnstructuredCronJob, err := runtime.DefaultUnstructuredConverter.ToUnstructured(originalCronJob)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(isCronJobSuspended(cronJob)).To(Equal(isCronJobSuspended(unstructured.Unstructured{
@@ -959,7 +933,7 @@ func assertCorrectSleepOperation(assert AssertOperation) {
 		Expect(err).NotTo(HaveOccurred())
 		secretData := secret.Data
 
-		if !assert.sleepInfo.IsCronjobsToSuspend() && !assert.sleepInfo.IsDeploymentsToSuspend() {
+		if !assert.originalResources.sleepInfo.IsCronjobsToSuspend() && !assert.originalResources.sleepInfo.IsDeploymentsToSuspend() {
 			Expect(secretData).To(Equal(map[string][]byte{
 				lastScheduleKey: []byte(getTime(assert.expectedScheduleTime).Truncate(time.Second).Format(time.RFC3339)),
 			}))
@@ -971,13 +945,13 @@ func assertCorrectSleepOperation(assert AssertOperation) {
 			lastOperationKey: []byte(sleepOperation),
 		}
 
-		if assert.sleepInfo.IsDeploymentsToSuspend() {
+		if assert.originalResources.sleepInfo.IsDeploymentsToSuspend() {
 			type ExpectedReplicas struct {
 				Name     string `json:"name"`
 				Replicas int32  `json:"replicas"`
 			}
 			var originalReplicas []ExpectedReplicas
-			for _, deployment := range assert.originalDeployments {
+			for _, deployment := range assert.originalResources.deploymentList {
 				if *deployment.Spec.Replicas == 0 || contains(assert.excludedDeployment, deployment.Name) {
 					continue
 				}
@@ -993,9 +967,9 @@ func assertCorrectSleepOperation(assert AssertOperation) {
 			expectedSecretData[replicasBeforeSleepKey] = expectedReplicas
 		}
 
-		if assert.sleepInfo.IsCronjobsToSuspend() {
+		if assert.originalResources.sleepInfo.IsCronjobsToSuspend() {
 			originalStatus := []cronjobs.OriginalCronJobStatus{}
-			for _, cronJob := range assert.originalCronJobs {
+			for _, cronJob := range assert.originalResources.cronjobList {
 				if isCronJobSuspended(cronJob) {
 					continue
 				}
@@ -1067,7 +1041,7 @@ func assertCorrectWakeUpOperation(assert AssertOperation) {
 	By("deployment replicas correctly waked up", func() {
 		deployments := listDeployments(assert.ctx, assert.namespace)
 		for _, deployment := range deployments {
-			originalDeployment := findDeployByName(assert.originalDeployments, deployment.Name)
+			originalDeployment := findDeployByName(assert.originalResources.deploymentList, deployment.Name)
 			Expect(deployment.Spec.Replicas).To(Equal(originalDeployment.Spec.Replicas))
 		}
 	})
@@ -1075,7 +1049,7 @@ func assertCorrectWakeUpOperation(assert AssertOperation) {
 	By("cron jobs correctly waked up", func() {
 		cronJobs := listCronJobs(assert.ctx, assert.namespace)
 		for _, cronJob := range cronJobs {
-			originalCronJob := findResourceByName(assert.originalCronJobs, cronJob.GetName())
+			originalCronJob := findResourceByName(assert.originalResources.cronjobList, cronJob.GetName())
 			originalUnstructuredCronJob, err := runtime.DefaultUnstructuredConverter.ToUnstructured(originalCronJob)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(isCronJobSuspended(cronJob)).To(Equal(isCronJobSuspended(unstructured.Unstructured{
