@@ -539,7 +539,7 @@ func TestLabelMatch(t *testing.T) {
 			expected: false,
 		},
 		{
-			name: "Match sucess",
+			name: "Match success",
 			labels: map[string]string{
 				"app-key": "app-value",
 			},
