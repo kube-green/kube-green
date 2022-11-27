@@ -4,6 +4,7 @@
 [![Test][test-badge]][test-pipelines]
 [![Coverage Status][coverage-badge]][coverage]
 [![Documentations][website-badge]][website]
+[![Adopters][adopters-badge]][adopters]
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/kube-green/kube-green/main/logo/logo-dark.svg">
@@ -13,6 +14,8 @@
 How many of your dev/preview pods stay on during weekends? Or at night? It's a waste of resources! And money! But fear not, *kube-green* is here to the rescue.
 
 *kube-green* is a simple **k8s addon** that automatically **shuts down** (some of) your **resources** when you don't need them.
+
+If you already use *kube-green*, add you as an [adopter][add-adopters]!
 
 ## Getting Started
 
@@ -143,6 +146,12 @@ Special thanks to [JGiola](https://github.com/JGiola) for the tech review.
 
 If you like or are using this project, please give it a star. Thanks!
 
+## Adopters
+
+[Here](https://kube-green.dev/docs/adopters/) the list of adopters of *kube-green*.
+
+If you already use *kube-green*, add you as an [adopter][add-adopters]!
+
 [go-report-svg]: https://goreportcard.com/badge/github.com/kube-green/kube-green
 [go-report-card]: https://goreportcard.com/report/github.com/kube-green/kube-green
 [test-and-build-svg]: https://github.com/kube-green/kube-green/actions/workflows/test.yml/badge.svg
@@ -155,3 +164,6 @@ If you like or are using this project, please give it a star. Thanks!
 [test-pipelines]: https://github.com/kube-green/kube-green/actions/workflows/test.yml
 [security-badge]: https://img.shields.io/github/workflow/status/kube-green/kube-green/Security?label=%F0%9F%94%91%20gosec&style=flat
 [security-pipelines]: https://github.com/kube-green/kube-green/actions/workflows/security.yml
+[adopters-badge]: https://img.shields.io/static/v1?label=ADOPTERS&color=blue&message=docs&style=flat
+[adopters]: https://kube-green.dev/docs/adopters/
+[add-adopters]: https://github.com/kube-green/kube-green.github.io/blob/main/CONTRIBUTING.md#add-your-organization-to-adopters
