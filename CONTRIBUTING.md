@@ -12,18 +12,6 @@ Please note we have a code of conduct, please follow it in all your interactions
 2. Update the README.md with details of changes to the interface.
 3. Update the CHANGELOG.md file with details of changes.
 
-## Add your organization to ADOPTERS
-
-Have you started using *kube-green*? Add your organization to [adopters.yaml file](https://github.com/kube-green/kube-green.github.io/blob/main/adopters.yaml). You can do it adding your organization information as in example:
-
-```yaml
-- organization: My Organization Name
-  description: How I use kube-green in my organization
-  website: the organization website URL
-```
-
-Adopters will be visible on the [kube-green website](https://kube-green.dev/docs/adopters/).
-
 ## Code of Conduct
 
 ### Our Pledge

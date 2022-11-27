@@ -15,7 +15,7 @@ How many of your dev/preview pods stay on during weekends? Or at night? It's a w
 
 *kube-green* is a simple **k8s addon** that automatically **shuts down** (some of) your **resources** when you don't need them.
 
-If you already use *kube-green*, add you as an [adopter](./CONTRIBUTING.md#add-your-organization-to-adopters)!
+If you already use *kube-green*, add you as an [adopter][add-adopters]!
 
 ## Getting Started
 
@@ -150,7 +150,7 @@ If you like or are using this project, please give it a star. Thanks!
 
 [Here](https://kube-green.dev/docs/adopters/) the list of adopters of *kube-green*.
 
-If you already use *kube-green*, add you as an [adopter](./CONTRIBUTING.md#add-your-organization-to-adopters)!z
+If you already use *kube-green*, add you as an [adopter][add-adopters]!
 
 [go-report-svg]: https://goreportcard.com/badge/github.com/kube-green/kube-green
 [go-report-card]: https://goreportcard.com/report/github.com/kube-green/kube-green
@@ -166,3 +166,4 @@ If you already use *kube-green*, add you as an [adopter](./CONTRIBUTING.md#add-y
 [security-pipelines]: https://github.com/kube-green/kube-green/actions/workflows/security.yml
 [adopters-badge]: https://img.shields.io/static/v1?label=ADOPTERS&color=blue&message=docs&style=flat
 [adopters]: https://kube-green.dev/docs/adopters/
+[add-adopters]: https://github.com/kube-green/kube-green.github.io/blob/main/CONTRIBUTING.md#add-your-organization-to-adopters
