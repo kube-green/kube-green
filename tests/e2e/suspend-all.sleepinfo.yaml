@@ -15,3 +15,7 @@ spec:
       kind:       Deployment
       matchLabels:
         app: do-not-sleep-with-label
+    - apiVersion: "batch/v1"
+      kind:       CronJob
+      matchLabels:
+        app: do-not-sleep-cj-with-label
