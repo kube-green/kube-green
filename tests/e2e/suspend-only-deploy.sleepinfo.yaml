@@ -10,3 +10,7 @@ spec:
     - apiVersion: "apps/v1"
       kind:       Deployment
       name:       do-not-sleep
+    - apiVersion: "apps/v1"
+      kind:       Deployment
+      matchLabels:
+        app: do-not-sleep-with-label

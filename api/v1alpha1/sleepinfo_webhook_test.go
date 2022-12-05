@@ -135,6 +135,44 @@ var _ = Describe("validate sleep info", func() {
 				WakeUpTime: "ab:c",
 			},
 		},
+		{
+			name:          "fails - missing Name and MatchLabels in ExcludeRef item",
+			expectedError: `one of "Name" or "MatchLabels" values must be set`,
+			sleepInfoSpec: SleepInfoSpec{
+				Weekdays:   "1-5",
+				SleepTime:  "13:15",
+				WakeUpTime: "13:20",
+				ExcludeRef: []ExcludeRef{
+					{
+						ApiVersion: "apps/v1",
+						Kind:       "Deployment",
+					},
+				},
+			},
+		},
+		{
+			name:          "fails - Name and MatchLabels both sets in ExcludeRef item",
+			expectedError: `one of "Name" or "MatchLabels" values must be set`,
+			sleepInfoSpec: SleepInfoSpec{
+				Weekdays:   "1-5",
+				SleepTime:  "13:15",
+				WakeUpTime: "13:20",
+				ExcludeRef: []ExcludeRef{
+					{
+						ApiVersion: "apps/v1",
+						Kind:       "Deployment",
+					},
+					{
+						ApiVersion: "apps/v1",
+						Kind:       "Deployment",
+						Name:       "Backend",
+						MatchLabels: map[string]string{
+							"app": "backend",
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, test := range tests {
@@ -173,6 +211,20 @@ var _ = Describe("validate sleep info", func() {
 					Weekdays:   "1-5",
 					SleepTime:  "19:00",
 					WakeUpTime: "8:00",
+					ExcludeRef: []ExcludeRef{
+						{
+							ApiVersion: "apps/v1",
+							Kind:       "Deployment",
+							Name:       "Frontend",
+						},
+						{
+							ApiVersion: "apps/v1",
+							Kind:       "Deployment",
+							MatchLabels: map[string]string{
+								"app": "backend",
+							},
+						},
+					},
 				},
 			}
 			err := k8sClient.Create(ctx, sleepInfo)

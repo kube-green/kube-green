@@ -33,6 +33,11 @@ func TestNewResource(t *testing.T) {
 		Name:      "deploymentOtherNamespace",
 		Namespace: "other-namespace",
 	})
+	deploymentWithLabels := GetMock(MockSpec{
+		Name:      "deploymentWithLabels",
+		Namespace: namespace,
+		Labels:    map[string]string{"foo-key": "foo-value", "bar-key": "bar-value"},
+	})
 	emptySleepInfo := &v1alpha1.SleepInfo{}
 
 	listDeploymentsTests := []struct {
@@ -104,6 +109,35 @@ func TestNewResource(t *testing.T) {
 							ApiVersion: "apps/v2",
 							Kind:       "Deployment",
 							Name:       deployment1.Name,
+						},
+					},
+				},
+			},
+			expected: []appsv1.Deployment{deployment1},
+		},
+		{
+			name: "with deployment to exclude with matchLabels",
+			client: fake.
+				NewClientBuilder().
+				WithRuntimeObjects([]runtime.Object{&deployment1, &deployment2, &deploymentOtherNamespace, &deploymentWithLabels}...).
+				Build(),
+			sleepInfo: &v1alpha1.SleepInfo{
+				Spec: v1alpha1.SleepInfoSpec{
+					ExcludeRef: []v1alpha1.ExcludeRef{
+						{
+							ApiVersion: "apps/v1",
+							Kind:       "Deployment",
+							Name:       deployment2.Name,
+						},
+						{
+							ApiVersion: "apps/v1",
+							Kind:       "resource",
+							Name:       "foo",
+						},
+						{
+							ApiVersion:  "apps/v1",
+							Kind:        "Deployment",
+							MatchLabels: deploymentWithLabels.Labels,
 						},
 					},
 				},
@@ -474,6 +508,55 @@ func TestDeploymentOriginalReplicas(t *testing.T) {
 		require.Nil(t, res)
 	})
 
+}
+
+func TestLabelMatch(t *testing.T) {
+	testCases := []struct {
+		name        string
+		labels      map[string]string
+		matchLabels map[string]string
+		expected    bool
+	}{
+		{
+			name:     "Missing labels and matchLabels",
+			expected: false,
+		},
+		{
+			name: "Missing labels",
+			matchLabels: map[string]string{
+				"app-key": "app-value",
+			},
+			expected: false,
+		},
+		{
+			name: "Match failed",
+			labels: map[string]string{
+				"foo-key": "foo-value",
+			},
+			matchLabels: map[string]string{
+				"app-key": "app-value",
+			},
+			expected: false,
+		},
+		{
+			name: "Match success",
+			labels: map[string]string{
+				"app-key": "app-value",
+			},
+			matchLabels: map[string]string{
+				"app-key": "app-value",
+			},
+			expected: true,
+		},
+	}
+
+	for _, test := range testCases {
+		t.Run(test.name, func(t *testing.T) {
+			got := labelMatch(test.labels, test.matchLabels)
+			require.Equal(t, test.expected, got)
+		})
+
+	}
 }
 
 func getPtr[T any](item T) *T {

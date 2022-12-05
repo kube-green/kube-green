@@ -34,6 +34,13 @@ func TestCronJobs(t *testing.T) {
 		Name:      "cj2",
 		Namespace: namespace,
 	})
+	cronJobWithLabels := GetMock(MockSpec{
+		Name:      "cj-with-labels",
+		Namespace: namespace,
+		Labels: map[string]string{
+			"app": "foo",
+		},
+	})
 	cronJobOtherNamespace := GetMock(MockSpec{
 		Name:      "cjOtherNamespace",
 		Namespace: "other-namespace",
@@ -51,6 +58,20 @@ func TestCronJobs(t *testing.T) {
 	sleepInfo := &v1alpha1.SleepInfo{
 		Spec: v1alpha1.SleepInfoSpec{
 			SuspendCronjobs: true,
+		},
+	}
+	sleepInfoWithExclude := &v1alpha1.SleepInfo{
+		Spec: v1alpha1.SleepInfoSpec{
+			SuspendCronjobs: true,
+			ExcludeRef: []v1alpha1.ExcludeRef{
+				{
+					ApiVersion: "batch/v1",
+					Kind:       "CronJob",
+					MatchLabels: map[string]string{
+						"app": "foo",
+					},
+				},
+			},
 		},
 	}
 
@@ -99,6 +120,14 @@ func TestCronJobs(t *testing.T) {
 					Build(),
 				sleepInfo: sleepInfo,
 				expected:  []unstructured.Unstructured{},
+			},
+			{
+				name: "exclude cronjob with label match",
+				client: getFakeClient().
+					WithRuntimeObjects(&cronJob1, &cronJob2, &cronJobWithLabels).
+					Build(),
+				sleepInfo: sleepInfoWithExclude,
+				expected:  []unstructured.Unstructured{cronJob1, cronJob2},
 			},
 			{
 				name: "disabled cronjob suspend",

@@ -5,6 +5,8 @@ Copyright 2021.
 package v1alpha1
 
 import (
+	"fmt"
+
 	"github.com/robfig/cron/v3"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -63,6 +65,14 @@ func (s SleepInfo) validateSleepInfo() error {
 	}
 	if _, err = cron.ParseStandard(schedule); err != nil {
 		return err
+	}
+
+	for _, excludeRef := range s.GetExcludeRef() {
+		if len(excludeRef.Name) == 0 && len(excludeRef.MatchLabels) == 0 {
+			return fmt.Errorf(`one of "Name" or "MatchLabels" values must be set`)
+		} else if len(excludeRef.Name) > 0 && len(excludeRef.MatchLabels) > 0 {
+			return fmt.Errorf(`one of "Name" or "MatchLabels" values must be set`)
+		}
 	}
 	return nil
 }

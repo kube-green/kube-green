@@ -22,7 +22,11 @@ type ExcludeRef struct {
 	// Supported kind is "Deployment".
 	Kind string `json:"kind"`
 	// Name which identify the kubernetes resource.
+	// +optional
 	Name string `json:"name"`
+	// MatchLabels which identify the kubernetes resource by labels
+	// +optional
+	MatchLabels map[string]string `json:"matchLabels,omitempty"`
 }
 
 // SleepInfoSpec defines the desired state of SleepInfo

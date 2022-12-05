@@ -108,24 +108,46 @@ func (d deployments) getListByNamespace(ctx context.Context, namespace string) (
 }
 
 func (d deployments) filterExcludedDeployment(deploymentList []appsv1.Deployment) []appsv1.Deployment {
-	excludedDeploymentName := getExcludedDeploymentName(d.SleepInfo)
 	filteredList := []appsv1.Deployment{}
 	for _, deployment := range deploymentList {
-		if !excludedDeploymentName[deployment.Name] {
+		if !shouldExcludeDeployment(deployment, d.SleepInfo) {
 			filteredList = append(filteredList, deployment)
 		}
 	}
 	return filteredList
 }
 
-func getExcludedDeploymentName(sleepInfo *kubegreenv1alpha1.SleepInfo) map[string]bool {
-	excludedDeploymentName := map[string]bool{}
+func shouldExcludeDeployment(deployment appsv1.Deployment, sleepInfo *kubegreenv1alpha1.SleepInfo) bool {
 	for _, exclusion := range sleepInfo.GetExcludeRef() {
-		if exclusion.Kind == "Deployment" && exclusion.ApiVersion == "apps/v1" {
-			excludedDeploymentName[exclusion.Name] = true
+		if exclusion.Kind != "Deployment" || exclusion.ApiVersion != "apps/v1" {
+			continue
+		}
+		if exclusion.Name != "" && deployment.Name == exclusion.Name {
+			return true
+		}
+		if labelMatch(deployment.Labels, exclusion.MatchLabels) {
+			return true
 		}
 	}
-	return excludedDeploymentName
+
+	return false
+}
+
+func labelMatch(labels, matchLabels map[string]string) bool {
+	if len(matchLabels) == 0 {
+		return false
+	}
+
+	matched := true
+	for key, value := range matchLabels {
+		v, ok := labels[key]
+		if !ok || v != value {
+			matched = false
+			break
+		}
+	}
+
+	return matched
 }
 
 type OriginalReplicas struct {

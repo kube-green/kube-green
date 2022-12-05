@@ -12,6 +12,7 @@ import (
 type MockSpec struct {
 	Namespace       string
 	Name            string
+	Labels          map[string]string
 	ResourceVersion string
 	Schedule        string
 	Suspend         *bool
@@ -34,6 +35,7 @@ func GetMock(opts MockSpec) unstructured.Unstructured {
 				Name:            opts.Name,
 				Namespace:       opts.Namespace,
 				ResourceVersion: opts.ResourceVersion,
+				Labels:          opts.Labels,
 			},
 			Spec: batchv1beta1.CronJobSpec{
 				Schedule: opts.Schedule,
@@ -71,6 +73,7 @@ func GetMock(opts MockSpec) unstructured.Unstructured {
 				Name:            opts.Name,
 				Namespace:       opts.Namespace,
 				ResourceVersion: opts.ResourceVersion,
+				Labels:          opts.Labels,
 			},
 			Spec: batchv1.CronJobSpec{
 				Schedule: opts.Schedule,
@@ -79,6 +82,7 @@ func GetMock(opts MockSpec) unstructured.Unstructured {
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      opts.Name,
 						Namespace: opts.Namespace,
+						Labels:    opts.Labels,
 					},
 					Spec: batchv1.JobSpec{
 						Template: v1.PodTemplateSpec{

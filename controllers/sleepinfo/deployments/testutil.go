@@ -9,6 +9,7 @@ import (
 type MockSpec struct {
 	Namespace       string
 	Name            string
+	Labels          map[string]string
 	Replicas        *int32
 	ResourceVersion string
 	PodAnnotations  map[string]string
@@ -32,6 +33,7 @@ func GetMock(opts MockSpec) appsv1.Deployment {
 			Namespace:       opts.Namespace,
 			ResourceVersion: opts.ResourceVersion,
 			Annotations:     opts.PodAnnotations,
+			Labels:          opts.Labels,
 		},
 		Spec: appsv1.DeploymentSpec{
 			Selector: &metav1.LabelSelector{

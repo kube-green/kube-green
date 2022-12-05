@@ -12,6 +12,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -146,6 +147,7 @@ func (c cronjobs) getListByNamespace(ctx context.Context, namespace string) ([]u
 
 	excludeRef := c.ResourceClient.SleepInfo.GetExcludeRef()
 	cronJobsToExclude := getCronJobNameToExclude(excludeRef)
+	cronJobLabelsToExclude := getCronJobLabelsToExclude(excludeRef)
 	fieldsSelector := []string{}
 	for _, cronJobToExclude := range cronJobsToExclude {
 		fieldsSelector = append(fieldsSelector, fmt.Sprintf("metadata.name!=%s", cronJobToExclude))
@@ -156,6 +158,14 @@ func (c cronjobs) getListByNamespace(ctx context.Context, namespace string) ([]u
 			return nil, err
 		}
 		listOptions.FieldSelector = fSel
+	}
+
+	if cronJobLabelsToExclude != nil {
+		labelSelector, err := labels.Parse(strings.Join(cronJobLabelsToExclude, " and "))
+		if err != nil {
+			return nil, err
+		}
+		listOptions.LabelSelector = labelSelector
 	}
 
 	restMapping, err := c.Client.RESTMapper().RESTMapping(schema.GroupKind{
@@ -177,15 +187,24 @@ func (c cronjobs) getListByNamespace(ctx context.Context, namespace string) ([]u
 
 func getCronJobNameToExclude(excludeRef []kubegreenv1alpha1.ExcludeRef) []string {
 	cronJobsToExclude := []string{}
-	if excludeRef == nil {
-		return cronJobsToExclude
-	}
 	for _, exclude := range excludeRef {
-		if exclude.Kind == "CronJob" {
+		if exclude.Kind == "CronJob" && exclude.Name != "" {
 			cronJobsToExclude = append(cronJobsToExclude, exclude.Name)
 		}
 	}
 	return cronJobsToExclude
+}
+
+func getCronJobLabelsToExclude(excludeRef []kubegreenv1alpha1.ExcludeRef) []string {
+	labelsToExclude := []string{}
+	for _, exclude := range excludeRef {
+		if exclude.Kind == "CronJob" && exclude.Name == "" {
+			for k, v := range exclude.MatchLabels {
+				labelsToExclude = append(labelsToExclude, fmt.Sprintf("%s!=%s", k, v))
+			}
+		}
+	}
+	return labelsToExclude
 }
 
 func GetOriginalInfoToRestore(savedData []byte) (OriginalSuspendStatus, error) {

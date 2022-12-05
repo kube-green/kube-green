@@ -11,3 +11,10 @@ metadata:
   name: do-not-suspend
 spec:
   suspend: false
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: do-not-suspend-with-labels
+spec:
+  suspend: false
