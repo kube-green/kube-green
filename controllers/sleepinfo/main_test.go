@@ -1,0 +1,76 @@
+package sleepinfo
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"testing"
+
+	v1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/e2e-framework/pkg/env"
+	"sigs.k8s.io/e2e-framework/pkg/envconf"
+	"sigs.k8s.io/e2e-framework/pkg/envfuncs"
+)
+
+var (
+	testenv env.Environment
+)
+
+func TestMain(m *testing.M) {
+	testenv = env.New()
+	kindClusterName := "kube-green-e2e"
+	runID := envconf.RandomName("kube-green-test", 24)
+
+	testenv.BeforeEachTest(func(ctx context.Context, cfg *envconf.Config, t *testing.T) (context.Context, error) {
+		return createNSForTest(ctx, cfg, t, runID)
+	})
+
+	testenv.AfterEachTest(func(ctx context.Context, cfg *envconf.Config, t *testing.T) (context.Context, error) {
+		return deleteNSForTest(ctx, cfg, t, runID)
+	})
+
+	// Use pre-defined environment funcs to create a kind cluster prior to test run
+	testenv.Setup(
+		envfuncs.CreateKindCluster(kindClusterName),
+		envfuncs.SetupCRDs("../../config/crd/bases", "*"),
+	)
+
+	testenv.Finish(
+		envfuncs.TeardownCRDs("../../config/crd/bases", "*"),
+		// envfuncs.DestroyKindCluster(kindClusterName),
+	)
+
+	// launch package tests
+	os.Exit(testenv.Run(m))
+}
+
+// createNSForTest creates a random namespace with the runID as a prefix. It is stored in the context
+// so that the deleteNSForTest routine can look it up and delete it.
+func createNSForTest(ctx context.Context, cfg *envconf.Config, t *testing.T, runID string) (context.Context, error) {
+	ns := envconf.RandomName(runID, 28)
+	ctx = context.WithValue(ctx, nsKey(t), ns)
+
+	cfg.WithNamespace(ns)
+
+	t.Logf("Creating NS %v for test %v", ns, t.Name())
+	nsObj := v1.Namespace{}
+	nsObj.Name = ns
+	nsObj.SetLabels(map[string]string{
+		"app.kubernetes.io/managed-by": "kube-green-test",
+	})
+	return ctx, cfg.Client().Resources().Create(ctx, &nsObj)
+}
+
+// deleteNSForTest looks up the namespace corresponding to the given test and deletes it.
+func deleteNSForTest(ctx context.Context, cfg *envconf.Config, t *testing.T, runID string) (context.Context, error) {
+	ns := fmt.Sprint(ctx.Value(nsKey(t)))
+
+	t.Logf("Deleting NS %v for test %v", ns, t.Name())
+	nsObj := v1.Namespace{}
+	nsObj.Name = ns
+	return ctx, cfg.Client().Resources().Delete(ctx, &nsObj)
+}
+
+func nsKey(t *testing.T) string {
+	return "NS-for-%v" + t.Name()
+}

@@ -204,24 +204,6 @@ func createSleepInfo(ctx context.Context, sleepInfoName, namespace string, opts 
 	return *createdSleepInfo
 }
 
-func sleepRequeue(now string) time.Duration {
-	parsedTime, _ := time.Parse(time.RFC3339, now)
-	hour := parsedTime.Hour()
-	if parsedTime.Minute() > 5 {
-		hour += 1
-	}
-	return time.Duration((time.Date(2021, time.March, 23, hour, 5, 0, 0, time.UTC).UnixNano() - parsedTime.UnixNano()))
-}
-
-func wakeUpRequeue(now string) time.Duration {
-	parsedTime, _ := time.Parse(time.RFC3339, now)
-	hour := parsedTime.Hour()
-	if parsedTime.Minute() > 20 {
-		hour += 1
-	}
-	return time.Duration((time.Date(2021, time.March, 23, hour, 20, 0, 0, time.UTC).UnixNano() - parsedTime.UnixNano()))
-}
-
 func findDeployByName(deployments []appsv1.Deployment, nameToFind string) *appsv1.Deployment {
 	for _, deployment := range deployments {
 		if deployment.Name == nameToFind {

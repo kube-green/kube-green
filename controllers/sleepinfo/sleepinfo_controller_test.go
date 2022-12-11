@@ -789,16 +789,6 @@ var _ = Describe("SleepInfo Controller", func() {
 	})
 })
 
-type mockClock struct {
-	now string
-}
-
-func (m mockClock) Now() time.Time {
-	parsedTime, err := time.Parse(time.RFC3339, m.now)
-	Expect(err).NotTo(HaveOccurred())
-	return parsedTime
-}
-
 func assertAllReplicasSetToZero(actualDeployments []appsv1.Deployment, originalDeployments []appsv1.Deployment) {
 	allReplicas := []int32{}
 	for _, deployment := range actualDeployments {
