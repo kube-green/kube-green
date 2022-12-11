@@ -25,10 +25,14 @@ jobs:
       ENVTEST_K8S_VERSION: ${{matrix.k8s_version}}
     steps:
       - uses: actions/checkout@v3
+      - name: docker version
+        run: docker version
       - name: Use golang ${{ matrix.go_version }}
         uses: actions/setup-go@v3
         with:
           go-version: ${{ matrix.go_version }}
+      - name: docker version 2
+        run: docker version
       - name: Go version
         run: go version
       - name: Go get dependencies
