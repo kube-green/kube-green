@@ -17,6 +17,10 @@ jobs:
         go_version: [1.19]
         os: [ubuntu-latest]
         k8s_version: ['1.25', '1.24', '1.23', '1.22', '1.21', '1.20', '1.19']
+        include:
+          - go_version: 1.19
+            os: macos-latest
+            k8s_version: '1.25'
     env:
       ENVTEST_K8S_VERSION: ${{matrix.k8s_version}}
     steps:
@@ -25,8 +29,14 @@ jobs:
         uses: actions/setup-go@v3
         with:
           go-version: ${{ matrix.go_version }}
-      - name: podman version
-        run: podman version
+      - name: install docker
+        run: brew install docker
+        if: runner.os == 'macOS'
+      - name: start colima
+        run: colima start
+        if: runner.os == 'macOS'
+      - name: docker version
+        run: docker version
       - name: Go version
         run: go version
       - name: Go get dependencies
