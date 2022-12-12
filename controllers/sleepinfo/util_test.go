@@ -18,38 +18,14 @@ import (
 )
 
 // TODO: simplify setup with this function
-func createSleepInfoCRD(ctx context.Context, t *testing.T, c *envconf.Config, sleepInfoName string, opts setupOptions) kubegreenv1alpha1.SleepInfo {
+func createSleepInfoCRD(ctx context.Context, t *testing.T, c *envconf.Config, sleepInfoName string, sleepInfo *kubegreenv1alpha1.SleepInfo) kubegreenv1alpha1.SleepInfo {
 	t.Helper()
 
-	sleepInfo := &kubegreenv1alpha1.SleepInfo{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "SleepInfo",
-			APIVersion: "kube-green.com/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      sleepInfoName,
-			Namespace: c.Namespace(),
-		},
-		Spec: kubegreenv1alpha1.SleepInfoSpec{
-			Weekdays:   "*",
-			SleepTime:  "*:05", // at minute 5
-			WakeUpTime: "*:20", // at minute 20
-		},
-	}
-	if opts.unsetWakeUpTime {
-		sleepInfo.Spec.WakeUpTime = ""
-	}
-	if len(opts.excludeRef) != 0 {
-		sleepInfo.Spec.ExcludeRef = opts.excludeRef
-	}
-	if opts.suspendCronjobs {
-		sleepInfo.Spec.SuspendCronjobs = opts.suspendCronjobs
-	}
-	if opts.suspendDeployments != nil {
-		sleepInfo.Spec.SuspendDeployments = opts.suspendDeployments
-	}
+	r, err := resources.New(c.Client().RESTConfig())
+	require.NoError(t, err)
+	kubegreenv1alpha1.AddToScheme(r.GetScheme())
 
-	err := c.Client().Resources().Create(ctx, sleepInfo)
+	err = c.Client().Resources().Create(ctx, sleepInfo)
 	require.NoError(t, err, "error creating SleepInfo")
 
 	createdSleepInfo := &kubegreenv1alpha1.SleepInfo{}
@@ -61,6 +37,24 @@ func createSleepInfoCRD(ctx context.Context, t *testing.T, c *envconf.Config, sl
 	require.NoError(t, err)
 
 	return *createdSleepInfo
+}
+
+func getDefaultSleepInfo(name, namespace string) *kubegreenv1alpha1.SleepInfo {
+	return &kubegreenv1alpha1.SleepInfo{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "SleepInfo",
+			APIVersion: "kube-green.com/v1alpha1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: kubegreenv1alpha1.SleepInfoSpec{
+			Weekdays:   "*",
+			SleepTime:  "*:05", // at minute 5
+			WakeUpTime: "*:20", // at minute 20
+		},
+	}
 }
 
 type AssertOperationKey struct{}

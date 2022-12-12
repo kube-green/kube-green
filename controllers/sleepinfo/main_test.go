@@ -10,6 +10,7 @@ import (
 	"sigs.k8s.io/e2e-framework/pkg/env"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/envfuncs"
+	"sigs.k8s.io/e2e-framework/pkg/features"
 )
 
 var (
@@ -21,12 +22,12 @@ func TestMain(m *testing.M) {
 	kindClusterName := "kube-green-e2e"
 	runID := envconf.RandomName("kube-green-test", 24)
 
-	testenv.BeforeEachTest(func(ctx context.Context, cfg *envconf.Config, t *testing.T) (context.Context, error) {
-		return createNSForTest(ctx, cfg, t, runID)
+	testenv.BeforeEachFeature(func(ctx context.Context, c *envconf.Config, t *testing.T, f features.Feature) (context.Context, error) {
+		return createNSForTest(ctx, c, t, runID)
 	})
 
-	testenv.AfterEachTest(func(ctx context.Context, cfg *envconf.Config, t *testing.T) (context.Context, error) {
-		return deleteNSForTest(ctx, cfg, t, runID)
+	testenv.AfterEachFeature(func(ctx context.Context, c *envconf.Config, t *testing.T, f features.Feature) (context.Context, error) {
+		return deleteNSForTest(ctx, c, t, runID)
 	})
 
 	// Use pre-defined environment funcs to create a kind cluster prior to test run
