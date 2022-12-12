@@ -17,10 +17,6 @@ jobs:
         go_version: [1.19]
         os: [ubuntu-latest]
         k8s_version: ['1.25', '1.24', '1.23', '1.22', '1.21', '1.20', '1.19']
-        include:
-          - go_version: 1.19
-            os: macos-latest
-            k8s_version: '1.25'
     env:
       ENVTEST_K8S_VERSION: ${{matrix.k8s_version}}
     steps:
@@ -35,9 +31,6 @@ jobs:
         run: go version
       - name: Go get dependencies
         run: go get -v -t -d ./...
-      - name: set KIND_EXPERIMENTAL_PROVIDER
-        run: export KIND_EXPERIMENTAL_PROVIDER=podman
-        if: runner.os == 'macOS'
       - name: Run tests
         run: make test
       - name: Vet and Build
