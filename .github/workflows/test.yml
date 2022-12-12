@@ -29,15 +29,15 @@ jobs:
         uses: actions/setup-go@v3
         with:
           go-version: ${{ matrix.go_version }}
-      - name: start colima
-        run: colima start
-        if: runner.os == 'macOS'
-      - name: docker version
-        run: docker version
+      - name: podman version
+        run: podman version
       - name: Go version
         run: go version
       - name: Go get dependencies
         run: go get -v -t -d ./...
+      - name: set KIND_EXPERIMENTAL_PROVIDER
+        run: export KIND_EXPERIMENTAL_PROVIDER=podman
+        if: runner.os == 'macOS'
       - name: Run tests
         run: make test
       - name: Vet and Build
