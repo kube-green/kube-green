@@ -204,33 +204,6 @@ func createSleepInfo(ctx context.Context, sleepInfoName, namespace string, opts 
 	return *createdSleepInfo
 }
 
-func findDeployByName(deployments []appsv1.Deployment, nameToFind string) *appsv1.Deployment {
-	for _, deployment := range deployments {
-		if deployment.Name == nameToFind {
-			return deployment.DeepCopy()
-		}
-	}
-	return nil
-}
-
-func findResourceByName(resources []unstructured.Unstructured, nameToFind string) *unstructured.Unstructured {
-	for _, resource := range resources {
-		if resource.GetName() == nameToFind {
-			return resource.DeepCopy()
-		}
-	}
-	return nil
-}
-
-func contains(s []string, v string) bool {
-	for _, a := range s {
-		if a == v {
-			return true
-		}
-	}
-	return false
-}
-
 func upsertCronJobs(ctx context.Context, namespace string, updateIfAlreadyCreated bool) []unstructured.Unstructured {
 	suspendTrue := true
 	suspendFalse := false

@@ -53,21 +53,7 @@ var _ = Describe("SleepInfo Controller", func() {
 
 	ctx := context.Background()
 
-	It("reconcile - not existent namespace", func() {
-		req := reconcile.Request{
-			NamespacedName: types.NamespacedName{
-				Name:      sleepInfoName,
-				Namespace: "not-exists",
-			},
-		}
-		result, err := sleepInfoReconciler.Reconcile(ctx, req)
-		Expect(err).NotTo(HaveOccurred())
-
-		By("is requeued correctly")
-		Expect(result).Should(Equal(ctrl.Result{}))
-	})
-
-	It("reconcile - with deployments", func() {
+	FIt("reconcile - with deployments", func() {
 		namespace := testutil.RandString(32)
 		req, originalResources := setupNamespaceWithResources(ctx, sleepInfoName, namespace, sleepInfoReconciler, mockNow, setupOptions{})
 
@@ -608,6 +594,7 @@ func getTime(mockNowRaw string) time.Time {
 	return now
 }
 
+// TODO: check all values if necessary, e.g. remove namespace
 type AssertOperation struct {
 	testLogger    logr.Logger
 	ctx           context.Context
@@ -631,6 +618,12 @@ func (a AssertOperation) withSchedule(schedule string) AssertOperation {
 	if a.expectedScheduleTime == "" {
 		a.expectedScheduleTime = schedule
 	}
+	return a
+}
+
+func (a AssertOperation) withScheduleAndExpectedSchedule(schedule string) AssertOperation {
+	a.scheduleTime = schedule
+	a.expectedScheduleTime = schedule
 	return a
 }
 

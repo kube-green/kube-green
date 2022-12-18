@@ -6,10 +6,19 @@ import (
 	"time"
 
 	kubegreenv1alpha1 "github.com/kube-green/kube-green/api/v1alpha1"
+	"github.com/kube-green/kube-green/controllers/sleepinfo/cronjobs"
+	"github.com/kube-green/kube-green/controllers/sleepinfo/deployments"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	cr "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/e2e-framework/klient/k8s"
 	"sigs.k8s.io/e2e-framework/klient/k8s/resources"
 	"sigs.k8s.io/e2e-framework/klient/wait"
@@ -18,7 +27,7 @@ import (
 )
 
 // TODO: simplify setup with this function
-func createSleepInfoCRD(ctx context.Context, t *testing.T, c *envconf.Config, sleepInfoName string, sleepInfo *kubegreenv1alpha1.SleepInfo) kubegreenv1alpha1.SleepInfo {
+func createSleepInfoCRD(t *testing.T, ctx context.Context, c *envconf.Config, sleepInfo *kubegreenv1alpha1.SleepInfo) kubegreenv1alpha1.SleepInfo {
 	t.Helper()
 
 	r, err := resources.New(c.Client().RESTConfig())
@@ -37,6 +46,172 @@ func createSleepInfoCRD(ctx context.Context, t *testing.T, c *envconf.Config, sl
 	require.NoError(t, err)
 
 	return *createdSleepInfo
+}
+
+func setupNamespaceWithResources2(t *testing.T, ctx context.Context, cfg *envconf.Config, sleepInfoToCreate *kubegreenv1alpha1.SleepInfo, reconciler SleepInfoReconciler, opts setupOptions) (ctrl.Request, originalResources) {
+	t.Helper()
+
+	sleepInfo := createSleepInfoCRD(t, ctx, cfg, sleepInfoToCreate)
+
+	originalDeployments := upsertDeployments2(t, ctx, cfg, false)
+
+	var originalCronJobs []unstructured.Unstructured
+	if opts.insertCronjobs {
+		originalCronJobs = upsertCronJobs2(t, ctx, cfg, false)
+	}
+
+	req := reconcile.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      sleepInfoToCreate.GetName(),
+			Namespace: cfg.Namespace(),
+		},
+	}
+	result, err := reconciler.Reconcile(ctx, req)
+	require.NoError(t, err)
+	require.Equal(t, ctrl.Result{
+		RequeueAfter: sleepRequeue(reconciler.Now().Format(time.RFC3339Nano)),
+	}, result)
+
+	t.Run("replicas not changed", func(t *testing.T) {
+		deploymentsNotChanged := getDeploymentList(t, ctx, cfg)
+		for i, deployment := range deploymentsNotChanged {
+			require.Equal(t, *originalDeployments[i].Spec.Replicas, *deployment.Spec.Replicas)
+		}
+	})
+
+	t.Run("cron jobs not suspended", func(t *testing.T) {
+		cronJobsNotChanged := getCronJobList(t, ctx, cfg)
+		for i, cj := range cronJobsNotChanged {
+			require.Equal(t, isCronJobSuspended(originalCronJobs[i]), isCronJobSuspended(cj))
+		}
+	})
+
+	return req, originalResources{
+		deploymentList: originalDeployments,
+		cronjobList:    originalCronJobs,
+
+		sleepInfo: sleepInfo,
+	}
+}
+
+func upsertDeployments2(t *testing.T, ctx context.Context, c *envconf.Config, updateIfAlreadyCreated bool) []appsv1.Deployment {
+	t.Helper()
+
+	k8sClient := newControllerRuntimeClient(t, c)
+	namespace := c.Namespace()
+
+	var threeReplicas int32 = 3
+	var oneReplica int32 = 1
+	var zeroReplicas int32 = 0
+	deployments := []appsv1.Deployment{
+		deployments.GetMock(deployments.MockSpec{
+			Name:      "service-1",
+			Namespace: namespace,
+			Replicas:  &threeReplicas,
+		}),
+		deployments.GetMock(deployments.MockSpec{
+			Name:      "service-2",
+			Namespace: namespace,
+			Replicas:  &oneReplica,
+		}),
+		deployments.GetMock(deployments.MockSpec{
+			Name:      "zero-replicas",
+			Namespace: namespace,
+			Replicas:  &zeroReplicas,
+		}),
+		deployments.GetMock(deployments.MockSpec{
+			Name:      "zero-replicas-annotation",
+			Namespace: namespace,
+			Replicas:  &zeroReplicas,
+			PodAnnotations: map[string]string{
+				lastScheduleKey: "2021-03-23T00:00:00.000Z",
+			},
+		}),
+	}
+
+	d := appsv1.DeploymentList{}
+	if updateIfAlreadyCreated {
+		err := k8sClient.List(ctx, &d)
+		require.NoError(t, err)
+	}
+
+	for _, deployment := range deployments {
+		if existentDeployment := findDeployByName(d.Items, deployment.GetName()); existentDeployment != nil {
+			deployment.SetManagedFields(nil)
+			require.NoError(t, k8sClient.Patch(ctx, existentDeployment, client.Apply, &client.PatchOptions{
+				FieldManager: "kube-green-test",
+			}))
+		} else {
+			err := k8sClient.Create(ctx, &deployment)
+			require.NoError(t, err)
+		}
+
+		err := wait.For(conditions.New(c.Client().Resources()).ResourceMatch(deployment.DeepCopy(), func(object k8s.Object) bool {
+			return true
+		}), wait.WithTimeout(time.Second*10), wait.WithInterval(time.Millisecond*250))
+		require.NoError(t, err)
+	}
+	return deployments
+}
+
+// TODO: Use go client instead of controller-runtime
+func upsertCronJobs2(t *testing.T, ctx context.Context, c *envconf.Config, updateIfAlreadyCreated bool) []unstructured.Unstructured {
+	suspendTrue := true
+	suspendFalse := false
+	namespace := c.Namespace()
+
+	k8sClient := newControllerRuntimeClient(t, c)
+
+	restMapping, err := k8sClient.RESTMapper().RESTMapping(schema.GroupKind{
+		Group: "batch",
+		Kind:  "CronJob",
+	})
+	require.NoError(t, err)
+
+	version := getCronJobAPIVersion2(restMapping)
+
+	cronJobs := []unstructured.Unstructured{
+		cronjobs.GetMock(cronjobs.MockSpec{
+			Name:      "cronjob-1",
+			Namespace: namespace,
+			Version:   version,
+		}),
+		cronjobs.GetMock(cronjobs.MockSpec{
+			Name:      "cronjob-2",
+			Namespace: namespace,
+			Suspend:   &suspendFalse,
+			Version:   version,
+		}),
+		cronjobs.GetMock(cronjobs.MockSpec{
+			Name:      "cronjob-suspended",
+			Namespace: namespace,
+			Suspend:   &suspendTrue,
+			Version:   version,
+		}),
+	}
+	obj := unstructured.UnstructuredList{}
+	if updateIfAlreadyCreated {
+		obj.SetGroupVersionKind(restMapping.GroupVersionKind)
+
+		err := k8sClient.List(ctx, &obj)
+		require.NoError(t, err)
+	}
+	for _, cronJob := range cronJobs {
+		if obj := findResourceByName(obj.Items, cronJob.GetName()); obj != nil {
+			obj.SetManagedFields(nil)
+			require.NoError(t, k8sClient.Patch(ctx, &cronJob, client.Apply, &client.PatchOptions{
+				FieldManager: "kube-green-test",
+			}))
+		} else {
+			require.NoError(t, k8sClient.Create(ctx, &cronJob))
+		}
+
+		err := wait.For(conditions.New(c.Client().Resources()).ResourceMatch(cronJob.DeepCopy(), func(object k8s.Object) bool {
+			return true
+		}), wait.WithTimeout(time.Second*10), wait.WithInterval(time.Millisecond*250))
+		require.NoError(t, err)
+	}
+	return cronJobs
 }
 
 func getDefaultSleepInfo(name, namespace string) *kubegreenv1alpha1.SleepInfo {
@@ -88,8 +263,11 @@ type mockClock struct {
 	t   *testing.T
 }
 
-// TODO: when remove gomega, remove also the panic else
+// TODO: when remove gomega, remove also the panic else and make the t assertion
 func (m mockClock) Now() time.Time {
+	// if m.t == nil {
+	// 	panic("testing.T not passed in mockClock")
+	// }
 	parsedTime, err := time.Parse(time.RFC3339, m.now)
 	if m.t != nil {
 		require.NoError(m.t, err)
@@ -106,6 +284,26 @@ func getDeploymentList(t *testing.T, ctx context.Context, c *envconf.Config) []a
 	deployments := appsv1.DeploymentList{}
 	require.NoError(t, c.Client().Resources(c.Namespace()).List(ctx, &deployments))
 	return deployments.Items
+}
+
+func getCronJobList(t *testing.T, ctx context.Context, c *envconf.Config) []unstructured.Unstructured {
+	k8sClient := newControllerRuntimeClient(t, c)
+
+	restMapping, err := k8sClient.RESTMapper().RESTMapping(schema.GroupKind{
+		Group: "batch",
+		Kind:  "CronJob",
+	})
+	require.NoError(t, err)
+
+	u := unstructured.UnstructuredList{}
+	u.SetGroupVersionKind(restMapping.GroupVersionKind)
+
+	err = k8sClient.List(ctx, &u, &client.ListOptions{
+		Namespace: c.Namespace(),
+	})
+	require.NoError(t, err)
+
+	return u.Items
 }
 
 func parseTime(t *testing.T, mockNowRaw string) time.Time {
@@ -132,4 +330,69 @@ func wakeUpRequeue(now string) time.Duration {
 		hour += 1
 	}
 	return time.Duration((time.Date(2021, time.March, 23, hour, 20, 0, 0, time.UTC).UnixNano() - parsedTime.UnixNano()))
+}
+
+func isSuspendedCronJob(t *testing.T, cronJob unstructured.Unstructured) bool {
+	t.Helper()
+	suspend, found, err := unstructured.NestedBool(cronJob.Object, "spec", "suspend")
+	require.NoError(t, err, "cronJob suspend error")
+	if !found {
+		return false
+	}
+	return suspend
+}
+
+func assertAllReplicasSetToZero2(t *testing.T, actualDeployments []appsv1.Deployment, originalDeployments []appsv1.Deployment) {
+	t.Helper()
+
+	allReplicas := []int32{}
+	for _, deployment := range actualDeployments {
+		allReplicas = append(allReplicas, *deployment.Spec.Replicas)
+	}
+	for _, replicas := range allReplicas {
+		require.Equal(t, replicas, int32(0))
+	}
+}
+
+func assertAllCronJobsSuspended2(t *testing.T, actualCronJobs []unstructured.Unstructured, originalCronJobs []unstructured.Unstructured) {
+	t.Helper()
+
+	allSuspended := []bool{}
+	for _, cronJob := range actualCronJobs {
+		allSuspended = append(allSuspended, isCronJobSuspended(cronJob))
+	}
+	for _, suspended := range allSuspended {
+		require.True(t, suspended)
+	}
+}
+
+func findDeployByName(deployments []appsv1.Deployment, nameToFind string) *appsv1.Deployment {
+	for _, deployment := range deployments {
+		if deployment.Name == nameToFind {
+			return deployment.DeepCopy()
+		}
+	}
+	return nil
+}
+
+func contains(s []string, v string) bool {
+	for _, a := range s {
+		if a == v {
+			return true
+		}
+	}
+	return false
+}
+
+func getCronJobAPIVersion2(restMapping *meta.RESTMapping) string {
+	return restMapping.GroupVersionKind.Version
+}
+
+func findResourceByName(resources []unstructured.Unstructured, nameToFind string) *unstructured.Unstructured {
+	for _, resource := range resources {
+		if resource.GetName() == nameToFind {
+			return resource.DeepCopy()
+		}
+	}
+	return nil
 }
