@@ -53,7 +53,7 @@ var _ = Describe("SleepInfo Controller", func() {
 
 	ctx := context.Background()
 
-	FIt("reconcile - with deployments", func() {
+	It("reconcile - with deployments", func() {
 		namespace := testutil.RandString(32)
 		req, originalResources := setupNamespaceWithResources(ctx, sleepInfoName, namespace, sleepInfoReconciler, mockNow, setupOptions{})
 

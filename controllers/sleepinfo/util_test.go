@@ -136,10 +136,11 @@ func upsertDeployments2(t *testing.T, ctx context.Context, c *envconf.Config, up
 	}
 
 	for _, deployment := range deployments {
-		if existentDeployment := findDeployByName(d.Items, deployment.GetName()); existentDeployment != nil {
+		if findDeployByName(d.Items, deployment.GetName()) != nil {
 			deployment.SetManagedFields(nil)
-			require.NoError(t, k8sClient.Patch(ctx, existentDeployment, client.Apply, &client.PatchOptions{
+			require.NoError(t, k8sClient.Patch(ctx, &deployment, client.Apply, &client.PatchOptions{
 				FieldManager: "kube-green-test",
+				Force:        getPtr(true),
 			}))
 		} else {
 			err := k8sClient.Create(ctx, &deployment)
@@ -232,21 +233,35 @@ func getDefaultSleepInfo(name, namespace string) *kubegreenv1alpha1.SleepInfo {
 	}
 }
 
-type AssertOperationKey struct{}
+type assertOperationKey struct{}
 
-func WithAssertOperation(ctx context.Context, assert AssertOperation) context.Context {
-	return context.WithValue(ctx, AssertOperationKey{}, assert)
+func withAssertOperation(ctx context.Context, assert AssertOperation) context.Context {
+	return context.WithValue(ctx, assertOperationKey{}, assert)
 }
 
-func GetAssertOperation(t *testing.T, ctx context.Context) AssertOperation {
-	assertOperation, ok := ctx.Value(AssertOperationKey{}).(AssertOperation)
+func getAssertOperation(t *testing.T, ctx context.Context) AssertOperation {
+	assertOperation, ok := ctx.Value(assertOperationKey{}).(AssertOperation)
 	if !ok {
 		t.Fatal("fail to get AssertOperation from context")
 	}
 	return assertOperation
 }
 
-// This function should be removed when e2e-framework > 0.0.8
+type setupOptionsKey struct{}
+
+func withSetupOptions(ctx context.Context, setup setupOptions) context.Context {
+	return context.WithValue(ctx, setupOptionsKey{}, setup)
+}
+
+func getSetupOptions(t *testing.T, ctx context.Context) setupOptions {
+	setupOpts, ok := ctx.Value(setupOptionsKey{}).(setupOptions)
+	if !ok {
+		return setupOptions{}
+	}
+	return setupOpts
+}
+
+// TODO: This function should be removed when e2e-framework > 0.0.8
 func newControllerRuntimeClient(t *testing.T, c *envconf.Config) cr.Client {
 	t.Helper()
 	r, err := resources.New(c.Client().RESTConfig())
