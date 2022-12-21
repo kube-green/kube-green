@@ -637,6 +637,16 @@ func (a AssertOperation) withRequeue(requeue float64) AssertOperation {
 	return a
 }
 
+func (a AssertOperation) nextWakeUp() AssertOperation {
+	a.expectedNextRequeue = wakeUpRequeue(a.scheduleTime)
+	return a
+}
+
+func (a AssertOperation) nextSleep() AssertOperation {
+	a.expectedNextRequeue = sleepRequeue(a.scheduleTime)
+	return a
+}
+
 func assertCorrectSleepOperation(assert AssertOperation) {
 	By("is requeued correctly - SLEEP")
 	sleepInfoReconciler := SleepInfoReconciler{

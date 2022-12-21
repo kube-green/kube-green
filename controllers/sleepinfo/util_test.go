@@ -100,29 +100,26 @@ func upsertDeployments2(t *testing.T, ctx context.Context, c *envconf.Config, up
 	k8sClient := newControllerRuntimeClient(t, c)
 	namespace := c.Namespace()
 
-	var threeReplicas int32 = 3
-	var oneReplica int32 = 1
-	var zeroReplicas int32 = 0
 	deployments := []appsv1.Deployment{
 		deployments.GetMock(deployments.MockSpec{
 			Name:      "service-1",
 			Namespace: namespace,
-			Replicas:  &threeReplicas,
+			Replicas:  getPtr[int32](3),
 		}),
 		deployments.GetMock(deployments.MockSpec{
 			Name:      "service-2",
 			Namespace: namespace,
-			Replicas:  &oneReplica,
+			Replicas:  getPtr[int32](1),
 		}),
 		deployments.GetMock(deployments.MockSpec{
 			Name:      "zero-replicas",
 			Namespace: namespace,
-			Replicas:  &zeroReplicas,
+			Replicas:  getPtr[int32](0),
 		}),
 		deployments.GetMock(deployments.MockSpec{
 			Name:      "zero-replicas-annotation",
 			Namespace: namespace,
-			Replicas:  &zeroReplicas,
+			Replicas:  getPtr[int32](0),
 			PodAnnotations: map[string]string{
 				lastScheduleKey: "2021-03-23T00:00:00.000Z",
 			},

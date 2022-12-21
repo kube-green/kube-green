@@ -10,8 +10,8 @@ import (
 
 	"github.com/go-logr/logr"
 	kubegreenv1alpha1 "github.com/kube-green/kube-green/api/v1alpha1"
-	"github.com/kube-green/kube-green/controllers/internal/testutil"
 	"github.com/kube-green/kube-green/controllers/sleepinfo/cronjobs"
+	"github.com/kube-green/kube-green/controllers/sleepinfo/deployments"
 	"github.com/kube-green/kube-green/controllers/sleepinfo/metrics"
 	promTestutil "github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/require"
@@ -33,6 +33,7 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 	const (
 		sleepInfoName = "default-sleep"
 		mockNow       = "2021-03-23T20:01:20.555Z"
+		sleepTime     = "2021-03-23T20:05:59.000Z"
 	)
 	testLogger := zap.New(zap.UseDevMode(true))
 
@@ -63,7 +64,7 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 			})
 		}).
 		Assess("sleep", func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
-			sleepScheduleTime := "2021-03-23T20:05:59.000Z"
+			sleepScheduleTime := sleepTime
 			assertOperations := getAssertOperation(t, ctx)
 
 			sleepInfoReconciler := getSleepInfoReconciler(t, c, testLogger, sleepScheduleTime)
@@ -133,7 +134,7 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 			req := reconcile.Request{
 				NamespacedName: types.NamespacedName{
 					Name:      "not-exists",
-					Namespace: testutil.RandString(32),
+					Namespace: c.Namespace(),
 				},
 			}
 			sleepInfoReconciler := getSleepInfoReconciler(t, c, testLogger, mockNow)
@@ -171,7 +172,7 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 		}).
 		Assess("sleep", func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 			assertOperation := getAssertOperation(t, ctx)
-			ctx = withAssertOperation(ctx, assertOperation.withScheduleAndExpectedSchedule("2021-03-23T20:05:59.000Z").withRequeue(14*60+1))
+			ctx = withAssertOperation(ctx, assertOperation.withScheduleAndExpectedSchedule(sleepTime).withRequeue(14*60+1))
 			assertCorrectSleepOperation2(t, ctx, c)
 
 			return ctx
@@ -199,7 +200,7 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 		}).
 		Assess("sleep", func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 			assert := getAssertOperation(t, ctx)
-			ctx = withAssertOperation(ctx, assert.withScheduleAndExpectedSchedule("2021-03-23T20:05:59.000Z").withRequeue(14*60+1))
+			ctx = withAssertOperation(ctx, assert.withScheduleAndExpectedSchedule(sleepTime).withRequeue(14*60+1))
 			assertCorrectSleepOperation2(t, ctx, c)
 			return ctx
 		}).
@@ -229,7 +230,7 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 		}).
 		Assess("sleep", func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 			assert := getAssertOperation(t, ctx)
-			ctx = withAssertOperation(ctx, assert.withScheduleAndExpectedSchedule("2021-03-23T20:05:59.000Z").withRequeue(14*60+1))
+			ctx = withAssertOperation(ctx, assert.withScheduleAndExpectedSchedule(sleepTime).withRequeue(14*60+1))
 			assertCorrectSleepOperation2(t, ctx, c)
 
 			return ctx
@@ -266,7 +267,7 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 		}).
 		Assess("sleep #1", func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 			assert := getAssertOperation(t, ctx)
-			ctx = withAssertOperation(ctx, assert.withScheduleAndExpectedSchedule("2021-03-23T20:05:59.000Z").withRequeue(14*60+1))
+			ctx = withAssertOperation(ctx, assert.withScheduleAndExpectedSchedule(sleepTime).withRequeue(14*60+1))
 			assertCorrectSleepOperation2(t, ctx, c)
 
 			return ctx
@@ -291,7 +292,7 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 		}).
 		Assess("sleep #1", func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 			assert := getAssertOperation(t, ctx)
-			ctx = withAssertOperation(ctx, assert.withScheduleAndExpectedSchedule("2021-03-23T20:05:59.000Z").withRequeue(59*60+1))
+			ctx = withAssertOperation(ctx, assert.withScheduleAndExpectedSchedule(sleepTime).withRequeue(59*60+1))
 			assertCorrectSleepOperation2(t, ctx, c)
 			return ctx
 		}).
@@ -321,6 +322,108 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 		}).
 		Feature()
 
+	sleepInfoNotInNs := features.New("sleep info deleted from namespace").
+		Assess("reconciliation skip", func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+			req := reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      "not-exists",
+					Namespace: c.Namespace(),
+				},
+			}
+			sleepInfoReconciler := getSleepInfoReconciler(t, c, testLogger, mockNow)
+
+			result, err := sleepInfoReconciler.Reconcile(ctx, req)
+			require.NoError(t, err)
+			require.Empty(t, result)
+
+			return ctx
+		}).Feature()
+
+	deployedWhenShouldBeTriggered := features.New("SleepInfo deployed when should be triggered").
+		Setup(func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+			createSleepInfoCRD(t, ctx, c, getDefaultSleepInfo(sleepInfoName, c.Namespace()))
+			deployments := upsertDeployments2(t, ctx, c, false)
+
+			req := reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      sleepInfoName,
+					Namespace: c.Namespace(),
+				},
+			}
+
+			return withAssertOperation(ctx, AssertOperation{
+				testLogger:    testLogger,
+				ctx:           ctx,
+				req:           req,
+				namespace:     c.Namespace(),
+				sleepInfoName: sleepInfoName,
+				originalResources: originalResources{
+					deploymentList: deployments,
+				},
+				reconciler: getSleepInfoReconciler(t, c, testLogger, "2021-03-23T20:05:59.999Z"),
+			})
+		}).
+		Assess("sleep", func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+			assert := getAssertOperation(t, ctx)
+			result, err := assert.reconciler.Reconcile(ctx, assert.req)
+			require.NoError(t, err)
+			require.Equal(t, ctrl.Result{
+				RequeueAfter: wakeUpRequeue("2021-03-23T20:05:59.999Z"),
+			}, result)
+
+			deployments := getDeploymentList(t, ctx, c)
+			assertAllReplicasSetToZero2(t, deployments, assert.originalResources.deploymentList)
+			return ctx
+		}).
+		Feature()
+
+	newDeploymentBeforeWakeUp := features.New("new deployment between sleep and wake up").
+		Setup(func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+			sleepInfo := getDefaultSleepInfo(sleepInfoName, c.Namespace())
+			return reconciliationSetup(t, ctx, c, mockNow, sleepInfo)
+		}).
+		Assess("sleep", func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+			assert := getAssertOperation(t, ctx)
+			ctx = withAssertOperation(ctx, assert.withScheduleAndExpectedSchedule(sleepTime).nextWakeUp())
+			assertCorrectSleepOperation2(t, ctx, c)
+			return ctx
+		}).
+		Assess("create new deployment", func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+			serviceNameToCreate := "new-service"
+			deployToCreate := deployments.GetMock(deployments.MockSpec{
+				Namespace: c.Namespace(),
+				Name:      serviceNameToCreate,
+				Replicas:  getPtr[int32](5),
+				MatchLabels: map[string]string{
+					"app": serviceNameToCreate,
+				},
+			})
+			k8sClient := newControllerRuntimeClient(t, c)
+			err := k8sClient.Create(ctx, deployToCreate.DeepCopy())
+			require.NoError(t, err)
+
+			assert := getAssertOperation(t, ctx)
+			assert.originalResources.deploymentList = append(assert.originalResources.deploymentList, deployToCreate)
+			ctx = withAssertOperation(ctx, assert)
+			deployments := getDeploymentList(t, ctx, c)
+			for _, deployment := range deployments {
+				if deployment.Name == serviceNameToCreate {
+					require.Equal(t, int32(5), *deployment.Spec.Replicas)
+					continue
+				}
+				require.Equal(t, int32(0), *deployment.Spec.Replicas, deployment.GetName())
+			}
+
+			return ctx
+		}).
+		Assess("wake up", func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+			assert := getAssertOperation(t, ctx)
+			ctx = withAssertOperation(ctx, assert.withScheduleAndExpectedSchedule("2021-03-23T20:20:00.000Z").nextSleep())
+			assertCorrectWakeUpOperation2(t, ctx, c)
+			return ctx
+		}).
+		Feature()
+
 	testenv.TestInParallel(t,
 		zeroDeployments,
 		notExistentResource,
@@ -330,6 +433,9 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 		changeSingleDeplymentBetweenCycle,
 		twiceSleepOperationConsecutively,
 		onlySleep,
+		sleepInfoNotInNs,
+		deployedWhenShouldBeTriggered,
+		newDeploymentBeforeWakeUp,
 	)
 }
 
@@ -424,6 +530,8 @@ func TestInvalidResource(t *testing.T) {
 }
 
 func reconciliationSetup(t *testing.T, ctx context.Context, c *envconf.Config, mockNow string, sleepInfo *kubegreenv1alpha1.SleepInfo) context.Context {
+	t.Helper()
+
 	testLogger := zap.New(zap.UseDevMode(true))
 
 	reconciler := getSleepInfoReconciler(t, c, testLogger, mockNow)
@@ -460,6 +568,7 @@ func assertCorrectSleepOperation2(t *testing.T, ctx context.Context, cfg *envcon
 	sleepInfoReconciler := SleepInfoReconciler{
 		Clock: mockClock{
 			now: assert.scheduleTime,
+			t:   t,
 		},
 		Client:  assert.reconciler.Client,
 		Log:     assert.testLogger,
@@ -625,6 +734,7 @@ func assertCorrectWakeUpOperation2(t *testing.T, ctx context.Context, cfg *envco
 	sleepInfoReconciler := SleepInfoReconciler{
 		Clock: mockClock{
 			now: assert.scheduleTime,
+			t:   t,
 		},
 		Client:  assert.reconciler.Client,
 		Log:     assert.testLogger,
