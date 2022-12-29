@@ -17,9 +17,14 @@ var (
 	testenv env.Environment
 )
 
+const (
+	kindVersionVariableName = "KIND_K8S_VERSION"
+	kindClusterName         = "kube-green-e2e"
+	kindNodeImage           = "kindest/node"
+)
+
 func TestMain(m *testing.M) {
 	testenv = env.New()
-	kindClusterName := "kube-green-e2e"
 	runID := envconf.RandomName("kube-green-test", 24)
 
 	testenv.BeforeEachFeature(func(ctx context.Context, c *envconf.Config, t *testing.T, f features.Feature) (context.Context, error) {
@@ -32,13 +37,13 @@ func TestMain(m *testing.M) {
 
 	// Use pre-defined environment funcs to create a kind cluster prior to test run
 	testenv.Setup(
-		envfuncs.CreateKindCluster(kindClusterName),
+		createKindClusterWithVersion(),
 		envfuncs.SetupCRDs("../../config/crd/bases", "*"),
 	)
 
 	testenv.Finish(
-		envfuncs.TeardownCRDs("../../config/crd/bases", "*"),
-		envfuncs.DestroyKindCluster(kindClusterName),
+	// envfuncs.TeardownCRDs("../../config/crd/bases", "*"),
+	// envfuncs.DestroyKindCluster(kindClusterName),
 	)
 
 	// launch package tests
@@ -74,4 +79,15 @@ func deleteNSForTest(ctx context.Context, cfg *envconf.Config, t *testing.T, run
 
 func nsKey(t *testing.T) string {
 	return "NS-for-%v" + t.Name()
+}
+
+func createKindClusterWithVersion() env.Func {
+	version, ok := os.LookupEnv(kindVersionVariableName)
+	if !ok {
+		return envfuncs.CreateKindCluster(kindClusterName)
+	}
+	fmt.Printf("kind use version %s", version)
+
+	image := fmt.Sprintf("%s:%s", kindNodeImage, version)
+	return envfuncs.CreateKindClusterWithConfig(kindClusterName, image, "../../kind-config.test.yaml")
 }
