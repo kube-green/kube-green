@@ -18,7 +18,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	cr "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/e2e-framework/klient/k8s"
 	"sigs.k8s.io/e2e-framework/klient/k8s/resources"
@@ -267,12 +266,12 @@ func getSetupOptions(t *testing.T, ctx context.Context) setupOptions {
 }
 
 // TODO: This function should be removed when e2e-framework > 0.0.8
-func newControllerRuntimeClient(t *testing.T, c *envconf.Config) cr.Client {
+func newControllerRuntimeClient(t *testing.T, c *envconf.Config) client.Client {
 	t.Helper()
 	r, err := resources.New(c.Client().RESTConfig())
 	require.NoError(t, err)
 
-	client, err := cr.New(c.Client().RESTConfig(), cr.Options{Scheme: r.GetScheme()})
+	client, err := client.New(c.Client().RESTConfig(), client.Options{Scheme: r.GetScheme()})
 	require.NoError(t, err)
 
 	return client
