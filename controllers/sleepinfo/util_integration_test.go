@@ -25,10 +25,14 @@ import (
 )
 
 type setupOptions struct {
-	excludeRef         []kubegreenv1alpha1.ExcludeRef
-	unsetWakeUpTime    bool
-	suspendCronjobs    bool
-	insertCronjobs     bool
+	// TODO: remove
+	excludeRef []kubegreenv1alpha1.ExcludeRef
+	// TODO: remove
+	unsetWakeUpTime bool
+	// TODO: remove
+	suspendCronjobs bool
+	insertCronjobs  bool
+	// TODO: remove
 	suspendDeployments *bool
 }
 

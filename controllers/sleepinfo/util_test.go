@@ -13,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -145,7 +146,10 @@ func upsertDeployments2(t *testing.T, ctx context.Context, c *envconf.Config, up
 		}
 
 		err := wait.For(conditions.New(c.Client().Resources()).ResourceMatch(deployment.DeepCopy(), func(object k8s.Object) bool {
-			return true
+			originalReplicas := getValueFromPtr(deployment.Spec.Replicas)
+			actualDeployment, ok := object.(*appsv1.Deployment)
+			require.True(t, ok)
+			return originalReplicas == getValueFromPtr(actualDeployment.Spec.Replicas)
 		}), wait.WithTimeout(time.Second*10), wait.WithInterval(time.Millisecond*250))
 		require.NoError(t, err)
 	}
@@ -187,25 +191,29 @@ func upsertCronJobs2(t *testing.T, ctx context.Context, c *envconf.Config, updat
 			Version:   version,
 		}),
 	}
-	obj := unstructured.UnstructuredList{}
+	objList := unstructured.UnstructuredList{}
 	if updateIfAlreadyCreated {
-		obj.SetGroupVersionKind(restMapping.GroupVersionKind)
+		objList.SetGroupVersionKind(restMapping.GroupVersionKind)
 
-		err := k8sClient.List(ctx, &obj)
+		err := k8sClient.List(ctx, &objList)
 		require.NoError(t, err)
 	}
 	for _, cronJob := range cronJobs {
-		if obj := findResourceByName(obj.Items, cronJob.GetName()); obj != nil {
-			obj.SetManagedFields(nil)
-			require.NoError(t, k8sClient.Patch(ctx, &cronJob, client.Apply, &client.PatchOptions{
-				FieldManager: "kube-green-test",
-			}))
+		if obj := findResourceByName(objList.Items, cronJob.GetName()); obj != nil {
+			patch := client.MergeFrom(obj)
+			if err := k8sClient.Patch(ctx, &cronJob, patch); err != nil {
+				require.NoError(t, err)
+			}
 		} else {
 			require.NoError(t, k8sClient.Create(ctx, &cronJob))
 		}
 
 		err := wait.For(conditions.New(c.Client().Resources()).ResourceMatch(cronJob.DeepCopy(), func(object k8s.Object) bool {
-			return true
+			originalSuspend := getSuspendStatus(t, cronJob)
+			actualObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(object)
+			require.NoError(t, err)
+			actualSuspend := getSuspendStatus(t, unstructured.Unstructured{Object: actualObj})
+			return originalSuspend == actualSuspend
 		}), wait.WithTimeout(time.Second*10), wait.WithInterval(time.Millisecond*250))
 		require.NoError(t, err)
 	}
@@ -369,12 +377,21 @@ func assertAllReplicasSetToZero2(t *testing.T, actualDeployments []appsv1.Deploy
 func assertAllCronJobsSuspended2(t *testing.T, actualCronJobs []unstructured.Unstructured, originalCronJobs []unstructured.Unstructured) {
 	t.Helper()
 
-	allSuspended := []bool{}
+	allSuspended := []struct {
+		name    string
+		suspend bool
+	}{}
 	for _, cronJob := range actualCronJobs {
-		allSuspended = append(allSuspended, isCronJobSuspended(cronJob))
+		allSuspended = append(allSuspended, struct {
+			name    string
+			suspend bool
+		}{
+			name:    cronJob.GetName(),
+			suspend: isCronJobSuspended(cronJob),
+		})
 	}
 	for _, suspended := range allSuspended {
-		require.True(t, suspended)
+		require.True(t, suspended.suspend, suspended.name)
 	}
 }
 
@@ -407,4 +424,23 @@ func findResourceByName(resources []unstructured.Unstructured, nameToFind string
 		}
 	}
 	return nil
+}
+
+func getSuspendStatus(t *testing.T, cronjob unstructured.Unstructured) bool {
+	suspend, _, err := unstructured.NestedBool(cronjob.Object, "spec", "suspend")
+	require.NoError(t, err)
+	t.Logf("suspend for %s is set: %v", cronjob.GetName(), suspend)
+	return suspend
+}
+
+func getPtr[T any](item T) *T {
+	return &item
+}
+
+func getValueFromPtr[T any](item *T) T {
+	if item == nil {
+		var r T
+		return r
+	}
+	return *item
 }

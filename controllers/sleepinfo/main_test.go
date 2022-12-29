@@ -33,12 +33,12 @@ func TestMain(m *testing.M) {
 	// Use pre-defined environment funcs to create a kind cluster prior to test run
 	testenv.Setup(
 		envfuncs.CreateKindCluster(kindClusterName),
-		envfuncs.SetupCRDs("../../config/crd/bases", "*"),
+		// envfuncs.SetupCRDs("../../config/crd/bases", "*"),
 	)
 
 	testenv.Finish(
-		envfuncs.TeardownCRDs("../../config/crd/bases", "*"),
-		envfuncs.DestroyKindCluster(kindClusterName),
+	// envfuncs.TeardownCRDs("../../config/crd/bases", "*"),
+	// envfuncs.DestroyKindCluster(kindClusterName),
 	)
 
 	// launch package tests

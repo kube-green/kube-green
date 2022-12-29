@@ -34,6 +34,8 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 		sleepInfoName = "default-sleep"
 		mockNow       = "2021-03-23T20:01:20.555Z"
 		sleepTime     = "2021-03-23T20:05:59.000Z"
+		wakeUpTime    = "2021-03-23T20:19:50.100Z"
+		sleepTime2    = "2021-03-23T21:05:00.000Z"
 	)
 	testLogger := zap.New(zap.UseDevMode(true))
 
@@ -337,7 +339,8 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 			require.Empty(t, result)
 
 			return ctx
-		}).Feature()
+		}).
+		Feature()
 
 	deployedWhenShouldBeTriggered := features.New("SleepInfo deployed when should be triggered").
 		Setup(func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
@@ -424,6 +427,56 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 		}).
 		Feature()
 
+	withDeploymentAndCronJobs := features.New("deploy between sleep and wakeup").
+		Setup(func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+			sleepInfo := getDefaultSleepInfo(sleepInfoName, c.Namespace())
+			sleepInfo.Spec.SuspendCronjobs = true
+
+			ctx = withSetupOptions(ctx, setupOptions{
+				insertCronjobs: true,
+			})
+			return reconciliationSetup(t, ctx, c, mockNow, sleepInfo)
+		}).
+		Assess("sleep #1", func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+			assert := getAssertOperation(t, ctx)
+			ctx = withAssertOperation(ctx, assert.withScheduleAndExpectedSchedule(sleepTime).nextWakeUp())
+			assertCorrectSleepOperation2(t, ctx, c)
+			return ctx
+		}).
+		Assess("re deploy", func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+			upsertDeployments2(t, ctx, c, true)
+			upsertCronJobs2(t, ctx, c, true)
+
+			assert := getAssertOperation(t, ctx)
+
+			deployments := getDeploymentList(t, ctx, c)
+			for _, deployment := range deployments {
+				originalDeployment := findDeployByName(assert.originalResources.deploymentList, deployment.Name)
+				require.Equal(t, originalDeployment.Spec.Replicas, deployment.Spec.Replicas)
+			}
+
+			cronJobs := getCronJobList(t, ctx, c)
+			for _, cronJob := range cronJobs {
+				originalCronJob := findResourceByName(assert.originalResources.cronjobList, cronJob.GetName())
+				require.Equal(t, isCronJobSuspended(*originalCronJob), isCronJobSuspended(cronJob))
+			}
+
+			return ctx
+		}).
+		Assess("wake up", func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+			assert := getAssertOperation(t, ctx)
+			ctx = withAssertOperation(ctx, assert.withScheduleAndExpectedSchedule(wakeUpTime).nextSleep())
+			assertCorrectWakeUpOperation2(t, ctx, c)
+			return ctx
+		}).
+		Assess("sleep #2", func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+			assert := getAssertOperation(t, ctx)
+			ctx = withAssertOperation(ctx, assert.withScheduleAndExpectedSchedule(sleepTime2).nextWakeUp())
+			assertCorrectSleepOperation2(t, ctx, c)
+			return ctx
+		}).
+		Feature()
+
 	testenv.TestInParallel(t,
 		zeroDeployments,
 		notExistentResource,
@@ -436,7 +489,175 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 		sleepInfoNotInNs,
 		deployedWhenShouldBeTriggered,
 		newDeploymentBeforeWakeUp,
+		withDeploymentAndCronJobs,
 	)
+}
+
+func TestDifferentSleepInfoConfiguration(t *testing.T) {
+	const (
+		sleepInfoName = "default-sleep"
+		mockNow       = "2021-03-23T20:01:20.555Z"
+		sleepTime     = "2021-03-23T20:05:59.000Z"
+		wakeUpTime    = "2021-03-23T20:19:50.100Z"
+		sleepTime2    = "2021-03-23T21:05:00.000Z"
+	)
+
+	table := []struct {
+		name         string
+		getSleepInfo func(t *testing.T, c *envconf.Config) *kubegreenv1alpha1.SleepInfo
+		setupOptions setupOptions
+	}{
+		{
+			name: "with deployments to exclude",
+			getSleepInfo: func(t *testing.T, c *envconf.Config) *kubegreenv1alpha1.SleepInfo {
+				sleepInfo := getDefaultSleepInfo(sleepInfoName, c.Namespace())
+				sleepInfo.Spec.ExcludeRef = []kubegreenv1alpha1.ExcludeRef{
+					{
+						ApiVersion: "apps/v1",
+						Kind:       "Deployment",
+						Name:       "service-1",
+					},
+					{
+						ApiVersion: "apps/v1",
+						Kind:       "Deployment",
+						Name:       "zero-replicas",
+					},
+				}
+				return sleepInfo
+			},
+		},
+		{
+			name: "suspend CronJobs",
+			getSleepInfo: func(t *testing.T, c *envconf.Config) *kubegreenv1alpha1.SleepInfo {
+				sleepInfo := getDefaultSleepInfo(sleepInfoName, c.Namespace())
+				sleepInfo.Spec.SuspendCronjobs = true
+
+				return sleepInfo
+			},
+			setupOptions: setupOptions{
+				insertCronjobs: true,
+			},
+		},
+		{
+			name: "with only CronJob to suspend",
+			getSleepInfo: func(t *testing.T, c *envconf.Config) *kubegreenv1alpha1.SleepInfo {
+				sleepInfo := getDefaultSleepInfo(sleepInfoName, c.Namespace())
+				sleepInfo.Spec.SuspendCronjobs = true
+				sleepInfo.Spec.SuspendDeployments = getPtr(false)
+
+				return sleepInfo
+			},
+			setupOptions: setupOptions{
+				insertCronjobs: true,
+			},
+		},
+		{
+			name: "suspend active CronJobs but CronJobs not present in namespace",
+			getSleepInfo: func(t *testing.T, c *envconf.Config) *kubegreenv1alpha1.SleepInfo {
+				sleepInfo := getDefaultSleepInfo(sleepInfoName, c.Namespace())
+				sleepInfo.Spec.SuspendCronjobs = true
+
+				return sleepInfo
+			},
+		},
+		{
+			name: "CronJobs in namespace but not to suspend",
+			getSleepInfo: func(t *testing.T, c *envconf.Config) *kubegreenv1alpha1.SleepInfo {
+				sleepInfo := getDefaultSleepInfo(sleepInfoName, c.Namespace())
+
+				return sleepInfo
+			},
+			setupOptions: setupOptions{
+				insertCronjobs: true,
+			},
+		},
+		{
+			name: "exclude Deployment and CronJob",
+			getSleepInfo: func(t *testing.T, c *envconf.Config) *kubegreenv1alpha1.SleepInfo {
+				sleepInfo := getDefaultSleepInfo(sleepInfoName, c.Namespace())
+				sleepInfo.Spec.SuspendCronjobs = true
+				sleepInfo.Spec.ExcludeRef = []kubegreenv1alpha1.ExcludeRef{
+					{
+						ApiVersion: "apps/v1",
+						Kind:       "Deployment",
+						Name:       "service-1",
+					},
+					{
+						ApiVersion: "batch/v1",
+						Kind:       "CronJob",
+						Name:       "cronjob-2",
+					},
+				}
+
+				return sleepInfo
+			},
+			setupOptions: setupOptions{
+				insertCronjobs: true,
+			},
+		},
+	}
+
+	featureList := []features.Feature{}
+	for _, tableTest := range table {
+		test := tableTest
+		f := features.New(fmt.Sprintf("SleepInfo configuration %s", test.name)).
+			Setup(func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+				sleepInfo := test.getSleepInfo(t, c)
+
+				ctx = withSetupOptions(ctx, test.setupOptions)
+				ctx = reconciliationSetup(t, ctx, c, mockNow, sleepInfo)
+
+				return ctx
+			}).
+			Assess("sleep #1", func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+				assert := getAssertOperation(t, ctx)
+				ctx = withAssertOperation(ctx, assert.withScheduleAndExpectedSchedule(sleepTime).nextWakeUp())
+				assertCorrectSleepOperation2(t, ctx, c)
+				return ctx
+			}).
+			Assess("wake up", func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+				assert := getAssertOperation(t, ctx)
+				ctx = withAssertOperation(ctx, assert.withScheduleAndExpectedSchedule(wakeUpTime).nextSleep())
+				assertCorrectWakeUpOperation2(t, ctx, c)
+				return ctx
+			}).
+			Assess("sleep #2", func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+				assert := getAssertOperation(t, ctx)
+				ctx = withAssertOperation(ctx, assert.withScheduleAndExpectedSchedule(sleepTime2).nextWakeUp())
+				assertCorrectSleepOperation2(t, ctx, c)
+				return ctx
+			}).Feature()
+
+		featureList = append(featureList, f)
+	}
+
+	featureList = append(featureList, features.New("SleepInfo configuration both Deployment and CronJob not to suspend").
+		Setup(func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+			sleepInfo := getDefaultSleepInfo(sleepInfoName, c.Namespace())
+			sleepInfo.Spec.SuspendCronjobs = false
+			sleepInfo.Spec.SuspendDeployments = getPtr(false)
+
+			ctx = withSetupOptions(ctx, setupOptions{
+				insertCronjobs: true,
+			})
+			ctx = reconciliationSetup(t, ctx, c, mockNow, sleepInfo)
+
+			return ctx
+		}).
+		Assess("sleep #1", func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+			assert := getAssertOperation(t, ctx)
+			ctx = withAssertOperation(ctx, assert.withScheduleAndExpectedSchedule(sleepTime).withRequeue(59*60+1))
+			assertCorrectSleepOperation2(t, ctx, c)
+			return ctx
+		}).
+		Assess("sleep #2", func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+			assert := getAssertOperation(t, ctx)
+			ctx = withAssertOperation(ctx, assert.withScheduleAndExpectedSchedule(sleepTime2).withRequeue(60*60))
+			assertCorrectSleepOperation2(t, ctx, c)
+			return ctx
+		}).Feature())
+
+	testenv.TestInParallel(t, featureList...)
 }
 
 func TestInvalidResource(t *testing.T) {
@@ -538,13 +759,26 @@ func reconciliationSetup(t *testing.T, ctx context.Context, c *envconf.Config, m
 
 	req, originalResources := setupNamespaceWithResources2(t, ctx, c, sleepInfo, reconciler, getSetupOptions(t, ctx))
 	assertContextInfo := AssertOperation{
-		testLogger:        testLogger,
-		ctx:               ctx,
-		req:               req,
-		namespace:         c.Namespace(),
-		sleepInfoName:     sleepInfo.GetName(),
-		originalResources: originalResources,
-		reconciler:        reconciler,
+		testLogger:         testLogger,
+		ctx:                ctx,
+		req:                req,
+		namespace:          c.Namespace(),
+		sleepInfoName:      sleepInfo.GetName(),
+		originalResources:  originalResources,
+		reconciler:         reconciler,
+		excludedDeployment: []string{},
+		excludedCronJob:    []string{},
+	}
+
+	if excludeRef := sleepInfo.Spec.ExcludeRef; excludeRef != nil {
+		for _, excluded := range excludeRef {
+			if excluded.Kind == "Deployment" {
+				assertContextInfo.excludedDeployment = append(assertContextInfo.excludedDeployment, excluded.Name)
+			}
+			if excluded.Kind == "CronJob" {
+				assertContextInfo.excludedCronJob = append(assertContextInfo.excludedCronJob, excluded.Name)
+			}
+		}
 	}
 
 	return withAssertOperation(ctx, assertContextInfo)
@@ -589,7 +823,7 @@ func assertCorrectSleepOperation2(t *testing.T, ctx context.Context, cfg *envcon
 						require.Equal(t, originalDeployment.Spec.Replicas, deployment.Spec.Replicas)
 						continue
 					}
-					require.Equal(t, 0, *deployment.Spec.Replicas)
+					require.Equal(t, int32(0), *deployment.Spec.Replicas)
 				}
 			}
 		} else {

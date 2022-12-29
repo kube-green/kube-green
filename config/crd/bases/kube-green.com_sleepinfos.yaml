@@ -45,7 +45,7 @@ spec:
                       type: string
                     kind:
                       description: Kind of the kubernetes resources of the specific
-                        version. Supported kind is "Deployment".
+                        version. Supported kind are "Deployment" and "CronJob".
                       type: string
                     name:
                       description: Name which identify the kubernetes resource.

@@ -875,7 +875,3 @@ func assertCorrectWakeUpOperation(assert AssertOperation) {
 		Expect(promTestutil.CollectAndCount(metrics.CurrentSleepInfo)).To(Equal(1))
 	})
 }
-
-func getPtr[T any](item T) *T {
-	return &item
-}
