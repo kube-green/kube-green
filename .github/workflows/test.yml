@@ -65,6 +65,16 @@ jobs:
         uses: shogo82148/actions-goveralls@v1
         with:
           path-to-profile: cover.out
+          flag-name: go-${{matrix.go}}-k8s-${{k8s_version}}
+          parallel: true
+  finish:
+    needs: tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: shogo82148/actions-goveralls@v1
+        with:
+          parallel-finished: true
+
   e2e:
     name: e2e test with kind
     runs-on: ubuntu-latest

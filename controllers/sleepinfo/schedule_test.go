@@ -465,3 +465,9 @@ var _ = Describe("TestIsTimeInDeltaMs", func() {
 		})
 	}
 })
+
+func getTime(mockNowRaw string) time.Time {
+	now, err := time.Parse(time.RFC3339, mockNowRaw)
+	Expect(err).ShouldNot(HaveOccurred())
+	return now
+}

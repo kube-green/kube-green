@@ -106,7 +106,7 @@ func getClusterVersion() env.Func {
 			return ctx, err
 		}
 
-		fmt.Printf("cluster version: %s", info.String())
+		fmt.Printf("cluster version: %s\n", info.String())
 
 		return ctx, nil
 	}

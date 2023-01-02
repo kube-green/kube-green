@@ -40,7 +40,7 @@ func createSleepInfoCRD(t *testing.T, ctx context.Context, c *envconf.Config, sl
 
 	createdSleepInfo := &kubegreenv1alpha1.SleepInfo{}
 
-	err = wait.For(conditions.New(c.Client().Resources()).ResourceMatch(sleepInfo, func(object k8s.Object) bool {
+	err = wait.For(conditions.New(c.Client().Resources(c.Namespace())).ResourceMatch(sleepInfo, func(object k8s.Object) bool {
 		createdSleepInfo = object.(*kubegreenv1alpha1.SleepInfo)
 		return true
 	}), wait.WithTimeout(time.Second*10), wait.WithInterval(time.Millisecond*250))
@@ -208,7 +208,7 @@ func upsertCronJobs2(t *testing.T, ctx context.Context, c *envconf.Config, updat
 			require.NoError(t, k8sClient.Create(ctx, &cronJob))
 		}
 
-		err := wait.For(conditions.New(c.Client().Resources()).ResourceMatch(cronJob.DeepCopy(), func(object k8s.Object) bool {
+		err := wait.For(conditions.New(c.Client().Resources(c.Namespace())).ResourceMatch(cronJob.DeepCopy(), func(object k8s.Object) bool {
 			originalSuspend := getSuspendStatus(t, cronJob)
 			actualObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(object)
 			require.NoError(t, err)
