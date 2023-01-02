@@ -392,7 +392,7 @@ func TestSchedule(t *testing.T) {
 
 			expected := test.expected
 			if expected.err != "" {
-				require.Equal(t, expected.err, err)
+				require.Equal(t, expected.err, err.Error())
 			} else {
 				require.NoError(t, err)
 			}
