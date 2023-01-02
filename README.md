@@ -1,7 +1,6 @@
 [![Go Report Card][go-report-svg]][go-report-card]
 [![Coverage][test-and-build-svg]][test-and-build]
 [![Security][security-badge]][security-pipelines]
-[![Test][test-badge]][test-pipelines]
 [![Coverage Status][coverage-badge]][coverage]
 [![Documentations][website-badge]][website]
 [![Adopters][adopters-badge]][adopters]
@@ -160,9 +159,7 @@ If you already use *kube-green*, add you as an [adopter][add-adopters]!
 [coverage]: https://coveralls.io/github/kube-green/kube-green?branch=main
 [website-badge]: https://img.shields.io/static/v1?label=kube-green&color=blue&message=docs&style=flat
 [website]: https://kube-green.dev
-[test-badge]: https://img.shields.io/github/workflow/status/kube-green/kube-green/Test%20and%20build?label=%F0%9F%A7%AA%20tests&style=flat
-[test-pipelines]: https://github.com/kube-green/kube-green/actions/workflows/test.yml
-[security-badge]: https://img.shields.io/github/workflow/status/kube-green/kube-green/Security?label=%F0%9F%94%91%20gosec&style=flat
+[security-badge]: https://github.com/kube-green/kube-green/actions/workflows/security.yml/badge.svg
 [security-pipelines]: https://github.com/kube-green/kube-green/actions/workflows/security.yml
 [adopters-badge]: https://img.shields.io/static/v1?label=ADOPTERS&color=blue&message=docs&style=flat
 [adopters]: https://kube-green.dev/docs/adopters/
