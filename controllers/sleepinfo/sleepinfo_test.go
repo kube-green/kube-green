@@ -62,9 +62,8 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 				RequeueAfter: sleepRequeue(mockNow),
 			}, result)
 			return withAssertOperation(ctx, AssertOperation{
-				sleepInfoName: sleepInfoName,
-				reconciler:    sleepInfoReconciler,
-				req:           req,
+				reconciler: sleepInfoReconciler,
+				req:        req,
 			})
 		}).
 		Assess("sleep", func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
@@ -97,9 +96,8 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 			}, sleepInfo.Status)
 
 			return withAssertOperation(ctx, AssertOperation{
-				sleepInfoName: sleepInfoName,
-				reconciler:    sleepInfoReconciler,
-				req:           assertOperations.req,
+				reconciler: sleepInfoReconciler,
+				req:        assertOperations.req,
 			})
 		}).
 		Assess("WAKE_UP is skipped", func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
@@ -354,9 +352,7 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 			}
 
 			return withAssertOperation(ctx, AssertOperation{
-				req:           req,
-				namespace:     c.Namespace(),
-				sleepInfoName: sleepInfoName,
+				req: req,
 				originalResources: originalResources{
 					deploymentList: deployments,
 				},
@@ -800,8 +796,6 @@ func reconciliationSetup(t *testing.T, ctx context.Context, c *envconf.Config, m
 	req, originalResources := setupNamespaceWithResources(t, ctx, c, sleepInfo, reconciler, getSetupOptions(t, ctx))
 	assertContextInfo := AssertOperation{
 		req:                req,
-		namespace:          c.Namespace(),
-		sleepInfoName:      sleepInfo.GetName(),
 		originalResources:  originalResources,
 		reconciler:         reconciler,
 		excludedDeployment: []string{},
@@ -904,7 +898,7 @@ func assertCorrectSleepOperation2(t *testing.T, ctx context.Context, cfg *envcon
 	})
 
 	t.Run("secret is correctly set", func(t *testing.T) {
-		secret, err := sleepInfoReconciler.getSecret(ctx, getSecretName(assert.sleepInfoName), assert.namespace)
+		secret, err := sleepInfoReconciler.getSecret(ctx, getSecretName(assert.originalResources.sleepInfo.GetName()), cfg.Namespace())
 		require.NoError(t, err)
 		secretData := secret.Data
 
@@ -995,7 +989,7 @@ func assertCorrectSleepOperation2(t *testing.T, ctx context.Context, cfg *envcon
 		# HELP kube_green_current_sleepinfo Info about SleepInfo resource
 		# TYPE kube_green_current_sleepinfo gauge
 		kube_green_current_sleepinfo{name="%s",namespace="%s"} 1
-`, assert.sleepInfoName, assert.namespace))
+`, assert.originalResources.sleepInfo.GetName(), cfg.Namespace()))
 		require.NoError(t, promTestutil.CollectAndCompare(metrics.CurrentSleepInfo, expectedInfo))
 	})
 }
@@ -1037,7 +1031,7 @@ func assertCorrectWakeUpOperation2(t *testing.T, ctx context.Context, cfg *envco
 	})
 
 	t.Run("secret is correctly set", func(t *testing.T) {
-		secret, err := sleepInfoReconciler.getSecret(ctx, getSecretName(assert.sleepInfoName), assert.namespace)
+		secret, err := sleepInfoReconciler.getSecret(ctx, getSecretName(assert.originalResources.sleepInfo.GetName()), cfg.Namespace())
 		require.NoError(t, err)
 		secretData := secret.Data
 		require.Equal(t, map[string][]byte{
@@ -1070,11 +1064,10 @@ func assertCorrectWakeUpOperation2(t *testing.T, ctx context.Context, cfg *envco
 
 // TODO: check all values if necessary, e.g. remove namespace
 type AssertOperation struct {
-	req           ctrl.Request
-	namespace     string
-	sleepInfoName string
-	scheduleTime  string
-	reconciler    SleepInfoReconciler
+	req        ctrl.Request
+	reconciler SleepInfoReconciler
+
+	scheduleTime string
 	// optional - default is equal to scheduleTime
 	expectedScheduleTime string
 	expectedNextRequeue  time.Duration
