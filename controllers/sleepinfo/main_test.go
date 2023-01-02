@@ -53,7 +53,7 @@ func TestMain(m *testing.M) {
 // createNSForTest creates a random namespace with the runID as a prefix. It is stored in the context
 // so that the deleteNSForTest routine can look it up and delete it.
 func createNSForTest(ctx context.Context, cfg *envconf.Config, t *testing.T, runID string) (context.Context, error) {
-	ns := envconf.RandomName(runID, 28)
+	ns := envconf.RandomName(runID, 32)
 	ctx = context.WithValue(ctx, nsKey(t), ns)
 
 	cfg.WithNamespace(ns)
