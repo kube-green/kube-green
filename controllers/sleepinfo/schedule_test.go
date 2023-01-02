@@ -2,15 +2,15 @@ package sleepinfo
 
 import (
 	"fmt"
+	"testing"
 	"time"
 
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
+	"github.com/stretchr/testify/require"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
-var _ = Describe("Test Schedule", func() {
-	testLogger := zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true))
+func TestSchedule(t *testing.T) {
+	testLogger := zap.New(zap.UseDevMode(true))
 
 	sleepInfoReconciler := SleepInfoReconciler{
 		Client: k8sClient,
@@ -75,7 +75,7 @@ var _ = Describe("Test Schedule", func() {
 			data: SleepInfoData{
 				CurrentOperationSchedule: "6 * * * *",
 				NextOperationSchedule:    "10 * * * *",
-				LastSchedule:             getTime("2021-03-23T19:10:00.000Z").Add(1 * time.Second),
+				LastSchedule:             getTime(t, "2021-03-23T19:10:00.000Z").Add(1 * time.Second),
 			},
 			expected: expected{
 				isToExecute:  true,
@@ -89,7 +89,7 @@ var _ = Describe("Test Schedule", func() {
 			data: SleepInfoData{
 				CurrentOperationSchedule: "6 * * * *",
 				NextOperationSchedule:    "10 * * * *",
-				LastSchedule:             getTime("2021-03-23T19:10:00.000Z").Add(-1 * time.Second),
+				LastSchedule:             getTime(t, "2021-03-23T19:10:00.000Z").Add(-1 * time.Second),
 			},
 			expected: expected{
 				isToExecute:  true,
@@ -103,7 +103,7 @@ var _ = Describe("Test Schedule", func() {
 			data: SleepInfoData{
 				CurrentOperationSchedule: "6 * * * *",
 				NextOperationSchedule:    "10 * * * *",
-				LastSchedule:             getTime("2021-03-23T19:10:00.000Z"),
+				LastSchedule:             getTime(t, "2021-03-23T19:10:00.000Z"),
 			},
 			expected: expected{
 				isToExecute:  true,
@@ -130,7 +130,7 @@ var _ = Describe("Test Schedule", func() {
 			data: SleepInfoData{
 				CurrentOperationSchedule: "6 * * * *",
 				NextOperationSchedule:    "10 * * * *",
-				LastSchedule:             getTime("2021-03-23T19:10:00.000Z").Add(1 * time.Second),
+				LastSchedule:             getTime(t, "2021-03-23T19:10:00.000Z").Add(1 * time.Second),
 			},
 			expected: expected{
 				isToExecute:  true,
@@ -144,7 +144,7 @@ var _ = Describe("Test Schedule", func() {
 			data: SleepInfoData{
 				CurrentOperationSchedule: "6 * * * *",
 				NextOperationSchedule:    "10 * * * *",
-				LastSchedule:             getTime("2021-03-23T19:10:00.000Z").Add(-1 * time.Second),
+				LastSchedule:             getTime(t, "2021-03-23T19:10:00.000Z").Add(-1 * time.Second),
 			},
 			expected: expected{
 				isToExecute:  true,
@@ -158,7 +158,7 @@ var _ = Describe("Test Schedule", func() {
 			data: SleepInfoData{
 				CurrentOperationSchedule: "6 * * * *",
 				NextOperationSchedule:    "10 * * * *",
-				LastSchedule:             getTime("2021-03-23T19:10:00.000Z").Add(1 * time.Second),
+				LastSchedule:             getTime(t, "2021-03-23T19:10:00.000Z").Add(1 * time.Second),
 			},
 			expected: expected{
 				isToExecute:  true,
@@ -172,7 +172,7 @@ var _ = Describe("Test Schedule", func() {
 			data: SleepInfoData{
 				CurrentOperationSchedule: "6 * * * *",
 				NextOperationSchedule:    "10 * * * *",
-				LastSchedule:             getTime("2021-03-23T19:10:00.000Z").Add(-1 * time.Second),
+				LastSchedule:             getTime(t, "2021-03-23T19:10:00.000Z").Add(-1 * time.Second),
 			},
 			expected: expected{
 				isToExecute:  true,
@@ -186,7 +186,7 @@ var _ = Describe("Test Schedule", func() {
 			data: SleepInfoData{
 				CurrentOperationSchedule: "6 * * * *",
 				NextOperationSchedule:    "10 * * * *",
-				LastSchedule:             getTime("2021-03-23T19:10:00.000Z"),
+				LastSchedule:             getTime(t, "2021-03-23T19:10:00.000Z"),
 			},
 			expected: expected{
 				isToExecute:  true,
@@ -213,7 +213,7 @@ var _ = Describe("Test Schedule", func() {
 			data: SleepInfoData{
 				CurrentOperationSchedule: "6 * * * *",
 				NextOperationSchedule:    "10 * * * *",
-				LastSchedule:             getTime("2021-03-23T19:10:00.000Z"),
+				LastSchedule:             getTime(t, "2021-03-23T19:10:00.000Z"),
 			},
 			expected: expected{
 				isToExecute:  false,
@@ -227,7 +227,7 @@ var _ = Describe("Test Schedule", func() {
 			data: SleepInfoData{
 				CurrentOperationSchedule: "6 * * * *",
 				NextOperationSchedule:    "10 * * * *",
-				LastSchedule:             getTime("2021-03-23T15:10:00.000Z"),
+				LastSchedule:             getTime(t, "2021-03-23T15:10:00.000Z"),
 			},
 			expected: expected{
 				isToExecute:  false,
@@ -241,7 +241,7 @@ var _ = Describe("Test Schedule", func() {
 			data: SleepInfoData{
 				CurrentOperationSchedule: "6 * * * *",
 				NextOperationSchedule:    "6 * * * *",
-				LastSchedule:             getTime("2021-03-23T19:06:00.000Z").Add(-1 * time.Second),
+				LastSchedule:             getTime(t, "2021-03-23T19:06:00.000Z").Add(-1 * time.Second),
 			},
 			expected: expected{
 				isToExecute:  true,
@@ -255,7 +255,7 @@ var _ = Describe("Test Schedule", func() {
 			data: SleepInfoData{
 				CurrentOperationSchedule: "6 * * * *",
 				NextOperationSchedule:    "6 * * * *",
-				LastSchedule:             getTime("2021-03-23T19:06:00.000Z").Add(1 * time.Second),
+				LastSchedule:             getTime(t, "2021-03-23T19:06:00.000Z").Add(1 * time.Second),
 			},
 			expected: expected{
 				isToExecute:  true,
@@ -269,7 +269,7 @@ var _ = Describe("Test Schedule", func() {
 			data: SleepInfoData{
 				CurrentOperationSchedule: "CRON_TZ=Europe/Rome 0 19 * * *",
 				NextOperationSchedule:    "CRON_TZ=Europe/Rome 0 8 * * *",
-				LastSchedule:             getTime("2021-03-23T08:00:00.000Z").Add(1 * time.Second),
+				LastSchedule:             getTime(t, "2021-03-23T08:00:00.000Z").Add(1 * time.Second),
 			},
 			expected: expected{
 				isToExecute:  false,
@@ -283,7 +283,7 @@ var _ = Describe("Test Schedule", func() {
 			data: SleepInfoData{
 				CurrentOperationSchedule: "CRON_TZ=Europe/Rome 0 19 * * *",
 				NextOperationSchedule:    "CRON_TZ=Europe/Rome 0 8 * * *",
-				LastSchedule:             getTime("2021-04-29T06:00:00.000Z").Add(1 * time.Second),
+				LastSchedule:             getTime(t, "2021-04-29T06:00:00.000Z").Add(1 * time.Second),
 			},
 			expected: expected{
 				isToExecute:  true,
@@ -325,7 +325,7 @@ var _ = Describe("Test Schedule", func() {
 			data: SleepInfoData{
 				CurrentOperationSchedule: "6 * * * *",
 				NextOperationSchedule:    "10 * * * *",
-				LastSchedule:             getTime("2021-03-23T19:10:00.000Z").Add(60 * time.Second),
+				LastSchedule:             getTime(t, "2021-03-23T19:10:00.000Z").Add(60 * time.Second),
 			},
 			expected: expected{
 				isToExecute:  true,
@@ -340,7 +340,7 @@ var _ = Describe("Test Schedule", func() {
 			data: SleepInfoData{
 				CurrentOperationSchedule: "6 * * * *",
 				NextOperationSchedule:    "10 * * * *",
-				LastSchedule:             getTime("2021-03-23T19:10:00.000Z").Add(-60 * time.Second),
+				LastSchedule:             getTime(t, "2021-03-23T19:10:00.000Z").Add(-60 * time.Second),
 			},
 			expected: expected{
 				isToExecute:  true,
@@ -355,7 +355,7 @@ var _ = Describe("Test Schedule", func() {
 			data: SleepInfoData{
 				CurrentOperationSchedule: "6 * * * *",
 				NextOperationSchedule:    "10 * * * *",
-				LastSchedule:             getTime("2021-03-23T19:10:00.000Z"),
+				LastSchedule:             getTime(t, "2021-03-23T19:10:00.000Z"),
 			},
 			expected: expected{
 				isToExecute:  true,
@@ -370,7 +370,7 @@ var _ = Describe("Test Schedule", func() {
 			data: SleepInfoData{
 				CurrentOperationSchedule: "5 * * * *",
 				NextOperationSchedule:    "10 * * * *",
-				LastSchedule:             getTime("2021-03-23T18:05:00.000Z"),
+				LastSchedule:             getTime(t, "2021-03-23T18:05:00.000Z"),
 			},
 			expected: expected{
 				isToExecute:  true,
@@ -383,29 +383,29 @@ var _ = Describe("Test Schedule", func() {
 
 	for _, test := range tests {
 		test := test //necessary to ensure the correct value is passed to the closure
-		It(test.name, func() {
+		t.Run(test.name, func(t *testing.T) {
 			scheduleDeltaSeconds := test.scheduleDeltaSeconds
 			if scheduleDeltaSeconds == 0 {
 				scheduleDeltaSeconds = 1
 			}
-			isToExecute, nextSchedule, requeueAfter, err := sleepInfoReconciler.getNextSchedule(test.data, getTime(test.now), scheduleDeltaSeconds)
+			isToExecute, nextSchedule, requeueAfter, err := sleepInfoReconciler.getNextSchedule(test.data, getTime(t, test.now), scheduleDeltaSeconds)
 
 			expected := test.expected
 			if expected.err != "" {
-				Expect(err).To(MatchError(expected.err))
+				require.Equal(t, expected.err, err)
 			} else {
-				Expect(err).To(BeNil())
+				require.NoError(t, err)
 			}
-			Expect(isToExecute).To(Equal(expected.isToExecute))
+			require.Equal(t, expected.isToExecute, isToExecute)
 			if expected.nextSchedule != "" {
-				Expect(nextSchedule.Format(time.RFC3339)).To(Equal(expected.nextSchedule))
+				require.Equal(t, expected.nextSchedule, nextSchedule.Format(time.RFC3339))
 			}
-			Expect(requeueAfter).To(Equal(expected.requeueAfter))
+			require.Equal(t, expected.requeueAfter, requeueAfter)
 		})
 	}
-})
+}
 
-var _ = Describe("TestIsTimeInDeltaMs", func() {
+func TestTestIsTimeInDeltaMs(t *testing.T) {
 	now := time.Now()
 	tests := []struct {
 		name     string
@@ -459,15 +459,15 @@ var _ = Describe("TestIsTimeInDeltaMs", func() {
 	}
 	for _, test := range tests {
 		test := test //necessary to ensure the correct value is passed to the closure
-		It(fmt.Sprintf("name, %s", test.name), func() {
+		t.Run(fmt.Sprintf("name, %s", test.name), func(t *testing.T) {
 			output := isTimeInDelta(test.t1, test.t2, test.delta)
-			Expect(output).To(Equal(test.expected))
+			require.Equal(t, test.expected, output)
 		})
 	}
-})
+}
 
-func getTime(mockNowRaw string) time.Time {
+func getTime(t *testing.T, mockNowRaw string) time.Time {
 	now, err := time.Parse(time.RFC3339, mockNowRaw)
-	Expect(err).ShouldNot(HaveOccurred())
+	require.NoError(t, err)
 	return now
 }
