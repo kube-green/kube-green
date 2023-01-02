@@ -41,12 +41,6 @@ jobs:
         uses: actions/setup-go@v3
         with:
           go-version: ${{ matrix.go_version }}
-      - name: install docker
-        run: brew install docker
-        if: runner.os == 'macOS'
-      - name: start colima
-        run: colima start
-        if: runner.os == 'macOS'
       - name: docker version
         run: docker version
       - name: Go version
