@@ -19,7 +19,7 @@ type ExcludeRef struct {
 	// Supported api version is "apps/v1".
 	ApiVersion string `json:"apiVersion"`
 	// Kind of the kubernetes resources of the specific version.
-	// Supported kind is "Deployment".
+	// Supported kind are "Deployment" and "CronJob".
 	Kind string `json:"kind"`
 	// Name which identify the kubernetes resource.
 	// +optional
