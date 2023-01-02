@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/discovery"
 	"sigs.k8s.io/e2e-framework/pkg/env"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/envfuncs"
@@ -38,12 +39,13 @@ func TestMain(m *testing.M) {
 	// Use pre-defined environment funcs to create a kind cluster prior to test run
 	testenv.Setup(
 		createKindClusterWithVersion(),
+		getClusterVersion(),
 		envfuncs.SetupCRDs("../../config/crd/bases", "*"),
 	)
 
 	testenv.Finish(
-	// envfuncs.TeardownCRDs("../../config/crd/bases", "*"),
-	// envfuncs.DestroyKindCluster(kindClusterName),
+		envfuncs.TeardownCRDs("../../config/crd/bases", "*"),
+		envfuncs.DestroyKindCluster(kindClusterName),
 	)
 
 	// launch package tests
@@ -90,4 +92,22 @@ func createKindClusterWithVersion() env.Func {
 
 	image := fmt.Sprintf("%s:%s", kindNodeImage, version)
 	return envfuncs.CreateKindClusterWithConfig(kindClusterName, image, "../../kind-config.test.yaml")
+}
+
+func getClusterVersion() env.Func {
+	return func(ctx context.Context, c *envconf.Config) (context.Context, error) {
+		discoveryClient, err := discovery.NewDiscoveryClientForConfig(c.Client().RESTConfig())
+		if err != nil {
+			return ctx, err
+		}
+
+		info, err := discoveryClient.ServerVersion()
+		if err != nil {
+			return ctx, err
+		}
+
+		fmt.Printf("cluster version: %s", info.String())
+
+		return ctx, nil
+	}
 }

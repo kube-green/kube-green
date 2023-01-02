@@ -18,8 +18,6 @@ type MockSpec struct {
 	Version         string
 }
 
-var defaultSuspend = false
-
 func GetMock(opts MockSpec) unstructured.Unstructured {
 	if opts.Schedule == "" {
 		opts.Schedule = "0 0 1-5 * *"
