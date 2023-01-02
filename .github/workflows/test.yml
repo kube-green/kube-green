@@ -18,10 +18,6 @@ jobs:
         os: [ubuntu-latest]
         k8s_version: ['1.25', '1.24', '1.23', '1.22', '1.21', '1.20', '1.19']
         include:
-          - go_version: 1.19
-            os: macos-latest
-            k8s_version: '1.25'
-            kind_node_version: 'v1.25.3@sha256:f52781bc0d7a19fb6c405c2af83abfeb311f130707a0e219175677e366cc45d1'
           - k8s_version: '1.25'
             kind_node_version: 'v1.25.3@sha256:f52781bc0d7a19fb6c405c2af83abfeb311f130707a0e219175677e366cc45d1'
           - k8s_version: '1.24'
