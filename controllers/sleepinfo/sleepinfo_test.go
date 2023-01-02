@@ -286,9 +286,6 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 
 	onlySleep := features.New("only sleep, wake up set to nil").
 		Setup(func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
-			ctx = withSetupOptions(ctx, setupOptions{
-				unsetWakeUpTime: true,
-			})
 			sleepInfo := getDefaultSleepInfo(sleepInfoName, c.Namespace())
 			sleepInfo.Spec.WakeUpTime = ""
 
@@ -357,7 +354,6 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 			}
 
 			return withAssertOperation(ctx, AssertOperation{
-				ctx:           ctx,
 				req:           req,
 				namespace:     c.Namespace(),
 				sleepInfoName: sleepInfoName,
@@ -459,7 +455,7 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 			cronJobs := getCronJobList(t, ctx, c)
 			for _, cronJob := range cronJobs {
 				originalCronJob := findResourceByName(assert.originalResources.cronjobList, cronJob.GetName())
-				require.Equal(t, isCronJobSuspended(*originalCronJob), isCronJobSuspended(cronJob))
+				require.Equal(t, isCronJobSuspended(t, *originalCronJob), isCronJobSuspended(t, cronJob))
 			}
 
 			return ctx
@@ -803,7 +799,6 @@ func reconciliationSetup(t *testing.T, ctx context.Context, c *envconf.Config, m
 
 	req, originalResources := setupNamespaceWithResources2(t, ctx, c, sleepInfo, reconciler, getSetupOptions(t, ctx))
 	assertContextInfo := AssertOperation{
-		ctx:                ctx,
 		req:                req,
 		namespace:          c.Namespace(),
 		sleepInfoName:      sleepInfo.GetName(),
@@ -851,7 +846,7 @@ func assertCorrectSleepOperation2(t *testing.T, ctx context.Context, cfg *envcon
 		Log:     assert.reconciler.Log,
 		Metrics: assert.reconciler.Metrics,
 	}
-	result, err := sleepInfoReconciler.Reconcile(assert.ctx, assert.req)
+	result, err := sleepInfoReconciler.Reconcile(ctx, assert.req)
 	require.NoError(t, err)
 
 	t.Run("replicas are set to 0 to all deployments set to sleep", func(t *testing.T) {
@@ -878,7 +873,7 @@ func assertCorrectSleepOperation2(t *testing.T, ctx context.Context, cfg *envcon
 	})
 
 	t.Run("cron jobs are correctly suspended", func(t *testing.T) {
-		cronJobs := getCronJobList(t, assert.ctx, cfg)
+		cronJobs := getCronJobList(t, ctx, cfg)
 		if assert.originalResources.sleepInfo.IsCronjobsToSuspend() {
 			if len(assert.excludedCronJob) == 0 {
 				assertAllCronJobsSuspended2(t, cronJobs, assert.originalResources.cronjobList)
@@ -909,7 +904,7 @@ func assertCorrectSleepOperation2(t *testing.T, ctx context.Context, cfg *envcon
 	})
 
 	t.Run("secret is correctly set", func(t *testing.T) {
-		secret, err := sleepInfoReconciler.getSecret(assert.ctx, getSecretName(assert.sleepInfoName), assert.namespace)
+		secret, err := sleepInfoReconciler.getSecret(ctx, getSecretName(assert.sleepInfoName), assert.namespace)
 		require.NoError(t, err)
 		secretData := secret.Data
 
@@ -971,7 +966,7 @@ func assertCorrectSleepOperation2(t *testing.T, ctx context.Context, cfg *envcon
 	})
 
 	t.Run("sleepinfo status updated correctly", func(t *testing.T) {
-		sleepInfo, err := sleepInfoReconciler.getSleepInfo(assert.ctx, assert.req)
+		sleepInfo, err := sleepInfoReconciler.getSleepInfo(ctx, assert.req)
 		require.NoError(t, err)
 
 		operationType := sleepOperation
@@ -1018,11 +1013,11 @@ func assertCorrectWakeUpOperation2(t *testing.T, ctx context.Context, cfg *envco
 		Metrics: assert.reconciler.Metrics,
 	}
 
-	result, err := sleepInfoReconciler.Reconcile(assert.ctx, assert.req)
+	result, err := sleepInfoReconciler.Reconcile(ctx, assert.req)
 	require.NoError(t, err)
 
 	t.Run("deployment replicas correctly waked up", func(t *testing.T) {
-		deployments := getDeploymentList(t, assert.ctx, cfg)
+		deployments := getDeploymentList(t, ctx, cfg)
 		for _, deployment := range deployments {
 			originalDeployment := findDeployByName(assert.originalResources.deploymentList, deployment.Name)
 			require.Equal(t, originalDeployment.Spec.Replicas, deployment.Spec.Replicas)
@@ -1030,7 +1025,7 @@ func assertCorrectWakeUpOperation2(t *testing.T, ctx context.Context, cfg *envco
 	})
 
 	t.Run("cron jobs correctly waked up", func(t *testing.T) {
-		cronJobs := getCronJobList(t, assert.ctx, cfg)
+		cronJobs := getCronJobList(t, ctx, cfg)
 		for _, cronJob := range cronJobs {
 			originalCronJob := findResourceByName(assert.originalResources.cronjobList, cronJob.GetName())
 			originalUnstructuredCronJob, err := runtime.DefaultUnstructuredConverter.ToUnstructured(originalCronJob)
@@ -1042,7 +1037,7 @@ func assertCorrectWakeUpOperation2(t *testing.T, ctx context.Context, cfg *envco
 	})
 
 	t.Run("secret is correctly set", func(t *testing.T) {
-		secret, err := sleepInfoReconciler.getSecret(assert.ctx, getSecretName(assert.sleepInfoName), assert.namespace)
+		secret, err := sleepInfoReconciler.getSecret(ctx, getSecretName(assert.sleepInfoName), assert.namespace)
 		require.NoError(t, err)
 		secretData := secret.Data
 		require.Equal(t, map[string][]byte{
@@ -1052,7 +1047,7 @@ func assertCorrectWakeUpOperation2(t *testing.T, ctx context.Context, cfg *envco
 	})
 
 	t.Run("status correctly updated", func(t *testing.T) {
-		sleepInfo, err := sleepInfoReconciler.getSleepInfo(assert.ctx, assert.req)
+		sleepInfo, err := sleepInfoReconciler.getSleepInfo(ctx, assert.req)
 		require.NoError(t, err)
 		require.Equal(t, kubegreenv1alpha1.SleepInfoStatus{
 			LastScheduleTime: metav1.NewTime(parseTime(t, assert.expectedScheduleTime).Round(time.Second).Local()),
@@ -1075,7 +1070,6 @@ func assertCorrectWakeUpOperation2(t *testing.T, ctx context.Context, cfg *envco
 
 // TODO: check all values if necessary, e.g. remove namespace
 type AssertOperation struct {
-	ctx           context.Context
 	req           ctrl.Request
 	namespace     string
 	sleepInfoName string

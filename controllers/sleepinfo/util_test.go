@@ -27,6 +27,17 @@ import (
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 )
 
+type setupOptions struct {
+	insertCronjobs bool
+}
+
+type originalResources struct {
+	deploymentList []appsv1.Deployment
+	cronjobList    []unstructured.Unstructured
+
+	sleepInfo kubegreenv1alpha1.SleepInfo
+}
+
 // TODO: simplify setup with this function
 func createSleepInfoCRD(t *testing.T, ctx context.Context, c *envconf.Config, sleepInfo *kubegreenv1alpha1.SleepInfo) kubegreenv1alpha1.SleepInfo {
 	t.Helper()
@@ -83,7 +94,7 @@ func setupNamespaceWithResources2(t *testing.T, ctx context.Context, cfg *envcon
 	t.Run("cron jobs not suspended", func(t *testing.T) {
 		cronJobsNotChanged := getCronJobList(t, ctx, cfg)
 		for i, cj := range cronJobsNotChanged {
-			require.Equal(t, isCronJobSuspended(originalCronJobs[i]), isCronJobSuspended(cj))
+			require.Equal(t, isCronJobSuspended(t, originalCronJobs[i]), isCronJobSuspended(t, cj))
 		}
 	})
 
@@ -387,7 +398,7 @@ func assertAllCronJobsSuspended2(t *testing.T, actualCronJobs []unstructured.Uns
 			suspend bool
 		}{
 			name:    cronJob.GetName(),
-			suspend: isCronJobSuspended(cronJob),
+			suspend: isCronJobSuspended(t, cronJob),
 		})
 	}
 	for _, suspended := range allSuspended {
@@ -443,4 +454,13 @@ func getValueFromPtr[T any](item *T) T {
 		return r
 	}
 	return *item
+}
+
+func isCronJobSuspended(t *testing.T, cronJob unstructured.Unstructured) bool {
+	suspend, found, err := unstructured.NestedBool(cronJob.Object, "spec", "suspend")
+	require.NoError(t, err)
+	if !found {
+		return false
+	}
+	return suspend
 }
