@@ -88,7 +88,7 @@ func createKindClusterWithVersion() env.Func {
 	if !ok {
 		return envfuncs.CreateKindCluster(kindClusterName)
 	}
-	fmt.Printf("kind use version %s", version)
+	fmt.Printf("kind use version %s\n", version)
 
 	image := fmt.Sprintf("%s:%s", kindNodeImage, version)
 	return envfuncs.CreateKindClusterWithConfig(kindClusterName, image, "../../kind-config.test.yaml")
