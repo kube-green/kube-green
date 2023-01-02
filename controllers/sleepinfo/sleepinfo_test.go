@@ -209,7 +209,7 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 			return ctx
 		}).
 		Assess("redeploy before the wakeup", func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
-			upsertDeployments2(t, ctx, c, true)
+			upsertDeployments(t, ctx, c, true)
 
 			deployments := getDeploymentList(t, ctx, c)
 			assert := getAssertOperation(t, ctx)
@@ -304,7 +304,7 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 			return ctx
 		}).
 		Assess("deploy", func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
-			upsertDeployments2(t, ctx, c, true)
+			upsertDeployments(t, ctx, c, true)
 
 			deployments := getDeploymentList(t, ctx, c)
 			assert := getAssertOperation(t, ctx)
@@ -344,7 +344,7 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 	deployedWhenShouldBeTriggered := features.New("SleepInfo deployed when should be triggered").
 		Setup(func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 			createSleepInfoCRD(t, ctx, c, getDefaultSleepInfo(sleepInfoName, c.Namespace()))
-			deployments := upsertDeployments2(t, ctx, c, false)
+			deployments := upsertDeployments(t, ctx, c, false)
 
 			req := reconcile.Request{
 				NamespacedName: types.NamespacedName{
@@ -372,7 +372,7 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 			}, result)
 
 			deployments := getDeploymentList(t, ctx, c)
-			assertAllReplicasSetToZero2(t, deployments, assert.originalResources.deploymentList)
+			assertAllReplicasSetToZero(t, deployments, assert.originalResources.deploymentList)
 			return ctx
 		}).
 		Feature()
@@ -441,8 +441,8 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 			return ctx
 		}).
 		Assess("re deploy", func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
-			upsertDeployments2(t, ctx, c, true)
-			upsertCronJobs2(t, ctx, c, true)
+			upsertDeployments(t, ctx, c, true)
+			upsertCronJobs(t, ctx, c, true)
 
 			assert := getAssertOperation(t, ctx)
 
@@ -797,7 +797,7 @@ func reconciliationSetup(t *testing.T, ctx context.Context, c *envconf.Config, m
 
 	reconciler := getSleepInfoReconciler(t, c, testLogger, mockNow)
 
-	req, originalResources := setupNamespaceWithResources2(t, ctx, c, sleepInfo, reconciler, getSetupOptions(t, ctx))
+	req, originalResources := setupNamespaceWithResources(t, ctx, c, sleepInfo, reconciler, getSetupOptions(t, ctx))
 	assertContextInfo := AssertOperation{
 		req:                req,
 		namespace:          c.Namespace(),
@@ -853,7 +853,7 @@ func assertCorrectSleepOperation2(t *testing.T, ctx context.Context, cfg *envcon
 		deployments := getDeploymentList(t, ctx, cfg)
 		if assert.originalResources.sleepInfo.IsDeploymentsToSuspend() {
 			if len(assert.excludedDeployment) == 0 {
-				assertAllReplicasSetToZero2(t, deployments, assert.originalResources.deploymentList)
+				assertAllReplicasSetToZero(t, deployments, assert.originalResources.deploymentList)
 			} else {
 				for _, deployment := range deployments {
 					if contains(assert.excludedDeployment, deployment.Name) {
@@ -876,7 +876,7 @@ func assertCorrectSleepOperation2(t *testing.T, ctx context.Context, cfg *envcon
 		cronJobs := getCronJobList(t, ctx, cfg)
 		if assert.originalResources.sleepInfo.IsCronjobsToSuspend() {
 			if len(assert.excludedCronJob) == 0 {
-				assertAllCronJobsSuspended2(t, cronJobs, assert.originalResources.cronjobList)
+				assertAllCronJobsSuspended(t, cronJobs, assert.originalResources.cronjobList)
 			} else {
 				for _, cronJob := range cronJobs {
 					originalCronJob := findResourceByName(assert.originalResources.cronjobList, cronJob.GetName())

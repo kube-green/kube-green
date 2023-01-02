@@ -60,16 +60,16 @@ func createSleepInfoCRD(t *testing.T, ctx context.Context, c *envconf.Config, sl
 	return *createdSleepInfo
 }
 
-func setupNamespaceWithResources2(t *testing.T, ctx context.Context, cfg *envconf.Config, sleepInfoToCreate *kubegreenv1alpha1.SleepInfo, reconciler SleepInfoReconciler, opts setupOptions) (ctrl.Request, originalResources) {
+func setupNamespaceWithResources(t *testing.T, ctx context.Context, cfg *envconf.Config, sleepInfoToCreate *kubegreenv1alpha1.SleepInfo, reconciler SleepInfoReconciler, opts setupOptions) (ctrl.Request, originalResources) {
 	t.Helper()
 
 	sleepInfo := createSleepInfoCRD(t, ctx, cfg, sleepInfoToCreate)
 
-	originalDeployments := upsertDeployments2(t, ctx, cfg, false)
+	originalDeployments := upsertDeployments(t, ctx, cfg, false)
 
 	var originalCronJobs []unstructured.Unstructured
 	if opts.insertCronjobs {
-		originalCronJobs = upsertCronJobs2(t, ctx, cfg, false)
+		originalCronJobs = upsertCronJobs(t, ctx, cfg, false)
 	}
 
 	req := reconcile.Request{
@@ -106,7 +106,7 @@ func setupNamespaceWithResources2(t *testing.T, ctx context.Context, cfg *envcon
 	}
 }
 
-func upsertDeployments2(t *testing.T, ctx context.Context, c *envconf.Config, updateIfAlreadyCreated bool) []appsv1.Deployment {
+func upsertDeployments(t *testing.T, ctx context.Context, c *envconf.Config, updateIfAlreadyCreated bool) []appsv1.Deployment {
 	t.Helper()
 
 	k8sClient := newControllerRuntimeClient(t, c)
@@ -167,8 +167,7 @@ func upsertDeployments2(t *testing.T, ctx context.Context, c *envconf.Config, up
 	return deployments
 }
 
-// TODO: Use go client instead of controller-runtime
-func upsertCronJobs2(t *testing.T, ctx context.Context, c *envconf.Config, updateIfAlreadyCreated bool) []unstructured.Unstructured {
+func upsertCronJobs(t *testing.T, ctx context.Context, c *envconf.Config, updateIfAlreadyCreated bool) []unstructured.Unstructured {
 	suspendTrue := true
 	suspendFalse := false
 	namespace := c.Namespace()
@@ -181,7 +180,7 @@ func upsertCronJobs2(t *testing.T, ctx context.Context, c *envconf.Config, updat
 	})
 	require.NoError(t, err)
 
-	version := getCronJobAPIVersion2(restMapping)
+	version := getCronJobAPIVersion(restMapping)
 
 	cronJobs := []unstructured.Unstructured{
 		cronjobs.GetMock(cronjobs.MockSpec{
@@ -373,7 +372,7 @@ func isSuspendedCronJob(t *testing.T, cronJob unstructured.Unstructured) bool {
 	return suspend
 }
 
-func assertAllReplicasSetToZero2(t *testing.T, actualDeployments []appsv1.Deployment, originalDeployments []appsv1.Deployment) {
+func assertAllReplicasSetToZero(t *testing.T, actualDeployments []appsv1.Deployment, originalDeployments []appsv1.Deployment) {
 	t.Helper()
 
 	allReplicas := []int32{}
@@ -385,7 +384,7 @@ func assertAllReplicasSetToZero2(t *testing.T, actualDeployments []appsv1.Deploy
 	}
 }
 
-func assertAllCronJobsSuspended2(t *testing.T, actualCronJobs []unstructured.Unstructured, originalCronJobs []unstructured.Unstructured) {
+func assertAllCronJobsSuspended(t *testing.T, actualCronJobs []unstructured.Unstructured, originalCronJobs []unstructured.Unstructured) {
 	t.Helper()
 
 	allSuspended := []struct {
@@ -424,7 +423,7 @@ func contains(s []string, v string) bool {
 	return false
 }
 
-func getCronJobAPIVersion2(restMapping *meta.RESTMapping) string {
+func getCronJobAPIVersion(restMapping *meta.RESTMapping) string {
 	return restMapping.GroupVersionKind.Version
 }
 
