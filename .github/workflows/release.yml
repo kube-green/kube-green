@@ -10,7 +10,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
       - name: Install kubectl
-        uses: azure/setup-kubectl@v3.1
+        uses: azure/setup-kubectl@v3.2
         id: install
       - name: Generate file config
         run: kubectl kustomize ./config/default -o kube-green.yaml
