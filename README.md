@@ -42,6 +42,12 @@ It is possible to run all the unit tests with
 make test
 ```
 
+To run integration tests, run:
+
+```sh
+make e2e-test
+```
+
 There are also some tests which run using [*kuttl*](https://kuttl.dev/). To install *kuttl* follow [this guide](https://kuttl.dev/docs/#install-kuttl-cli).
 
 To run this tests, set up a Kubernetes cluster using [kind](https://kind.sigs.k8s.io/)

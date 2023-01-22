@@ -42,7 +42,7 @@ func TestMain(m *testing.M) {
 	})
 
 	testenv.Setup(
-		testutil.CreateKindClusterWithVersion(kindClusterName),
+		testutil.CreateKindClusterWithVersion(kindClusterName, "testdata/kind-config.test.yaml"),
 		testutil.GetClusterVersion(),
 		testutil.SetupCRDs("../../config/crd/bases", "*"),
 	)

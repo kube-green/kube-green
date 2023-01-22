@@ -133,7 +133,7 @@ func TestServerSideApply(t *testing.T) {
 	}.
 		Build("Server Side Apply").
 		Setup(func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
-			ctx, err := testutil.CreateKindClusterWithVersion(kindClusterName)(ctx, c)
+			ctx, err := testutil.CreateKindClusterWithVersion(kindClusterName, "../testdata/kind-config.test.yaml")(ctx, c)
 			require.NoError(t, err)
 
 			ctx, err = testutil.GetClusterVersion()(ctx, c)

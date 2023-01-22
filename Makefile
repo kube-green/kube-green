@@ -50,7 +50,7 @@ endif
 # Image URL to use all building/pushing image targets
 IMG ?= $(DOCKER_IMAGE_NAME):$(VERSION)
 # KIND_K8S_VERSION refers to the version of Kind to use.
-KIND_K8S_VERSION ?= 1.25.3
+KIND_K8S_VERSION ?= v1.25.3
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -100,7 +100,13 @@ vet: ## Run go vet against code.
 .PHONY: test
 test: manifests generate fmt vet ## Run tests.
 	@echo "Running tests with kubernetes version $(KIND_K8S_VERSION)..."
-	go test ./... -cover -coverprofile cover.out
+	KIND_K8S_VERSION=$(KIND_K8S_VERSION) go test ./... -cover -coverprofile cover.out
+
+.PHONY: e2e-test
+e2e-test: manifests generate kustomize
+	@$(KUSTOMIZE) build ./config/e2e-test/ -o ./tests/integration/kube-green-e2e-test.yaml
+	@echo "==> Generated K8s resource file with Kustomize"
+	go test -tags=e2e ./tests/integration/ -count 1
 
 ##@ Build
 
@@ -242,9 +248,3 @@ release:
 	git add .
 	git commit -m "Upgrade to $(version)"
 	git tag $(version)
-
-.PHONY: e2e-test
-e2e-test: kustomize
-	@$(KUSTOMIZE) build ./config/e2e-test/ -o ./tests/integration/kube-green-e2e-test.yaml
-	@echo "==> Generated K8s resource file with Kustomize"
-	go test -tags=e2e ./tests/integration/ -count 1

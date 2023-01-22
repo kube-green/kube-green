@@ -17,7 +17,7 @@ const (
 )
 
 // CreateKindClusterWithVersion create KinD cluster with a specific version
-func CreateKindClusterWithVersion(clusterName string) env.Func {
+func CreateKindClusterWithVersion(clusterName, configPath string) env.Func {
 	version, ok := os.LookupEnv(kindVersionVariableName)
 	if !ok {
 		return envfuncs.CreateKindCluster(clusterName)
@@ -25,7 +25,7 @@ func CreateKindClusterWithVersion(clusterName string) env.Func {
 	fmt.Printf("kind use version %s\n", version)
 
 	image := fmt.Sprintf("%s:%s", kindNodeImage, version)
-	return envfuncs.CreateKindClusterWithConfig(clusterName, image, "./testdata/kind-config.test.yaml")
+	return envfuncs.CreateKindClusterWithConfig(clusterName, image, configPath)
 }
 
 // CreateKindClusterWithVersion destroy KinD cluster with cluster name.
