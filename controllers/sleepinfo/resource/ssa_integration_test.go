@@ -5,9 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-logr/logr"
 	kubegreenv1alpha1 "github.com/kube-green/kube-green/api/v1alpha1"
-	"github.com/kube-green/kube-green/controllers/internal/testutil"
+	"github.com/kube-green/kube-green/internal/testutil"
+
+	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -20,11 +21,18 @@ import (
 	"sigs.k8s.io/e2e-framework/klient/k8s"
 	"sigs.k8s.io/e2e-framework/klient/wait"
 	"sigs.k8s.io/e2e-framework/klient/wait/conditions"
+	"sigs.k8s.io/e2e-framework/pkg/env"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/features"
 )
 
 func TestServerSideApply(t *testing.T) {
+	const (
+		kindClusterName = "kube-green-resource"
+	)
+	testenv := env.New()
+	runID := envconf.RandomName("kube-green-resource", 24)
+
 	ssaPatch := features.Table{
 		{
 			Name: "correctly patch resource",
@@ -124,8 +132,27 @@ func TestServerSideApply(t *testing.T) {
 		},
 	}.
 		Build("Server Side Apply").
+		Setup(func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+			ctx, err := testutil.CreateKindClusterWithVersion(kindClusterName)(ctx, c)
+			require.NoError(t, err)
+
+			ctx, err = testutil.GetClusterVersion()(ctx, c)
+			require.NoError(t, err)
+
+			ctx, err = testutil.CreateNSForTest(ctx, c, t, runID)
+			require.NoError(t, err)
+
+			return ctx
+		}).
 		Teardown(func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 			cleanupNamespaceDeployments(t, c)
+
+			ctx, err := testutil.DeleteNamespace(ctx, c, t, runID)
+			require.NoError(t, err)
+
+			ctx, err = testutil.DestroyKindCluster(kindClusterName)(ctx, c)
+			require.NoError(t, err)
+
 			return ctx
 		}).
 		Feature()

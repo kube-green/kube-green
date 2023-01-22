@@ -23,3 +23,10 @@ testbin/*
 *.swp
 *.swo
 *~
+
+!.vscode
+.vscode/*
+!.vscode/settings.json
+
+# Test e2e
+kube-green-e2e-test.yaml

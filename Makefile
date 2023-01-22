@@ -176,7 +176,7 @@ KUSTOMIZE_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/kubernetes-sigs/k
 .PHONY: kustomize
 kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
 $(KUSTOMIZE): $(LOCALBIN)
-	test -s $(LOCALBIN)/kustomize || { curl -s $(KUSTOMIZE_INSTALL_SCRIPT) | bash -s -- $(subst v,,$(KUSTOMIZE_VERSION)) $(LOCALBIN); }
+	@test -s $(LOCALBIN)/kustomize || { curl -s $(KUSTOMIZE_INSTALL_SCRIPT) | bash -s -- $(subst v,,$(KUSTOMIZE_VERSION)) $(LOCALBIN); }
 
 .PHONY: controller-gen
 controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary.
@@ -254,3 +254,9 @@ release:
 	git add .
 	git commit -m "Upgrade to $(version)"
 	git tag $(version)
+
+.PHONY: e2e-test
+e2e-test: kustomize
+	@$(KUSTOMIZE) build ./config/e2e-test/ -o ./tests/integration/kube-green-e2e-test.yaml
+	@echo "==> Generated K8s resource file with Kustomize"
+	go test -tags=e2e ./tests/integration/ -count 1

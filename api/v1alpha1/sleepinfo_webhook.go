@@ -60,18 +60,17 @@ func (s SleepInfo) validateSleepInfo() error {
 	if err != nil {
 		return err
 	}
-	if schedule == "" {
-		return nil
-	}
-	if _, err = cron.ParseStandard(schedule); err != nil {
-		return err
+	if schedule != "" {
+		if _, err = cron.ParseStandard(schedule); err != nil {
+			return err
+		}
 	}
 
 	for _, excludeRef := range s.GetExcludeRef() {
 		if len(excludeRef.Name) == 0 && len(excludeRef.MatchLabels) == 0 {
 			return fmt.Errorf(`one of "Name" or "MatchLabels" values must be set`)
 		} else if len(excludeRef.Name) > 0 && len(excludeRef.MatchLabels) > 0 {
-			return fmt.Errorf(`one of "Name" or "MatchLabels" values must be set`)
+			return fmt.Errorf(`only one of "Name" or "MatchLabels" values must be set`)
 		}
 	}
 	return nil

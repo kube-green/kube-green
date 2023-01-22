@@ -5,7 +5,11 @@ import (
 	"os"
 	"testing"
 
-	"github.com/kube-green/kube-green/controllers/internal/testutil"
+	"github.com/kube-green/kube-green/internal/testutil"
+
+	kubegreenv1alpha1 "github.com/kube-green/kube-green/api/v1alpha1"
+	"github.com/stretchr/testify/require"
+	"sigs.k8s.io/e2e-framework/klient/k8s/resources"
 	"sigs.k8s.io/e2e-framework/pkg/env"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/envfuncs"
@@ -17,7 +21,7 @@ var (
 )
 
 const (
-	kindClusterName = "kube-green-e2e"
+	kindClusterName = "kube-green-sleepinfo"
 )
 
 func TestMain(m *testing.M) {
@@ -25,6 +29,11 @@ func TestMain(m *testing.M) {
 	runID := envconf.RandomName("kube-green-test", 24)
 
 	testenv.BeforeEachFeature(func(ctx context.Context, c *envconf.Config, t *testing.T, f features.Feature) (context.Context, error) {
+		r, err := resources.New(c.Client().RESTConfig())
+		require.NoError(t, err)
+		kubegreenv1alpha1.AddToScheme(r.GetScheme())
+		c = c.WithClient(c.Client())
+
 		return testutil.CreateNSForTest(ctx, c, t, runID)
 	})
 

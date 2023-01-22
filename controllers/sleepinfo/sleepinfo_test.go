@@ -8,12 +8,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-logr/logr"
 	kubegreenv1alpha1 "github.com/kube-green/kube-green/api/v1alpha1"
-	"github.com/kube-green/kube-green/controllers/internal/testutil"
 	"github.com/kube-green/kube-green/controllers/sleepinfo/cronjobs"
 	"github.com/kube-green/kube-green/controllers/sleepinfo/deployments"
 	"github.com/kube-green/kube-green/controllers/sleepinfo/metrics"
+	"github.com/kube-green/kube-green/internal/testutil"
+
+	"github.com/go-logr/logr"
 	promTestutil "github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/require"
 
