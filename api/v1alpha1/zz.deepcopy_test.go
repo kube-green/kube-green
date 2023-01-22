@@ -27,6 +27,11 @@ func TestDeepCopy(t *testing.T) {
 					{
 						Name: "",
 					},
+					{
+						MatchLabels: map[string]string{
+							"label1": "value1",
+						},
+					},
 				},
 			},
 			Status: SleepInfoStatus{
@@ -43,6 +48,7 @@ func TestDeepCopy(t *testing.T) {
 		require.Equal(t, &sleepInfo.Spec, sleepInfo.Spec.DeepCopy())
 
 		require.Equal(t, &sleepInfo.Spec.ExcludeRef[0], sleepInfo.Spec.ExcludeRef[0].DeepCopy())
+		require.Equal(t, &sleepInfo.Spec.ExcludeRef[1], sleepInfo.Spec.ExcludeRef[1].DeepCopy())
 	})
 
 	t.Run("sleep info list", func(t *testing.T) {
