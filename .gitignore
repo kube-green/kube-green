@@ -29,4 +29,4 @@ testbin/*
 !.vscode/settings.json
 
 # Test e2e
-kube-green-e2e-test.yaml
+kubeconfig

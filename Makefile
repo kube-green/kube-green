@@ -104,7 +104,7 @@ test: manifests generate fmt vet ## Run tests.
 
 .PHONY: e2e-test
 e2e-test: manifests generate kustomize
-	@$(KUSTOMIZE) build ./config/e2e-test/ -o ./tests/integration/kube-green-e2e-test.yaml
+	@$(KUSTOMIZE) build ./config/e2e-test/ -o /tmp/kube-green-e2e-test.yaml
 	@echo "==> Generated K8s resource file with Kustomize"
 	go test -tags=e2e ./tests/integration/ -count 1
 

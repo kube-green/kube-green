@@ -57,7 +57,7 @@ func TestMain(m *testing.M) {
 	)
 
 	testenv.Finish(
-		envfuncs.TeardownCRDs("./", "kube-green-e2e-test.yaml"),
+		envfuncs.TeardownCRDs("/tmp", "kube-green-e2e-test.yaml"),
 		testutil.DestroyKindCluster(kindClusterName),
 	)
 
@@ -72,6 +72,7 @@ func buildDockerImage(image string) env.Func {
 		if p.Err() != nil {
 			return ctx, fmt.Errorf("docker: build %s: %s", p.Err(), p.Result())
 		}
+		fmt.Printf("kube-green docker image %s created\n", image)
 		return ctx, nil
 	}
 }
@@ -102,7 +103,7 @@ func installCertManager() env.Func {
 
 func installKubeGreen() env.Func {
 	return func(ctx context.Context, c *envconf.Config) (context.Context, error) {
-		ctx, err := envfuncs.SetupCRDs("./", "kube-green-e2e-test.yaml")(ctx, c)
+		ctx, err := envfuncs.SetupCRDs("/tmp", "kube-green-e2e-test.yaml")(ctx, c)
 		if err != nil {
 			return ctx, err
 		}
@@ -111,7 +112,7 @@ func installKubeGreen() env.Func {
 			return ctx, fmt.Errorf("kubectl wait kube-green webhook %s: %s", p.Err(), p.Result())
 		}
 		time.Sleep(2 * time.Second)
-		fmt.Printf("kube-green running")
+		fmt.Printf("kube-green running\n")
 		return ctx, nil
 	}
 }

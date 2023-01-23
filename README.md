@@ -48,32 +48,6 @@ To run integration tests, run:
 make e2e-test
 ```
 
-There are also some tests which run using [*kuttl*](https://kuttl.dev/). To install *kuttl* follow [this guide](https://kuttl.dev/docs/#install-kuttl-cli).
-
-To run this tests, set up a Kubernetes cluster using [kind](https://kind.sigs.k8s.io/)
-
-```sh
-kind create cluster --name kube-green-testing
-```
-
-Build the docker image
-
-```sh
-make docker-test-build
-```
-
-and load the docker image to test
-
-```sh
-kind load docker-image kubegreen/kube-green:e2e-test --name kube-green-testing
-```
-
-After this, it's possible to start the tests (skipping the cluster deletion)
-
-```sh
-kubectl kuttl test --skip-cluster-delete
-```
-
 ## Deployment
 
 To deploy *kube-green* in live systems, follow the [docs](https://kube-green.dev/docs/install/).
