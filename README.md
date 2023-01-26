@@ -42,7 +42,7 @@ It is possible to run all the unit tests with
 make test
 ```
 
-To run integration tests, run:
+To run integration tests:
 
 ```sh
 make e2e-test

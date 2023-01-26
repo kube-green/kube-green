@@ -111,6 +111,8 @@ func installKubeGreen() env.Func {
 		if p := e.RunProc("kubectl wait --for=condition=ready --timeout=120s pod -l app=kube-green -n kube-green"); p.Err() != nil {
 			return ctx, fmt.Errorf("kubectl wait kube-green webhook %s: %s", p.Err(), p.Result())
 		}
+		// TODO: this sleep is because sometimes kube-green is flag as ready but webhook
+		// is not ready. We should investigate about it.
 		time.Sleep(2 * time.Second)
 		fmt.Printf("kube-green running\n")
 		return ctx, nil
