@@ -8,11 +8,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-logr/logr"
 	kubegreenv1alpha1 "github.com/kube-green/kube-green/api/v1alpha1"
 	"github.com/kube-green/kube-green/controllers/sleepinfo/cronjobs"
 	"github.com/kube-green/kube-green/controllers/sleepinfo/deployments"
 	"github.com/kube-green/kube-green/controllers/sleepinfo/metrics"
+	"github.com/kube-green/kube-green/internal/testutil"
+
+	"github.com/go-logr/logr"
 	promTestutil "github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/require"
 
@@ -238,13 +240,14 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 			return ctx
 		}).
 		Assess("redeploy a single deploy", func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
-			k8sClient := newControllerRuntimeClient(t, c)
+			k8sClient, err := testutil.NewControllerRuntimeClient(c)
+			require.NoError(t, err)
 			deployments := getDeploymentList(t, ctx, c)
 
 			deploymentToUpdate := deployments[0].DeepCopy()
 			patch := client.MergeFrom(deploymentToUpdate)
 			*deploymentToUpdate.Spec.Replicas = 0
-			err := k8sClient.Patch(ctx, deploymentToUpdate, patch)
+			err = k8sClient.Patch(ctx, deploymentToUpdate, patch)
 			require.NoError(t, err)
 
 			updatedDeployment := appsv1.Deployment{}
@@ -394,8 +397,9 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 					"app": serviceNameToCreate,
 				},
 			})
-			k8sClient := newControllerRuntimeClient(t, c)
-			err := k8sClient.Create(ctx, deployToCreate.DeepCopy())
+			k8sClient, err := testutil.NewControllerRuntimeClient(c)
+			require.NoError(t, err)
+			err = k8sClient.Create(ctx, deployToCreate.DeepCopy())
 			require.NoError(t, err)
 
 			assert := getAssertOperation(t, ctx)
@@ -492,7 +496,10 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 			assert := getAssertOperation(t, ctx)
 			sleepInfo, err := assert.reconciler.getSleepInfo(ctx, assert.req)
 			require.NoError(t, err)
-			err = newControllerRuntimeClient(t, c).Delete(ctx, sleepInfo)
+			k8sClient, err := testutil.NewControllerRuntimeClient(c)
+			require.NoError(t, err)
+
+			err = k8sClient.Delete(ctx, sleepInfo)
 			require.NoError(t, err)
 
 			err = wait.For(
@@ -817,12 +824,14 @@ func reconciliationSetup(t *testing.T, ctx context.Context, c *envconf.Config, m
 }
 
 func getSleepInfoReconciler(t *testing.T, c *envconf.Config, logger logr.Logger, now string) SleepInfoReconciler {
+	k8sClient, err := testutil.NewControllerRuntimeClient(c)
+	require.NoError(t, err)
 	return SleepInfoReconciler{
 		Clock: mockClock{
 			now: now,
 			t:   t,
 		},
-		Client:  newControllerRuntimeClient(t, c),
+		Client:  k8sClient,
 		Log:     logger,
 		Metrics: metrics.SetupMetricsOrDie("kube_green"),
 	}

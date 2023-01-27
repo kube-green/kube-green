@@ -29,19 +29,25 @@ func (p PossiblyErroringFakeCtrlRuntimeClient) List(ctx context.Context, dpl cli
 	if p.ShouldError != nil && p.ShouldError(List, dpl) {
 		return errors.New("error during list")
 	}
-	err := p.Client.List(ctx, dpl, opts...)
+	listOpts := client.ListOptions{}
+	listOpts.ApplyOptions(opts)
+
+	fieldSelector := listOpts.FieldSelector
+	// TODO: we use != operator, which is not supported by fake client because it
+	// does not use indexes: https://github.com/kubernetes-sigs/controller-runtime/blob/master/pkg/client/fake/client.go#L521
+	listOpts.FieldSelector = nil
+
+	err := p.Client.List(ctx, dpl, &listOpts)
 	if err != nil {
 		return err
 	}
 
-	listOpts := client.ListOptions{}
-	listOpts.ApplyOptions(opts)
-	if listOpts.FieldSelector != nil {
+	if fieldSelector != nil {
 		objList, err := meta.ExtractList(dpl)
 		if err != nil {
 			return err
 		}
-		filteredObjs, err := filterObjectsByName(objList, listOpts.FieldSelector)
+		filteredObjs, err := filterObjectsByName(objList, fieldSelector)
 		if err != nil {
 			return err
 		}

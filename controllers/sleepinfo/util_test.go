@@ -8,6 +8,7 @@ import (
 	kubegreenv1alpha1 "github.com/kube-green/kube-green/api/v1alpha1"
 	"github.com/kube-green/kube-green/controllers/sleepinfo/cronjobs"
 	"github.com/kube-green/kube-green/controllers/sleepinfo/deployments"
+	"github.com/kube-green/kube-green/internal/testutil"
 
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
@@ -109,7 +110,9 @@ func setupNamespaceWithResources(t *testing.T, ctx context.Context, cfg *envconf
 func upsertDeployments(t *testing.T, ctx context.Context, c *envconf.Config, updateIfAlreadyCreated bool) []appsv1.Deployment {
 	t.Helper()
 
-	k8sClient := newControllerRuntimeClient(t, c)
+	k8sClient, err := testutil.NewControllerRuntimeClient(c)
+	require.NoError(t, err)
+
 	namespace := c.Namespace()
 
 	deployments := []appsv1.Deployment{
@@ -172,7 +175,8 @@ func upsertCronJobs(t *testing.T, ctx context.Context, c *envconf.Config, update
 	suspendFalse := false
 	namespace := c.Namespace()
 
-	k8sClient := newControllerRuntimeClient(t, c)
+	k8sClient, err := testutil.NewControllerRuntimeClient(c)
+	require.NoError(t, err)
 
 	restMapping, err := k8sClient.RESTMapper().RESTMapping(schema.GroupKind{
 		Group: "batch",
@@ -276,18 +280,6 @@ func getSetupOptions(t *testing.T, ctx context.Context) setupOptions {
 	return setupOpts
 }
 
-// TODO: This function should be removed when e2e-framework > 0.0.8
-func newControllerRuntimeClient(t *testing.T, c *envconf.Config) client.Client {
-	t.Helper()
-	r, err := resources.New(c.Client().RESTConfig())
-	require.NoError(t, err)
-
-	client, err := client.New(c.Client().RESTConfig(), client.Options{Scheme: r.GetScheme()})
-	require.NoError(t, err)
-
-	return client
-}
-
 type mockClock struct {
 	now string
 	t   *testing.T
@@ -317,7 +309,8 @@ func getDeploymentList(t *testing.T, ctx context.Context, c *envconf.Config) []a
 }
 
 func getCronJobList(t *testing.T, ctx context.Context, c *envconf.Config) []unstructured.Unstructured {
-	k8sClient := newControllerRuntimeClient(t, c)
+	k8sClient, err := testutil.NewControllerRuntimeClient(c)
+	require.NoError(t, err)
 
 	restMapping, err := k8sClient.RESTMapper().RESTMapping(schema.GroupKind{
 		Group: "batch",

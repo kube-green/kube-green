@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	kubegreenv1alpha1 "github.com/kube-green/kube-green/api/v1alpha1"
-	"github.com/kube-green/kube-green/controllers/internal/testutil"
+	"github.com/kube-green/kube-green/internal/testutil"
 
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/require"

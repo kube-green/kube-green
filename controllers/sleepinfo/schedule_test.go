@@ -13,8 +13,7 @@ func TestSchedule(t *testing.T) {
 	testLogger := zap.New(zap.UseDevMode(true))
 
 	sleepInfoReconciler := SleepInfoReconciler{
-		Client: k8sClient,
-		Log:    testLogger,
+		Log: testLogger,
 	}
 
 	type expected struct {
