@@ -56,9 +56,8 @@ func TestValidationWebhook(t *testing.T) {
 						},
 					},
 				}
-				k8sClient, err := testutil.NewControllerRuntimeClient(c)
-				require.NoError(t, err)
-				err = k8sClient.Create(ctx, sleepInfo)
+				k8sClient := c.Client().Resources(c.Namespace()).GetControllerRuntimeClient()
+				err := k8sClient.Create(ctx, sleepInfo)
 				require.NoError(t, err)
 				return ctx
 			},
@@ -66,8 +65,7 @@ func TestValidationWebhook(t *testing.T) {
 		{
 			Name: "validate create - ko",
 			Assessment: func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
-				k8sClient, err := testutil.NewControllerRuntimeClient(c)
-				require.NoError(t, err)
+				k8sClient := c.Client().Resources(c.Namespace()).GetControllerRuntimeClient()
 				sleepInfo := &kubegreenv1alpha1.SleepInfo{
 					TypeMeta: metav1.TypeMeta{
 						Kind:       "SleepInfo",
@@ -79,7 +77,7 @@ func TestValidationWebhook(t *testing.T) {
 					},
 					Spec: kubegreenv1alpha1.SleepInfoSpec{},
 				}
-				err = k8sClient.Create(ctx, sleepInfo)
+				err := k8sClient.Create(ctx, sleepInfo)
 				require.EqualError(t, err, "admission webhook \"vsleepinfo.kb.io\" denied the request: empty weekdays from SleepInfo configuration")
 				return ctx
 			},
@@ -92,9 +90,8 @@ func TestValidationWebhook(t *testing.T) {
 				patch := client.MergeFrom(sleepInfo.DeepCopy())
 				sleepInfo.Spec.Weekdays = "*"
 
-				k8sClient, err := testutil.NewControllerRuntimeClient(c)
-				require.NoError(t, err)
-				err = k8sClient.Patch(ctx, sleepInfo, patch)
+				k8sClient := c.Client().Resources(c.Namespace()).GetControllerRuntimeClient()
+				err := k8sClient.Patch(ctx, sleepInfo, patch)
 				require.NoError(t, err)
 				return ctx
 			},
@@ -107,9 +104,8 @@ func TestValidationWebhook(t *testing.T) {
 				patch := client.MergeFrom(sleepInfo.DeepCopy())
 				sleepInfo.Spec.Weekdays = ""
 
-				k8sClient, err := testutil.NewControllerRuntimeClient(c)
-				require.NoError(t, err)
-				err = k8sClient.Patch(ctx, sleepInfo, patch)
+				k8sClient := c.Client().Resources(c.Namespace()).GetControllerRuntimeClient()
+				err := k8sClient.Patch(ctx, sleepInfo, patch)
 				require.EqualError(t, err, "admission webhook \"vsleepinfo.kb.io\" denied the request: empty weekdays from SleepInfo configuration")
 				return ctx
 			},
@@ -120,10 +116,8 @@ func TestValidationWebhook(t *testing.T) {
 				sleepInfo := getSleepInfo(t, ctx, sleepInfoName, c)
 
 				sleepInfo.Spec.Weekdays = "*"
-				k8sClient, err := testutil.NewControllerRuntimeClient(c)
-				require.NoError(t, err)
-
-				err = k8sClient.Update(ctx, sleepInfo)
+				k8sClient := c.Client().Resources(c.Namespace()).GetControllerRuntimeClient()
+				err := k8sClient.Update(ctx, sleepInfo)
 				require.NoError(t, err)
 
 				return ctx
@@ -132,13 +126,12 @@ func TestValidationWebhook(t *testing.T) {
 		{
 			Name: "validate update - ko",
 			Assessment: func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
-				k8sClient, err := testutil.NewControllerRuntimeClient(c)
-				require.NoError(t, err)
+				k8sClient := c.Client().Resources(c.Namespace()).GetControllerRuntimeClient()
 
 				sleepInfo := getSleepInfo(t, ctx, sleepInfoName, c)
 
 				sleepInfo.Spec.Weekdays = ""
-				err = k8sClient.Update(ctx, sleepInfo)
+				err := k8sClient.Update(ctx, sleepInfo)
 				require.EqualError(t, err, "admission webhook \"vsleepinfo.kb.io\" denied the request: empty weekdays from SleepInfo configuration")
 
 				return ctx
@@ -149,10 +142,9 @@ func TestValidationWebhook(t *testing.T) {
 			Assessment: func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 				sleepInfo := getSleepInfo(t, ctx, sleepInfoName, c)
 
-				k8sClient, err := testutil.NewControllerRuntimeClient(c)
-				require.NoError(t, err)
+				k8sClient := c.Client().Resources(c.Namespace()).GetControllerRuntimeClient()
 
-				err = k8sClient.Delete(ctx, sleepInfo)
+				err := k8sClient.Delete(ctx, sleepInfo)
 				require.NoError(t, err)
 				return ctx
 			},
@@ -166,9 +158,8 @@ func TestValidationWebhook(t *testing.T) {
 
 func getSleepInfo(t *testing.T, ctx context.Context, name string, c *envconf.Config) *kubegreenv1alpha1.SleepInfo {
 	sleepInfo := &kubegreenv1alpha1.SleepInfo{}
-	k8sClient, err := testutil.NewControllerRuntimeClient(c)
-	require.NoError(t, err)
-	err = k8sClient.Get(ctx, types.NamespacedName{
+	k8sClient := c.Client().Resources(c.Namespace()).GetControllerRuntimeClient()
+	err := k8sClient.Get(ctx, types.NamespacedName{
 		Namespace: c.Namespace(),
 		Name:      name,
 	}, sleepInfo)

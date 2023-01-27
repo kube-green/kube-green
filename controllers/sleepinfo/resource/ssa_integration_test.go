@@ -37,8 +37,7 @@ func TestServerSideApply(t *testing.T) {
 		{
 			Name: "correctly patch resource",
 			Assessment: func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
-				k8sClient, err := testutil.NewControllerRuntimeClient(c)
-				require.NoError(t, err)
+				k8sClient := c.Client().Resources(c.Namespace()).GetControllerRuntimeClient()
 
 				resource := upsertResource(t, ctx, c)
 
@@ -54,7 +53,7 @@ func TestServerSideApply(t *testing.T) {
 					"new-label": "new-value",
 				})
 
-				err = client.SSAPatch(ctx, newResource)
+				err := client.SSAPatch(ctx, newResource)
 				require.NoError(t, err)
 
 				unstructuredRes := &unstructured.Unstructured{
@@ -70,8 +69,7 @@ func TestServerSideApply(t *testing.T) {
 		{
 			Name: "correctly patch the same resource",
 			Assessment: func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
-				k8sClient, err := testutil.NewControllerRuntimeClient(c)
-				require.NoError(t, err)
+				k8sClient := c.Client().Resources(c.Namespace()).GetControllerRuntimeClient()
 
 				resource := upsertResource(t, ctx, c)
 
@@ -82,7 +80,7 @@ func TestServerSideApply(t *testing.T) {
 					FieldManagerName: "kube-green-test",
 				}
 
-				err = client.SSAPatch(context.Background(), &resource)
+				err := client.SSAPatch(context.Background(), &resource)
 				require.NoError(t, err)
 
 				unstructuredRes := unstructured.Unstructured{
@@ -97,8 +95,7 @@ func TestServerSideApply(t *testing.T) {
 		{
 			Name: "does not throw if resource not found",
 			Assessment: func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
-				k8sClient, err := testutil.NewControllerRuntimeClient(c)
-				require.NoError(t, err)
+				k8sClient := c.Client().Resources(c.Namespace()).GetControllerRuntimeClient()
 
 				client := ResourceClient{
 					SleepInfo:        &kubegreenv1alpha1.SleepInfo{},
@@ -168,9 +165,8 @@ func cleanupNamespaceDeployments(t *testing.T, c *envconf.Config) {
 		Version: "v1",
 	})
 
-	k8sClient, err := testutil.NewControllerRuntimeClient(c)
-	require.NoError(t, err)
-	err = k8sClient.DeleteAllOf(context.Background(), &res, client.InNamespace(c.Namespace()))
+	k8sClient := c.Client().Resources(c.Namespace()).GetControllerRuntimeClient()
+	err := k8sClient.DeleteAllOf(context.Background(), &res, client.InNamespace(c.Namespace()))
 	require.NoError(t, client.IgnoreNotFound(err))
 }
 
@@ -186,8 +182,7 @@ func upsertResource(t *testing.T, ctx context.Context, c *envconf.Config) unstru
 	}
 	unstructuredResource.SetGroupVersionKind(schema.FromAPIVersionAndKind("apps/v1", "Deployment"))
 
-	k8sClient, err := testutil.NewControllerRuntimeClient(c)
-	require.NoError(t, err)
+	k8sClient := c.Client().Resources(c.Namespace()).GetControllerRuntimeClient()
 	if err := k8sClient.Create(ctx, deployment); err != nil {
 		require.NoError(t, err)
 	}
