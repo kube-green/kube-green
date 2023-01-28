@@ -8,7 +8,6 @@ import (
 	kubegreenv1alpha1 "github.com/kube-green/kube-green/api/v1alpha1"
 	"github.com/kube-green/kube-green/controllers/sleepinfo/cronjobs"
 	"github.com/kube-green/kube-green/controllers/sleepinfo/deployments"
-	"github.com/kube-green/kube-green/internal/testutil"
 
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
@@ -110,8 +109,7 @@ func setupNamespaceWithResources(t *testing.T, ctx context.Context, cfg *envconf
 func upsertDeployments(t *testing.T, ctx context.Context, c *envconf.Config, updateIfAlreadyCreated bool) []appsv1.Deployment {
 	t.Helper()
 
-	k8sClient, err := testutil.NewControllerRuntimeClient(c)
-	require.NoError(t, err)
+	k8sClient := c.Client().Resources(c.Namespace()).GetControllerRuntimeClient()
 
 	namespace := c.Namespace()
 
@@ -175,8 +173,7 @@ func upsertCronJobs(t *testing.T, ctx context.Context, c *envconf.Config, update
 	suspendFalse := false
 	namespace := c.Namespace()
 
-	k8sClient, err := testutil.NewControllerRuntimeClient(c)
-	require.NoError(t, err)
+	k8sClient := c.Client().Resources(c.Namespace()).GetControllerRuntimeClient()
 
 	restMapping, err := k8sClient.RESTMapper().RESTMapping(schema.GroupKind{
 		Group: "batch",
@@ -309,9 +306,7 @@ func getDeploymentList(t *testing.T, ctx context.Context, c *envconf.Config) []a
 }
 
 func getCronJobList(t *testing.T, ctx context.Context, c *envconf.Config) []unstructured.Unstructured {
-	k8sClient, err := testutil.NewControllerRuntimeClient(c)
-	require.NoError(t, err)
-
+	k8sClient := c.Client().Resources(c.Namespace()).GetControllerRuntimeClient()
 	restMapping, err := k8sClient.RESTMapper().RESTMapping(schema.GroupKind{
 		Group: "batch",
 		Kind:  "CronJob",

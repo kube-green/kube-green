@@ -100,18 +100,3 @@ func SetupCRDs(crdPath, pattern string) env.Func {
 		return ctx, decoder.DecodeEachFile(ctx, os.DirFS(crdPath), pattern, h)
 	}
 }
-
-// TODO: This function should be removed when e2e-framework > 0.0.8
-func NewControllerRuntimeClient(c *envconf.Config) (client.Client, error) {
-	r, err := resources.New(c.Client().RESTConfig())
-	if err != nil {
-		return nil, err
-	}
-
-	client, err := client.New(c.Client().RESTConfig(), client.Options{Scheme: r.GetScheme()})
-	if err != nil {
-		return nil, err
-	}
-
-	return client, nil
-}
