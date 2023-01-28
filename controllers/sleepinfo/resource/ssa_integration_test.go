@@ -147,8 +147,8 @@ func TestServerSideApply(t *testing.T) {
 			ctx, err := testutil.DeleteNamespace(ctx, c, t, runID)
 			require.NoError(t, err)
 
-			ctx, err = testutil.DestroyKindCluster(kindClusterName)(ctx, c)
-			require.NoError(t, err)
+			// ctx, err = testutil.DestroyKindCluster(kindClusterName)(ctx, c)
+			// require.NoError(t, err)
 
 			return ctx
 		}).
@@ -188,7 +188,7 @@ func upsertResource(t *testing.T, ctx context.Context, c *envconf.Config) unstru
 	}
 
 	err = wait.For(conditions.New(c.Client().Resources(c.Namespace())).
-		ResourceMatch(&unstructuredResource, func(object k8s.Object) bool {
+		ResourceMatch(unstructuredResource.DeepCopy(), func(object k8s.Object) bool {
 			return true
 		}), wait.WithInterval(100*time.Millisecond), wait.WithTimeout(5*time.Second),
 	)
