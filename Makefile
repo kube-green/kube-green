@@ -248,3 +248,16 @@ release:
 	git add .
 	git commit -m "Upgrade to $(version)"
 	git tag $(version)
+
+.PHONY: local-run
+local-run:
+	kubectl config use-context kind-$(clusterName)
+	kubectl apply -f https://github.com/jetstack/cert-manager/releases/latest/download/cert-manager.yaml
+	@kubectl wait --timeout=120s --for=condition=ready pod -l app=cert-manager -n cert-manager
+	@kubectl wait --timeout=120s --for=condition=ready pod -l app=cainjector -n cert-manager
+	@kubectl wait --timeout=120s --for=condition=ready pod -l app=webhook -n cert-manager
+	@kubectl kustomize ./config/local-development/ -o ./kube-green-local-run.yaml
+	KO_DOCKER_REPO=kind.local KIND_CLUSTER_NAME="$(clusterName)" ko apply -f ./kube-green-local-run.yaml --platform=linux/$(shell uname -m)
+	@sleep 5
+	kubectl wait --for=condition=ready --timeout=120s pod -l app=kube-green -n kube-green
+	@rm ./kube-green-local-run.yaml
