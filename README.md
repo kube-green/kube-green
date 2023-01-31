@@ -22,7 +22,7 @@ These instructions will get you a copy of the project up and running on your loc
 
 ### Prerequisites
 
-Make sure you have Go installed ([download](https://go.dev/dl/)). Version 1.17 or higher is required.
+Make sure you have Go installed ([download](https://go.dev/dl/)). Version 1.19 or higher is required.
 
 ## Installation
 
@@ -51,6 +51,15 @@ make e2e-test
 ## Deployment
 
 To deploy *kube-green* in live systems, follow the [docs](https://kube-green.dev/docs/install/).
+
+To run kube-green for development purpose, you can use [ko](https://ko.build/) to deploy
+in a KinD cluster.
+It is possible to start a KinD cluster running `kind create cluster --name kube-green-development`.
+To deploy kube-green using ko, run:
+
+```sh
+make local-run clusterName=kube-green-development
+```
 
 ## Usage
 
