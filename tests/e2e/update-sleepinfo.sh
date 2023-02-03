@@ -30,3 +30,5 @@ fi
 cat /tmp/$filename
 
 kubectl apply -f /tmp/$filename -n $NAMESPACE
+
+rm /tmp/$filename

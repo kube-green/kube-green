@@ -161,7 +161,7 @@ func (c cronjobs) getListByNamespace(ctx context.Context, namespace string) ([]u
 	}
 
 	if cronJobLabelsToExclude != nil {
-		labelSelector, err := labels.Parse(strings.Join(cronJobLabelsToExclude, " and "))
+		labelSelector, err := labels.Parse(strings.Join(cronJobLabelsToExclude, ","))
 		if err != nil {
 			return nil, err
 		}

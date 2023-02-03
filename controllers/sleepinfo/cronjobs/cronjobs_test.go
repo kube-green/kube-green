@@ -69,6 +69,11 @@ func TestCronJobs(t *testing.T) {
 						"app": "foo",
 					},
 				},
+				{
+					MatchLabels: map[string]string{
+						"not-exits": "really-not",
+					},
+				},
 			},
 		},
 	}
