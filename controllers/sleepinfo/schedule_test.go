@@ -13,7 +13,8 @@ func TestSchedule(t *testing.T) {
 	testLogger := zap.New(zap.UseDevMode(true))
 
 	sleepInfoReconciler := SleepInfoReconciler{
-		Log: testLogger,
+		Log:        testLogger,
+		SleepDelta: 60,
 	}
 
 	type expected struct {
@@ -387,7 +388,7 @@ func TestSchedule(t *testing.T) {
 			if scheduleDeltaSeconds == 0 {
 				scheduleDeltaSeconds = 1
 			}
-			isToExecute, nextSchedule, requeueAfter, err := sleepInfoReconciler.getNextSchedule(test.data, getTime(t, test.now), scheduleDeltaSeconds)
+			isToExecute, nextSchedule, requeueAfter, err := sleepInfoReconciler.getNextSchedule(test.data, getTime(t, test.now))
 
 			expected := test.expected
 			if expected.err != "" {

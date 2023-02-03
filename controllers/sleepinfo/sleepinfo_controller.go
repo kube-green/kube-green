@@ -44,7 +44,8 @@ type SleepInfoReconciler struct {
 	Log    logr.Logger
 	Scheme *runtime.Scheme
 	Clock
-	Metrics metrics.Metrics
+	Metrics    metrics.Metrics
+	SleepDelta int64
 }
 
 type realClock struct{}
@@ -58,8 +59,6 @@ func (realClock) Now() time.Time {
 type Clock interface {
 	Now() time.Time
 }
-
-var sleepDelta int64 = 60
 
 //+kubebuilder:rbac:groups=kube-green.com,resources=sleepinfos,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=kube-green.com,resources=sleepinfos/status,verbs=get;update;patch
@@ -108,7 +107,7 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 	now := r.Clock.Now()
 
-	isToExecute, nextSchedule, requeueAfter, err := r.getNextSchedule(sleepInfoData, now, sleepDelta)
+	isToExecute, nextSchedule, requeueAfter, err := r.getNextSchedule(sleepInfoData, now)
 	if err != nil {
 		log.Error(err, "unable to update deployment with 0 replicas")
 		return ctrl.Result{}, err
