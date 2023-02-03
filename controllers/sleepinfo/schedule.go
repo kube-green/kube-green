@@ -7,8 +7,8 @@ import (
 	"github.com/robfig/cron/v3"
 )
 
-func (r *SleepInfoReconciler) getNextSchedule(data SleepInfoData, now time.Time, scheduleDeltaSeconds int64) (bool, time.Time, time.Duration, error) {
-	scheduleDelta := time.Duration(scheduleDeltaSeconds) * time.Second
+func (r *SleepInfoReconciler) getNextSchedule(data SleepInfoData, now time.Time) (bool, time.Time, time.Duration, error) {
+	scheduleDelta := time.Duration(r.SleepDelta) * time.Second
 	sched, err := getCronParsed(data.CurrentOperationSchedule)
 	if err != nil {
 		return false, time.Time{}, 0, fmt.Errorf("current schedule not valid: %s", err)

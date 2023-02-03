@@ -39,8 +39,9 @@ func TestGetSecret(t *testing.T) {
 				Build(),
 		}
 		r := SleepInfoReconciler{
-			Client: client,
-			Log:    testLogger,
+			Client:     client,
+			Log:        testLogger,
+			SleepDelta: 60,
 		}
 
 		secret, err := r.getSecret(context.Background(), secretName, namespace)
@@ -68,8 +69,9 @@ func TestGetSecret(t *testing.T) {
 				Build(),
 		}
 		r := SleepInfoReconciler{
-			Client: client,
-			Log:    testLogger,
+			Client:     client,
+			Log:        testLogger,
+			SleepDelta: 60,
 		}
 
 		secret, err := r.getSecret(context.Background(), secretName, namespace)
@@ -127,8 +129,9 @@ func TestUpsertSecrets(t *testing.T) {
 		}
 
 		r := SleepInfoReconciler{
-			Client: client,
-			Log:    testLogger,
+			Client:     client,
+			Log:        testLogger,
+			SleepDelta: 60,
 		}
 		sleepInfoData := SleepInfoData{
 			CurrentOperationType: sleepOperation,
@@ -202,8 +205,9 @@ func TestUpsertSecrets(t *testing.T) {
 		}
 
 		r := SleepInfoReconciler{
-			Client: client,
-			Log:    testLogger,
+			Client:     client,
+			Log:        testLogger,
+			SleepDelta: 60,
 		}
 		sleepInfoData := SleepInfoData{
 			CurrentOperationType: sleepOperation,
@@ -298,8 +302,9 @@ func TestUpsertSecrets(t *testing.T) {
 				Build(),
 		}
 		r := SleepInfoReconciler{
-			Client: client,
-			Log:    testLogger,
+			Client:     client,
+			Log:        testLogger,
+			SleepDelta: 60,
 		}
 		sleepInfoData := SleepInfoData{
 			CurrentOperationType: sleepOperation,
@@ -351,8 +356,9 @@ func TestUpsertSecrets(t *testing.T) {
 		}
 
 		r := SleepInfoReconciler{
-			Client: client,
-			Log:    testLogger,
+			Client:     client,
+			Log:        testLogger,
+			SleepDelta: 60,
 		}
 		sleepInfoData := SleepInfoData{
 			CurrentOperationType: sleepOperation,
@@ -396,8 +402,9 @@ func TestUpsertSecrets(t *testing.T) {
 			},
 		}
 		r := SleepInfoReconciler{
-			Client: client,
-			Log:    testLogger,
+			Client:     client,
+			Log:        testLogger,
+			SleepDelta: 60,
 		}
 		sleepInfoData := SleepInfoData{
 			CurrentOperationType: sleepOperation,
@@ -436,8 +443,9 @@ func TestUpsertSecrets(t *testing.T) {
 			},
 		}
 		r := SleepInfoReconciler{
-			Client: client,
-			Log:    testLogger,
+			Client:     client,
+			Log:        testLogger,
+			SleepDelta: 60,
 		}
 		sleepInfoData := SleepInfoData{
 			CurrentOperationType: sleepOperation,
