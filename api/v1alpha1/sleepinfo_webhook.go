@@ -67,11 +67,17 @@ func (s SleepInfo) validateSleepInfo() error {
 	}
 
 	for _, excludeRef := range s.GetExcludeRef() {
-		if len(excludeRef.Name) == 0 && len(excludeRef.MatchLabels) == 0 {
-			return fmt.Errorf(`one of "Name" or "MatchLabels" values must be set`)
-		} else if len(excludeRef.Name) > 0 && len(excludeRef.MatchLabels) > 0 {
-			return fmt.Errorf(`only one of "Name" or "MatchLabels" values must be set`)
-		}
+		return isExcludeRefValid(excludeRef)
 	}
 	return nil
+}
+
+func isExcludeRefValid(excludeRef ExcludeRef) error {
+	if excludeRef.Name == "" && excludeRef.ApiVersion == "" && excludeRef.Kind == "" && len(excludeRef.MatchLabels) > 0 {
+		return nil
+	}
+	if len(excludeRef.MatchLabels) == 0 && excludeRef.Name != "" && excludeRef.ApiVersion != "" && excludeRef.Kind != "" {
+		return nil
+	}
+	return fmt.Errorf(`excludeRef is invalid. Must have set: matchLabels or name,apiVersion and kind fields`)
 }

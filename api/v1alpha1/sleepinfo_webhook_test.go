@@ -133,8 +133,8 @@ func TestValidateSleepInfo(t *testing.T) {
 			},
 		},
 		{
-			name:          "fails - missing Name and MatchLabels in ExcludeRef item",
-			expectedError: `one of "Name" or "MatchLabels" values must be set`,
+			name:          "fails - missing Name in ExcludeRef item",
+			expectedError: `excludeRef is invalid. Must have set: matchLabels or name,apiVersion and kind fields`,
 			sleepInfoSpec: SleepInfoSpec{
 				Weekdays:   "1-5",
 				SleepTime:  "13:15",
@@ -149,18 +149,44 @@ func TestValidateSleepInfo(t *testing.T) {
 		},
 		{
 			name:          "fails - Name and MatchLabels both sets in ExcludeRef item",
-			expectedError: `only one of "Name" or "MatchLabels" values must be set`,
+			expectedError: `excludeRef is invalid. Must have set: matchLabels or name,apiVersion and kind fields`,
 			sleepInfoSpec: SleepInfoSpec{
 				Weekdays:  "1-5",
 				SleepTime: "13:15",
 				ExcludeRef: []ExcludeRef{
 					{
-						ApiVersion: "apps/v1",
-						Kind:       "Deployment",
-						Name:       "Backend",
+						Name: "Backend",
 						MatchLabels: map[string]string{
 							"app": "backend",
 						},
+					},
+				},
+			},
+		},
+		{
+			name: "ok - only matchLabels",
+			sleepInfoSpec: SleepInfoSpec{
+				Weekdays:  "1-5",
+				SleepTime: "13:15",
+				ExcludeRef: []ExcludeRef{
+					{
+						MatchLabels: map[string]string{
+							"app": "backend",
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "ok - Name,ApiVersion,Kind",
+			sleepInfoSpec: SleepInfoSpec{
+				Weekdays:  "1-5",
+				SleepTime: "13:15",
+				ExcludeRef: []ExcludeRef{
+					{
+						Kind:       "Deployment",
+						ApiVersion: "apps/v1",
+						Name:       "my-deployment",
 					},
 				},
 			},

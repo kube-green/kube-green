@@ -65,8 +65,6 @@ func TestCronJobs(t *testing.T) {
 			SuspendCronjobs: true,
 			ExcludeRef: []v1alpha1.ExcludeRef{
 				{
-					ApiVersion: "batch/v1",
-					Kind:       "CronJob",
 					MatchLabels: map[string]string{
 						"app": "foo",
 					},
