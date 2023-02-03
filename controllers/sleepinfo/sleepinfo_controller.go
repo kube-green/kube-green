@@ -208,7 +208,7 @@ func (r *SleepInfoReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&kubegreenv1alpha1.SleepInfo{}).
 		WithOptions(controller.Options{
-			MaxConcurrentReconciles: 10,
+			MaxConcurrentReconciles: 20,
 		}).
 		WithEventFilter(pred).
 		Complete(r)
