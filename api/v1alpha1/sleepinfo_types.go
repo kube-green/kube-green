@@ -11,19 +11,16 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 type ExcludeRef struct {
 	// ApiVersion of the kubernetes resources.
 	// Supported api version is "apps/v1".
-	ApiVersion string `json:"apiVersion"`
+	ApiVersion string `json:"apiVersion,omitempty"`
 	// Kind of the kubernetes resources of the specific version.
 	// Supported kind are "Deployment" and "CronJob".
-	Kind string `json:"kind"`
+	Kind string `json:"kind,omitempty"`
 	// Name which identify the kubernetes resource.
 	// +optional
-	Name string `json:"name"`
+	Name string `json:"name,omitempty"`
 	// MatchLabels which identify the kubernetes resource by labels
 	// +optional
 	MatchLabels map[string]string `json:"matchLabels,omitempty"`

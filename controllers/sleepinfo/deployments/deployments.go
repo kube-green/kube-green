@@ -119,10 +119,7 @@ func (d deployments) filterExcludedDeployment(deploymentList []appsv1.Deployment
 
 func shouldExcludeDeployment(deployment appsv1.Deployment, sleepInfo *kubegreenv1alpha1.SleepInfo) bool {
 	for _, exclusion := range sleepInfo.GetExcludeRef() {
-		if exclusion.Kind != "Deployment" || exclusion.ApiVersion != "apps/v1" {
-			continue
-		}
-		if exclusion.Name != "" && deployment.Name == exclusion.Name {
+		if exclusion.Kind == "Deployment" && exclusion.ApiVersion == "apps/v1" && exclusion.Name != "" && deployment.Name == exclusion.Name {
 			return true
 		}
 		if labelMatch(deployment.Labels, exclusion.MatchLabels) {

@@ -161,7 +161,7 @@ func (c cronjobs) getListByNamespace(ctx context.Context, namespace string) ([]u
 	}
 
 	if cronJobLabelsToExclude != nil {
-		labelSelector, err := labels.Parse(strings.Join(cronJobLabelsToExclude, " and "))
+		labelSelector, err := labels.Parse(strings.Join(cronJobLabelsToExclude, ","))
 		if err != nil {
 			return nil, err
 		}
@@ -198,10 +198,8 @@ func getCronJobNameToExclude(excludeRef []kubegreenv1alpha1.ExcludeRef) []string
 func getCronJobLabelsToExclude(excludeRef []kubegreenv1alpha1.ExcludeRef) []string {
 	labelsToExclude := []string{}
 	for _, exclude := range excludeRef {
-		if exclude.Kind == "CronJob" && exclude.Name == "" {
-			for k, v := range exclude.MatchLabels {
-				labelsToExclude = append(labelsToExclude, fmt.Sprintf("%s!=%s", k, v))
-			}
+		for k, v := range exclude.MatchLabels {
+			labelsToExclude = append(labelsToExclude, fmt.Sprintf("%s!=%s", k, v))
 		}
 	}
 	return labelsToExclude

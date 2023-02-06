@@ -11,11 +11,7 @@ spec:
     - apiVersion: "apps/v1"
       kind:       Deployment
       name:       do-not-sleep
-    - apiVersion: "apps/v1"
-      kind:       Deployment
-      matchLabels:
+    - matchLabels:
         app: do-not-sleep-with-label
-    - apiVersion: "batch/v1"
-      kind:       CronJob
-      matchLabels:
+    - matchLabels:
         app: do-not-sleep-cj-with-label

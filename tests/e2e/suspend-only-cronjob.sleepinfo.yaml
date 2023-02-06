@@ -12,8 +12,6 @@ spec:
     - apiVersion: "batch/v1"
       kind:       CronJob
       name:       do-not-suspend
-    - apiVersion: "batch/v1"
-      kind:       CronJob
-      matchLabels:
+    - matchLabels:
         app: do-not-suspend-with-labels
 
