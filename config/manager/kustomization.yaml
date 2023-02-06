@@ -13,4 +13,4 @@ kind: Kustomization
 images:
 - name: controller
   newName: kubegreen/kube-green
-  newTag: 0.4.1
+  newTag: 0.5.0

@@ -31,17 +31,17 @@ metadata:
       ]
     capabilities: Seamless Upgrades
     categories: Developer Tools
-    containerImage: docker.io/kubegreen/kube-green:0.4.1
-    createdAt: "2021-02-21T00:00:00Z"
+    containerImage: docker.io/kubegreen/kube-green:0.5.0
+    createdAt: "2023-02-06T08:57:42Z"
     description: Suspend your pods when no-one's using them to save energy and restore
       when necessary
-    operators.operatorframework.io/builder: operator-sdk-v1.23.0
+    operators.operatorframework.io/builder: operator-sdk-v1.26.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
     repository: https://github.com/kube-green/kube-green
     support: kube-green Community
   labels:
     app: kube-green
-  name: kube-green.v0.4.1
+  name: kube-green.v0.5.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -225,7 +225,7 @@ spec:
                 - --leader-elect
                 command:
                 - /manager
-                image: kubegreen/kube-green:0.4.1
+                image: kubegreen/kube-green:0.5.0
                 livenessProbe:
                   httpGet:
                     path: /healthz
@@ -347,7 +347,7 @@ spec:
   provider:
     name: kube-green Community
     url: https://kube-green.dev
-  version: 0.4.1
+  version: 0.5.0
   webhookdefinitions:
   - admissionReviewVersions:
     - v1
