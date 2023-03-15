@@ -84,7 +84,9 @@ jobs:
         id: meta
         uses: docker/metadata-action@v4
         with:
-          images: kubegreen/kube-green
+          images: |
+            ghcr.io/kube-green/kube-green
+            docker.io/kubegreen/kube-green
           tags: |
             type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
             type=semver,pattern={{version}}
@@ -96,6 +98,13 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
+
+      - name: Docker Login to ghcr.io
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Login to DockerHub
         uses: docker/login-action@v2
