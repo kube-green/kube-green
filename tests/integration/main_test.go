@@ -27,7 +27,7 @@ var (
 
 const (
 	kindClusterName    = "kube-green-e2e"
-	kubegreenTestImage = "kubegreen/kube-green:e2e-test"
+	kubegreenTestImage = "ghcr.io/kube-green/kube-green:e2e-test"
 )
 
 func TestMain(m *testing.M) {

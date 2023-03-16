@@ -31,7 +31,7 @@ metadata:
       ]
     capabilities: Seamless Upgrades
     categories: Developer Tools
-    containerImage: docker.io/kubegreen/kube-green:0.5.0
+    containerImage: ghcr.io/kube-green/kube-green:0.5.0
     createdAt: "2023-02-06T08:57:42Z"
     description: Suspend your pods when no-one's using them to save energy and restore
       when necessary
@@ -225,7 +225,7 @@ spec:
                 - --leader-elect
                 command:
                 - /manager
-                image: kubegreen/kube-green:0.5.0
+                image: ghcr.io/kube-green/kube-green:0.5.0
                 livenessProbe:
                   httpGet:
                     path: /healthz
