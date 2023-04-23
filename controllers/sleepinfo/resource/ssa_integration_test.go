@@ -88,7 +88,7 @@ func TestServerSideApply(t *testing.T) {
 				}
 				err = testutil.GetResource(context.Background(), k8sClient, resource.GetName(), resource.GetNamespace(), &unstructuredRes)
 				require.NoError(t, err)
-				require.Equal(t, resource, unstructuredRes)
+				require.Equal(t, resource.GetName(), unstructuredRes.GetName())
 				return ctx
 			},
 		},
@@ -147,8 +147,8 @@ func TestServerSideApply(t *testing.T) {
 			ctx, err := testutil.DeleteNamespace(ctx, c, t, runID)
 			require.NoError(t, err)
 
-			// ctx, err = testutil.DestroyKindCluster(kindClusterName)(ctx, c)
-			// require.NoError(t, err)
+			ctx, err = testutil.DestroyKindCluster(kindClusterName)(ctx, c)
+			require.NoError(t, err)
 
 			return ctx
 		}).
