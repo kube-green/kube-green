@@ -17,9 +17,9 @@ import (
 // log is for logging in this package.
 var sleepinfolog = logf.Log.WithName("sleepinfo-resource")
 
-func (r *SleepInfo) SetupWebhookWithManager(mgr ctrl.Manager) error {
+func (s *SleepInfo) SetupWebhookWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewWebhookManagedBy(mgr).
-		For(r).
+		For(s).
 		Complete()
 }
 
@@ -35,15 +35,15 @@ func (s *SleepInfo) ValidateCreate() error {
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (s *SleepInfo) ValidateUpdate(old runtime.Object) error {
+func (s *SleepInfo) ValidateUpdate(_ runtime.Object) error {
 	sleepinfolog.Info("validate update", "name", s.Name, "namespace", s.Namespace)
 
 	return s.validateSleepInfo()
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *SleepInfo) ValidateDelete() error {
-	sleepinfolog.Info("validate delete", "name", r.Name)
+func (s *SleepInfo) ValidateDelete() error {
+	sleepinfolog.Info("validate delete", "name", s.Name)
 	return nil
 }
 
@@ -73,10 +73,10 @@ func (s SleepInfo) validateSleepInfo() error {
 }
 
 func isExcludeRefValid(excludeRef ExcludeRef) error {
-	if excludeRef.Name == "" && excludeRef.ApiVersion == "" && excludeRef.Kind == "" && len(excludeRef.MatchLabels) > 0 {
+	if excludeRef.Name == "" && excludeRef.APIVersion == "" && excludeRef.Kind == "" && len(excludeRef.MatchLabels) > 0 {
 		return nil
 	}
-	if len(excludeRef.MatchLabels) == 0 && excludeRef.Name != "" && excludeRef.ApiVersion != "" && excludeRef.Kind != "" {
+	if len(excludeRef.MatchLabels) == 0 && excludeRef.Name != "" && excludeRef.APIVersion != "" && excludeRef.Kind != "" {
 		return nil
 	}
 	return fmt.Errorf(`excludeRef is invalid. Must have set: matchLabels or name,apiVersion and kind fields`)

@@ -42,12 +42,12 @@ func TestValidationWebhook(t *testing.T) {
 						WakeUpTime: "8:00",
 						ExcludeRef: []kubegreenv1alpha1.ExcludeRef{
 							{
-								ApiVersion: "apps/v1",
+								APIVersion: "apps/v1",
 								Kind:       "Deployment",
 								Name:       "Frontend",
 							},
 							{
-								ApiVersion: "apps/v1",
+								APIVersion: "apps/v1",
 								Kind:       "Deployment",
 								MatchLabels: map[string]string{
 									"app": "backend",

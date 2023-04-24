@@ -39,7 +39,7 @@ func TestServerSideApply(t *testing.T) {
 			Assessment: func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 				k8sClient := c.Client().Resources(c.Namespace()).GetControllerRuntimeClient()
 
-				resource := upsertResource(t, ctx, c)
+				resource := upsertResource(ctx, t, c)
 
 				client := ResourceClient{
 					SleepInfo:        &kubegreenv1alpha1.SleepInfo{},
@@ -71,7 +71,7 @@ func TestServerSideApply(t *testing.T) {
 			Assessment: func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 				k8sClient := c.Client().Resources(c.Namespace()).GetControllerRuntimeClient()
 
-				resource := upsertResource(t, ctx, c)
+				resource := upsertResource(ctx, t, c)
 
 				client := ResourceClient{
 					SleepInfo:        &kubegreenv1alpha1.SleepInfo{},
@@ -170,7 +170,7 @@ func cleanupNamespaceDeployments(t *testing.T, c *envconf.Config) {
 	require.NoError(t, client.IgnoreNotFound(err))
 }
 
-func upsertResource(t *testing.T, ctx context.Context, c *envconf.Config) unstructured.Unstructured {
+func upsertResource(ctx context.Context, t *testing.T, c *envconf.Config) unstructured.Unstructured {
 	name := testutil.RandString(8)
 	deployment := getDeployment(name, c)
 

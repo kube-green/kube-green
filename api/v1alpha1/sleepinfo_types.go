@@ -14,7 +14,7 @@ import (
 type ExcludeRef struct {
 	// ApiVersion of the kubernetes resources.
 	// Supported api version is "apps/v1".
-	ApiVersion string `json:"apiVersion,omitempty"`
+	APIVersion string `json:"apiVersion,omitempty"`
 	// Kind of the kubernetes resources of the specific version.
 	// Supported kind are "Deployment" and "CronJob".
 	Kind string `json:"kind,omitempty"`
@@ -116,6 +116,7 @@ func (s SleepInfo) getScheduleFromWeekdayAndTime(hourAndMinute string) (string, 
 	}
 
 	splittedTime := strings.Split(hourAndMinute, ":")
+	//nolint:gomnd
 	if len(splittedTime) != 2 {
 		return "", fmt.Errorf("time should be of format HH:mm, actual: %s", hourAndMinute)
 	}
