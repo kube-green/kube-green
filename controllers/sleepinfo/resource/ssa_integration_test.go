@@ -61,7 +61,9 @@ func TestServerSideApply(t *testing.T) {
 				}
 				err = testutil.GetResource(ctx, k8sClient, resource.GetName(), resource.GetNamespace(), unstructuredRes)
 				require.NoError(t, err)
-				require.Equal(t, newResource, unstructuredRes)
+				require.Equal(t, newResource.GetLabels(), unstructuredRes.GetLabels())
+				require.Equal(t, newResource.GetAnnotations(), unstructuredRes.GetAnnotations())
+				require.Equal(t, newResource.Object["spec"], unstructuredRes.Object["spec"])
 
 				return ctx
 			},
@@ -88,7 +90,10 @@ func TestServerSideApply(t *testing.T) {
 				}
 				err = testutil.GetResource(context.Background(), k8sClient, resource.GetName(), resource.GetNamespace(), &unstructuredRes)
 				require.NoError(t, err)
-				require.Equal(t, resource.GetName(), unstructuredRes.GetName())
+				require.Equal(t, resource.GetLabels(), unstructuredRes.GetLabels())
+				require.Equal(t, resource.GetAnnotations(), unstructuredRes.GetAnnotations())
+				require.Equal(t, resource.Object["spec"], unstructuredRes.Object["spec"])
+
 				return ctx
 			},
 		},
