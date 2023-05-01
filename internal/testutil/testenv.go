@@ -23,10 +23,7 @@ type testEnvKey struct{}
 
 func SetupEnvTest() env.Func {
 	return func(ctx context.Context, c *envconf.Config) (context.Context, error) {
-		testEnv := &envtest.Environment{
-			CRDDirectoryPaths:     []string{filepath.Join("..", "..", "config", "crd", "bases")},
-			ErrorIfCRDPathMissing: true,
-		}
+		testEnv := &envtest.Environment{}
 
 		e := gexe.New()
 		version, _ := os.LookupEnv(kindVersionVariableName)
