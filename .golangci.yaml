@@ -1,0 +1,61 @@
+run:
+  deadline: 5m
+  skip-files:
+    - "zz.deepcopy"
+
+linters:
+  enable:
+  - asasalint
+  - asciicheck
+  - bidichk
+  - bodyclose
+  - containedctx
+  - contextcheck
+  - decorder
+  - dupword
+  - errname
+  - exportloopref
+  - goconst
+  - gocritic
+  - gocyclo
+  - gofmt
+  - goimports
+  - gomnd
+  - goprintffuncname
+  - gosec
+  - govet
+  - ineffassign
+  - maintidx
+  - misspell
+  - noctx
+  - nolintlint
+  - nosprintfhostport
+  - revive
+  - tagliatelle
+  - unconvert
+  - unparam
+  - unused
+  - whitespace
+
+linters-settings:
+  goconst:
+    ignore-tests: true
+  gomnd:
+    checks:
+    - case
+    - condition
+    - return
+  revive:
+    rules:
+      - name: var-declaration
+        disabled: true
+      - name: context-as-argument
+        arguments:
+          - allowTypesBefore: "*testing.T"
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - maintidx
+        - cyclop

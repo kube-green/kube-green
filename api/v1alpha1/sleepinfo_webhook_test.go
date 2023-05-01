@@ -141,7 +141,7 @@ func TestValidateSleepInfo(t *testing.T) {
 				WakeUpTime: "13:20",
 				ExcludeRef: []ExcludeRef{
 					{
-						ApiVersion: "apps/v1",
+						APIVersion: "apps/v1",
 						Kind:       "Deployment",
 					},
 				},
@@ -185,7 +185,7 @@ func TestValidateSleepInfo(t *testing.T) {
 				ExcludeRef: []ExcludeRef{
 					{
 						Kind:       "Deployment",
-						ApiVersion: "apps/v1",
+						APIVersion: "apps/v1",
 						Name:       "my-deployment",
 					},
 				},
@@ -194,7 +194,7 @@ func TestValidateSleepInfo(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		test := test //necessary to ensure the correct value is passed to the closure
+		test := test // necessary to ensure the correct value is passed to the closure
 		s := sleepInfo.DeepCopy()
 		s.Spec = test.sleepInfoSpec
 

@@ -97,8 +97,12 @@ fmt: ## Run go fmt against code.
 vet: ## Run go vet against code.
 	go vet ./...
 
+.PHONY: lint
+lint: golangci ## Run linter.
+	$(GOLANCCI_LINT) run
+
 .PHONY: test
-test: manifests generate fmt vet ## Run tests.
+test: manifests generate fmt vet lint ## Run tests.
 	@echo "Running tests with kubernetes version $(KIND_K8S_VERSION)..."
 	KIND_K8S_VERSION=$(KIND_K8S_VERSION) go test ./... -cover -coverprofile cover.out
 
@@ -166,10 +170,12 @@ $(LOCALBIN): ## Ensure that the directory exists
 ## Tool Binaries
 KUSTOMIZE ?= $(LOCALBIN)/kustomize
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
+GOLANCCI_LINT ?= $(LOCALBIN)/golangci-lint
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v4.5.7
 CONTROLLER_TOOLS_VERSION ?= v0.10.0
+GOLANGCI_VERSION ?= v1.52.2
 
 KUSTOMIZE_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
 .PHONY: kustomize
@@ -181,6 +187,14 @@ $(KUSTOMIZE): $(LOCALBIN)
 controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary.
 $(CONTROLLER_GEN): $(LOCALBIN)
 	GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_TOOLS_VERSION)
+
+GOLANGCI_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh"
+.PHONY: golangci
+golangci: $(GOLANCCI_LINT)
+$(GOLANCCI_LINT): $(LOCALBIN)
+	@test -s $(LOCALBIN)/golangci-lint || { curl -s $(GOLANGCI_INSTALL_SCRIPT) | bash -s -- $(GOLANGCI_VERSION) $(LOCALBIN); }
+
+## Bundle
 
 .PHONY: bundle
 bundle: manifests kustomize ## Generate bundle manifests and metadata, then validate generated files.
