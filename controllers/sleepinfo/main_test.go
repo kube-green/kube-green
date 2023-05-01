@@ -43,12 +43,14 @@ func TestMain(m *testing.M) {
 
 	testenv.Setup(
 		testutil.CreateKindClusterWithVersion(kindClusterName, "testdata/kind-config.test.yaml"),
+		// testutil.SetupEnvTest(),
 		testutil.GetClusterVersion(),
 		testutil.SetupCRDs("../../config/crd/bases", "*"),
 	)
 
 	testenv.Finish(
 		envfuncs.TeardownCRDs("../../config/crd/bases", "*"),
+		// testutil.StopEnvTest(),
 		testutil.DestroyKindCluster(kindClusterName),
 	)
 

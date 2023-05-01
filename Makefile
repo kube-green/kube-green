@@ -51,6 +51,7 @@ endif
 IMG ?= $(DOCKER_IMAGE_NAME):$(VERSION)
 # KIND_K8S_VERSION refers to the version of Kind to use.
 KIND_K8S_VERSION ?= v1.25.3
+ENVTEST_K8S_VERSION ?= 1.25.3
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -101,6 +102,11 @@ vet: ## Run go vet against code.
 test: manifests generate fmt vet ## Run tests.
 	@echo "Running tests with kubernetes version $(KIND_K8S_VERSION)..."
 	KIND_K8S_VERSION=$(KIND_K8S_VERSION) go test ./... -cover -coverprofile cover.out
+
+.PHONY: test-envtest
+test-envtest: manifests generate fmt vet envtest ## Run tests.
+	@echo "Running tests with envtest"
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./... -cover
 
 .PHONY: e2e-test
 e2e-test: manifests generate kustomize
@@ -166,6 +172,7 @@ $(LOCALBIN): ## Ensure that the directory exists
 ## Tool Binaries
 KUSTOMIZE ?= $(LOCALBIN)/kustomize
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
+ENVTEST ?= $(LOCALBIN)/setup-envtest
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v4.5.7
@@ -181,6 +188,11 @@ $(KUSTOMIZE): $(LOCALBIN)
 controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary.
 $(CONTROLLER_GEN): $(LOCALBIN)
 	GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_TOOLS_VERSION)
+
+.PHONY: envtest
+envtest: $(ENVTEST) ## Download envtest-setup locally if necessary.
+$(ENVTEST): $(LOCALBIN)
+	test -s $(LOCALBIN)/setup-envtest || GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
 
 .PHONY: bundle
 bundle: manifests kustomize ## Generate bundle manifests and metadata, then validate generated files.
