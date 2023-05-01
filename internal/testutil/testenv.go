@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 
 	"github.com/vladimirvivien/gexe"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
@@ -26,7 +27,7 @@ func SetupEnvTest() env.Func {
 		testEnv := &envtest.Environment{}
 
 		e := gexe.New()
-		version, _ := os.LookupEnv(kindVersionVariableName)
+		version := getK8sVersionForEnvtest()
 		assetsPath, err := findOrInstallTestEnv(e, version)
 		if err != nil {
 			return ctx, err
@@ -72,14 +73,6 @@ func findOrInstallTestEnv(e *gexe.Echo, k8sVersion string) (string, error) {
 		if setupEnvCommand, err = installTestEnv(e); err != nil {
 			return "", err
 		}
-	}
-
-	if k8sVersion != "" {
-		p := e.RunProc(fmt.Sprintf("%s use -p path", setupEnvCommand))
-		if p.Err() != nil {
-			return "", fmt.Errorf("failed to use latest envtest version: %s", p.Err())
-		}
-		return p.Result(), nil
 	}
 
 	p := e.RunProc(fmt.Sprintf("%s use -p path %s", setupEnvCommand, k8sVersion))
@@ -128,4 +121,9 @@ func getSetupEnvPath() string {
 		return envtestBinPath
 	}
 	return ""
+}
+
+func getK8sVersionForEnvtest() string {
+	version, _ := os.LookupEnv(kindVersionVariableName)
+	return strings.TrimPrefix(version, "v")
 }

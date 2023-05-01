@@ -53,7 +53,6 @@ endif
 IMG ?= $(DOCKER_IMAGE_NAME):$(VERSION)
 # KIND_K8S_VERSION refers to the version of Kind to use.
 KIND_K8S_VERSION ?= v1.25.3
-ENVTEST_K8S_VERSION ?= 1.25
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))

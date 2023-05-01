@@ -27,9 +27,6 @@ import (
 )
 
 func TestServerSideApply(t *testing.T) {
-	const (
-		kindClusterName = "kube-green-resource"
-	)
 	testenv := env.New()
 	runID := envconf.RandomName("kube-green-resource", 24)
 

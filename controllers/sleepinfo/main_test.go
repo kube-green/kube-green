@@ -19,10 +19,6 @@ var (
 	testenv env.Environment
 )
 
-const (
-	kindClusterName = "kube-green-sleepinfo"
-)
-
 func TestMain(m *testing.M) {
 	testenv = env.New()
 	runID := envconf.RandomName("kube-green-test", 24)
