@@ -79,14 +79,18 @@ func TestCronJobs(t *testing.T) {
 	}
 
 	getNewResource := func(t *testing.T, client client.Client, originalSuspendedCronJob map[string]bool) cronjobs {
-		c, err := NewResource(context.Background(), resource.ResourceClient{
+		t.Helper()
+
+		resource, err := NewResource(context.Background(), resource.ResourceClient{
 			Client:    client,
 			Log:       testLogger,
 			SleepInfo: sleepInfo,
 		}, namespace, originalSuspendedCronJob)
 		require.NoError(t, err)
 
-		return c
+		cronjobs, ok := resource.(cronjobs)
+		require.True(t, ok)
+		return cronjobs
 	}
 
 	t.Run("NewResource", func(t *testing.T) {
@@ -154,12 +158,12 @@ func TestCronJobs(t *testing.T) {
 						ExcludeRef: []v1alpha1.ExcludeRef{
 							{
 								Name:       cronJob2.GetName(),
-								ApiVersion: "batch/v1",
+								APIVersion: "batch/v1",
 								Kind:       "CronJob",
 							},
 							{
 								Name:       cronJobSuspendSetToFalseNotEmpty.GetName(),
-								ApiVersion: "batch/v1",
+								APIVersion: "batch/v1",
 								Kind:       "CronJob",
 							},
 						},
@@ -182,7 +186,9 @@ func TestCronJobs(t *testing.T) {
 				} else {
 					require.NoError(t, err)
 				}
-				require.Equal(t, test.expected, resource.data)
+				cronjobs, ok := resource.(cronjobs)
+				require.True(t, ok)
+				require.Equal(t, test.expected, cronjobs.data)
 			})
 		}
 	})
@@ -353,10 +359,12 @@ func TestCronJobs(t *testing.T) {
 }
 
 func suspendAndUpdateResourceVersion(t *testing.T, cronJob unstructured.Unstructured) unstructured.Unstructured {
+	t.Helper()
 	return updateResourceVersion(t, convertCronJobToBeSuspended(t, cronJob))
 }
 
 func convertCronJobToBeSuspended(t *testing.T, cronJob unstructured.Unstructured) unstructured.Unstructured {
+	t.Helper()
 	suspendTrue := true
 	newCronJob := cronJob.DeepCopy()
 	err := unstructured.SetNestedField(newCronJob.Object, suspendTrue, "spec", "suspend")
@@ -365,6 +373,7 @@ func convertCronJobToBeSuspended(t *testing.T, cronJob unstructured.Unstructured
 }
 
 func updateResourceVersion(t *testing.T, cronJob unstructured.Unstructured) unstructured.Unstructured {
+	t.Helper()
 	resourceVersion, err := strconv.Atoi(cronJob.GetResourceVersion())
 	require.NoError(t, err)
 	newCronJob := cronJob.DeepCopy()

@@ -42,20 +42,14 @@ func (r Resources) sleep(ctx context.Context) error {
 	if err := r.deployments.Sleep(ctx); err != nil {
 		return err
 	}
-	if err := r.cronjobs.Sleep(ctx); err != nil {
-		return err
-	}
-	return nil
+	return r.cronjobs.Sleep(ctx)
 }
 
 func (r Resources) wakeUp(ctx context.Context) error {
 	if err := r.deployments.WakeUp(ctx); err != nil {
 		return err
 	}
-	if err := r.cronjobs.WakeUp(ctx); err != nil {
-		return err
-	}
-	return nil
+	return r.cronjobs.WakeUp(ctx)
 }
 
 func (r Resources) getOriginalResourceInfoToSave() (map[string][]byte, error) {

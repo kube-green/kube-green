@@ -5,6 +5,8 @@
 # - use environment variables to overwrite this value (e.g export VERSION=0.0.2)
 VERSION ?= 0.5.0
 DOCKER_IMAGE_NAME ?= ghcr.io/kube-green/kube-green
+OS=$(shell go env GOOS)
+ARCH=$(shell go env GOARCH)
 
 # CHANNELS define the bundle channels used in the bundle.
 # Add a new line here if you would like to change its default config. (E.g CHANNELS = "preview,fast,stable")
@@ -98,15 +100,18 @@ fmt: ## Run go fmt against code.
 vet: ## Run go vet against code.
 	go vet ./...
 
-.PHONY: test
-test: manifests generate fmt vet ## Run tests.
-	@echo "Running tests with kubernetes version $(KIND_K8S_VERSION)..."
-	KIND_K8S_VERSION=$(KIND_K8S_VERSION) go test ./... -cover -coverprofile cover.out
+.PHONY: lint
+lint: golangci ## Run linter.
+	$(GOLANCCI_LINT) run
 
-.PHONY: test-envtest
-test-envtest: manifests generate fmt vet envtest ## Run tests.
-	@echo "Running tests with envtest"
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./... -cover
+.PHONY: test
+test: manifests generate fmt vet lint gotestsum ## Run tests.
+	@echo "Running tests with kubernetes version $(KIND_K8S_VERSION)..."
+	KIND_K8S_VERSION=$(KIND_K8S_VERSION) $(GOTESTSUM) -- $(GO_TEST_ARGS)
+
+.PHONY: coverage
+coverage:
+	GO_TEST_ARGS='-cover -coverprofile cover.out ./...' $(MAKE) test
 
 .PHONY: e2e-test
 e2e-test: manifests generate kustomize
@@ -172,11 +177,14 @@ $(LOCALBIN): ## Ensure that the directory exists
 ## Tool Binaries
 KUSTOMIZE ?= $(LOCALBIN)/kustomize
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
-ENVTEST ?= $(LOCALBIN)/setup-envtest
+GOTESTSUM ?= $(LOCALBIN)/gotestsum-$(GOTESTSUM_VERSION)
+GOLANCCI_LINT ?= $(LOCALBIN)/golangci-lint
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v4.5.7
 CONTROLLER_TOOLS_VERSION ?= v0.10.0
+GOTESTSUM_VERSION ?= 1.10.0
+GOLANGCI_VERSION ?= v1.52.2
 
 KUSTOMIZE_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
 .PHONY: kustomize
@@ -189,10 +197,19 @@ controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessar
 $(CONTROLLER_GEN): $(LOCALBIN)
 	GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_TOOLS_VERSION)
 
-.PHONY: envtest
-envtest: $(ENVTEST) ## Download envtest-setup locally if necessary.
-$(ENVTEST): $(LOCALBIN)
-	test -s $(LOCALBIN)/setup-envtest || GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
+GOTESTSUM_URL ?= "https://github.com/gotestyourself/gotestsum/releases/download/v${GOTESTSUM_VERSION}/gotestsum_${GOTESTSUM_VERSION}_${OS}_${ARCH}.tar.gz"
+.PHONY: gotestsum
+gotestsum: $(GOTESTSUM) ## Download gotestsum locally if necessary.
+$(GOTESTSUM): $(LOCALBIN)
+	test -s $(GOTESTSUM) || curl -L $(GOTESTSUM_URL) | tar -zOxf - gotestsum > $(LOCALBIN)/gotestsum-${GOTESTSUM_VERSION} && chmod +x ./bin/gotestsum-${GOTESTSUM_VERSION}
+
+GOLANGCI_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh"
+.PHONY: golangci
+golangci: $(GOLANCCI_LINT)
+$(GOLANCCI_LINT): $(LOCALBIN)
+	@test -s $(LOCALBIN)/golangci-lint || { curl -s $(GOLANGCI_INSTALL_SCRIPT) | bash -s -- $(GOLANGCI_VERSION) $(LOCALBIN); }
+
+## Bundle
 
 .PHONY: bundle
 bundle: manifests kustomize ## Generate bundle manifests and metadata, then validate generated files.
@@ -217,7 +234,6 @@ ifeq (,$(shell which opm 2>/dev/null))
 	@{ \
 	set -e ;\
 	mkdir -p $(dir $(OPM)) ;\
-	OS=$(shell go env GOOS) && ARCH=$(shell go env GOARCH) && \
 	curl -sSLo $(OPM) https://github.com/operator-framework/operator-registry/releases/download/v1.26.2/$${OS}-$${ARCH}-opm ;\
 	chmod +x $(OPM) ;\
 	}

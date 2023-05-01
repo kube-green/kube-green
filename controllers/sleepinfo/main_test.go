@@ -5,9 +5,9 @@ import (
 	"os"
 	"testing"
 
+	kubegreenv1alpha1 "github.com/kube-green/kube-green/api/v1alpha1"
 	"github.com/kube-green/kube-green/internal/testutil"
 
-	kubegreenv1alpha1 "github.com/kube-green/kube-green/api/v1alpha1"
 	"github.com/stretchr/testify/require"
 	"sigs.k8s.io/e2e-framework/klient/k8s/resources"
 	"sigs.k8s.io/e2e-framework/pkg/env"
@@ -30,7 +30,8 @@ func TestMain(m *testing.M) {
 	testenv.BeforeEachFeature(func(ctx context.Context, c *envconf.Config, t *testing.T, f features.Feature) (context.Context, error) {
 		r, err := resources.New(c.Client().RESTConfig())
 		require.NoError(t, err)
-		kubegreenv1alpha1.AddToScheme(r.GetScheme())
+		err = kubegreenv1alpha1.AddToScheme(r.GetScheme())
+		require.NoError(t, err)
 		c = c.WithClient(c.Client())
 
 		return testutil.CreateNSForTest(ctx, c, t, runID)

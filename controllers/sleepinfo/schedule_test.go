@@ -25,11 +25,10 @@ func TestSchedule(t *testing.T) {
 	}
 
 	tests := []struct {
-		name                 string
-		now                  string
-		data                 SleepInfoData
-		scheduleDeltaSeconds int64
-		expected             expected
+		name     string
+		now      string
+		data     SleepInfoData
+		expected expected
 	}{
 		{
 			name: "fails if current schedule is invalid",
@@ -303,7 +302,6 @@ func TestSchedule(t *testing.T) {
 				nextSchedule: "2021-03-23T20:10:00Z",
 				requeueAfter: 5 * time.Minute,
 			},
-			scheduleDeltaSeconds: 60,
 		},
 		{
 			name: "no last schedule, is time to execute [now +60s] - delta 60s",
@@ -317,7 +315,6 @@ func TestSchedule(t *testing.T) {
 				nextSchedule: "2021-03-23T20:10:00Z",
 				requeueAfter: 3*time.Minute + 1*time.Millisecond,
 			},
-			scheduleDeltaSeconds: 60,
 		},
 		{
 			name: "last schedule (+60s), is time to execute [now -60s] - delta 60s",
@@ -332,7 +329,6 @@ func TestSchedule(t *testing.T) {
 				nextSchedule: "2021-03-23T20:10:00Z",
 				requeueAfter: 5 * time.Minute,
 			},
-			scheduleDeltaSeconds: 60,
 		},
 		{
 			name: "last schedule (-60s), is time to execute [now +60s] - delta 60s",
@@ -347,7 +343,6 @@ func TestSchedule(t *testing.T) {
 				nextSchedule: "2021-03-23T20:10:00Z",
 				requeueAfter: 3 * time.Minute,
 			},
-			scheduleDeltaSeconds: 60,
 		},
 		{
 			name: "last schedule, is time to execute [now +60s] - delta 60s",
@@ -362,7 +357,6 @@ func TestSchedule(t *testing.T) {
 				nextSchedule: "2021-03-23T20:10:00Z",
 				requeueAfter: 4 * time.Minute,
 			},
-			scheduleDeltaSeconds: 60,
 		},
 		{
 			name: "last schedule (at least one operation skipped), is time to execute [now -60s]",
@@ -377,17 +371,12 @@ func TestSchedule(t *testing.T) {
 				nextSchedule: "2021-03-23T20:10:00Z",
 				requeueAfter: 4*time.Minute + 1*time.Millisecond,
 			},
-			scheduleDeltaSeconds: 60,
 		},
 	}
 
 	for _, test := range tests {
-		test := test //necessary to ensure the correct value is passed to the closure
+		test := test // necessary to ensure the correct value is passed to the closure
 		t.Run(test.name, func(t *testing.T) {
-			scheduleDeltaSeconds := test.scheduleDeltaSeconds
-			if scheduleDeltaSeconds == 0 {
-				scheduleDeltaSeconds = 1
-			}
 			isToExecute, nextSchedule, requeueAfter, err := sleepInfoReconciler.getNextSchedule(test.data, getTime(t, test.now))
 
 			expected := test.expected
@@ -458,7 +447,7 @@ func TestTestIsTimeInDeltaMs(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		test := test //necessary to ensure the correct value is passed to the closure
+		test := test // necessary to ensure the correct value is passed to the closure
 		t.Run(fmt.Sprintf("name, %s", test.name), func(t *testing.T) {
 			output := isTimeInDelta(test.t1, test.t2, test.delta)
 			require.Equal(t, test.expected, output)
@@ -467,6 +456,7 @@ func TestTestIsTimeInDeltaMs(t *testing.T) {
 }
 
 func getTime(t *testing.T, mockNowRaw string) time.Time {
+	t.Helper()
 	now, err := time.Parse(time.RFC3339, mockNowRaw)
 	require.NoError(t, err)
 	return now

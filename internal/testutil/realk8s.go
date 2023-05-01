@@ -31,25 +31,22 @@ func CreateNamespace(ctx context.Context, k8sClient client.Client, name string) 
 }
 
 func GetResource(ctx context.Context, k8sClient client.Client, name, namespace string, resource *unstructured.Unstructured) error {
-	if err := k8sClient.Get(ctx, client.ObjectKey{
+	return k8sClient.Get(ctx, client.ObjectKey{
 		Name:      name,
 		Namespace: namespace,
-	}, resource); err != nil {
-		return err
-	}
-	return nil
+	}, resource)
 }
 
-func nsKey(t *testing.T) string {
-	return "NS-for-%v" + t.Name()
-}
+type nsKey struct{}
 
 // TODO: rename me in CreateNamespace
 // CreateNSForTest creates a random namespace with the runID as a prefix. It is stored in the context
 // so that the deleteNSForTest routine can look it up and delete it.
 func CreateNSForTest(ctx context.Context, cfg *envconf.Config, t *testing.T, runID string) (context.Context, error) {
+	t.Helper()
+
 	ns := envconf.RandomName(runID, 32)
-	ctx = context.WithValue(ctx, nsKey(t), ns)
+	ctx = context.WithValue(ctx, nsKey{}, ns)
 
 	cfg.WithNamespace(ns)
 
@@ -63,8 +60,13 @@ func CreateNSForTest(ctx context.Context, cfg *envconf.Config, t *testing.T, run
 }
 
 // DeleteNamespace looks up the namespace corresponding to the given test and deletes it.
-func DeleteNamespace(ctx context.Context, cfg *envconf.Config, t *testing.T, runID string) (context.Context, error) {
-	ns := fmt.Sprint(ctx.Value(nsKey(t)))
+func DeleteNamespace(ctx context.Context, cfg *envconf.Config, t *testing.T, _ string) (context.Context, error) {
+	t.Helper()
+
+	ns, ok := ctx.Value(nsKey{}).(string)
+	if !ok {
+		return ctx, fmt.Errorf("namespace not in context")
+	}
 
 	t.Logf("Deleting NS %v for test %v", ns, t.Name())
 	nsObj := v1.Namespace{}
