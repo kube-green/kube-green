@@ -38,13 +38,13 @@ type originalResources struct {
 	sleepInfo kubegreenv1alpha1.SleepInfo
 }
 
-// TODO: simplify setup with this function
 func createSleepInfoCRD(t *testing.T, ctx context.Context, c *envconf.Config, sleepInfo *kubegreenv1alpha1.SleepInfo) kubegreenv1alpha1.SleepInfo {
 	t.Helper()
 
 	r, err := resources.New(c.Client().RESTConfig())
 	require.NoError(t, err)
-	kubegreenv1alpha1.AddToScheme(r.GetScheme())
+	err = kubegreenv1alpha1.AddToScheme(r.GetScheme())
+	require.NoError(t, err)
 
 	err = c.Client().Resources().Create(ctx, sleepInfo)
 	require.NoError(t, err, "error creating SleepInfo")
@@ -146,14 +146,15 @@ func upsertDeployments(t *testing.T, ctx context.Context, c *envconf.Config, upd
 	}
 
 	for _, deployment := range deployments {
-		if findDeployByName(d.Items, deployment.GetName()) != nil {
-			deployment.SetManagedFields(nil)
-			require.NoError(t, k8sClient.Patch(ctx, &deployment, client.Apply, &client.PatchOptions{
+		var deploy = deployment
+		if findDeployByName(d.Items, deploy.GetName()) != nil {
+			deploy.SetManagedFields(nil)
+			require.NoError(t, k8sClient.Patch(ctx, &deploy, client.Apply, &client.PatchOptions{
 				FieldManager: "kube-green-test",
 				Force:        getPtr(true),
 			}))
 		} else {
-			err := k8sClient.Create(ctx, &deployment)
+			err := k8sClient.Create(ctx, &deploy)
 			require.NoError(t, err)
 		}
 
@@ -210,13 +211,14 @@ func upsertCronJobs(t *testing.T, ctx context.Context, c *envconf.Config, update
 		require.NoError(t, err)
 	}
 	for _, cronJob := range cronJobs {
-		if obj := findResourceByName(objList.Items, cronJob.GetName()); obj != nil {
+		var cron = cronJob
+		if obj := findResourceByName(objList.Items, cron.GetName()); obj != nil {
 			patch := client.MergeFrom(obj)
-			if err := k8sClient.Patch(ctx, &cronJob, patch); err != nil {
+			if err := k8sClient.Patch(ctx, &cron, patch); err != nil {
 				require.NoError(t, err)
 			}
 		} else {
-			require.NoError(t, k8sClient.Create(ctx, &cronJob))
+			require.NoError(t, k8sClient.Create(ctx, &cron))
 		}
 
 		err := wait.For(conditions.New(c.Client().Resources(c.Namespace())).ResourceMatch(cronJob.DeepCopy(), func(object k8s.Object) bool {
@@ -270,6 +272,7 @@ func withSetupOptions(ctx context.Context, setup setupOptions) context.Context {
 }
 
 func getSetupOptions(t *testing.T, ctx context.Context) setupOptions {
+	t.Helper()
 	setupOpts, ok := ctx.Value(setupOptionsKey{}).(setupOptions)
 	if !ok {
 		return setupOptions{}
@@ -282,19 +285,12 @@ type mockClock struct {
 	t   *testing.T
 }
 
-// TODO: when remove gomega, remove also the panic else and make the t assertion
 func (m mockClock) Now() time.Time {
-	// if m.t == nil {
-	// 	panic("testing.T not passed in mockClock")
-	// }
-	parsedTime, err := time.Parse(time.RFC3339, m.now)
-	if m.t != nil {
-		require.NoError(m.t, err)
-	} else {
-		if err != nil {
-			panic(err.Error())
-		}
+	if m.t == nil {
+		panic("testing.T not passed in mockClock")
 	}
+	parsedTime, err := time.Parse(time.RFC3339, m.now)
+	require.NoError(m.t, err)
 	return parsedTime
 }
 
@@ -360,7 +356,7 @@ func isSuspendedCronJob(t *testing.T, cronJob unstructured.Unstructured) bool {
 	return suspend
 }
 
-func assertAllReplicasSetToZero(t *testing.T, actualDeployments []appsv1.Deployment, originalDeployments []appsv1.Deployment) {
+func assertAllReplicasSetToZero(t *testing.T, actualDeployments []appsv1.Deployment) {
 	t.Helper()
 
 	allReplicas := []int32{}
@@ -372,7 +368,7 @@ func assertAllReplicasSetToZero(t *testing.T, actualDeployments []appsv1.Deploym
 	}
 }
 
-func assertAllCronJobsSuspended(t *testing.T, actualCronJobs []unstructured.Unstructured, originalCronJobs []unstructured.Unstructured) {
+func assertAllCronJobsSuspended(t *testing.T, actualCronJobs []unstructured.Unstructured) {
 	t.Helper()
 
 	allSuspended := []struct {

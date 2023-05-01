@@ -99,8 +99,12 @@ fmt: ## Run go fmt against code.
 vet: ## Run go vet against code.
 	go vet ./...
 
+.PHONY: lint
+lint: golangci ## Run linter.
+	$(GOLANCCI_LINT) run
+
 .PHONY: test
-test: manifests generate fmt vet gotestsum ## Run tests.
+test: manifests generate fmt vet lint gotestsum ## Run tests.
 	@echo "Running tests with kubernetes version $(KIND_K8S_VERSION)..."
 	KIND_K8S_VERSION=$(KIND_K8S_VERSION) $(GOTESTSUM) -- $(GO_TEST_ARGS)
 
@@ -173,11 +177,13 @@ $(LOCALBIN): ## Ensure that the directory exists
 KUSTOMIZE ?= $(LOCALBIN)/kustomize
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 GOTESTSUM ?= $(LOCALBIN)/gotestsum-$(GOTESTSUM_VERSION)
+GOLANCCI_LINT ?= $(LOCALBIN)/golangci-lint
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v4.5.7
 CONTROLLER_TOOLS_VERSION ?= v0.10.0
 GOTESTSUM_VERSION ?= 1.10.0
+GOLANGCI_VERSION ?= v1.52.2
 
 KUSTOMIZE_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
 .PHONY: kustomize
@@ -195,6 +201,12 @@ GOTESTSUM_URL ?= "https://github.com/gotestyourself/gotestsum/releases/download/
 gotestsum: $(GOTESTSUM) ## Download gotestsum locally if necessary.
 $(GOTESTSUM): $(LOCALBIN)
 	test -s $(GOTESTSUM) || curl -L $(GOTESTSUM_URL) | tar -zOxf - gotestsum > $(LOCALBIN)/gotestsum-${GOTESTSUM_VERSION} && chmod +x ./bin/gotestsum-${GOTESTSUM_VERSION}
+
+GOLANGCI_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh"
+.PHONY: golangci
+golangci: $(GOLANCCI_LINT)
+$(GOLANCCI_LINT): $(LOCALBIN)
+	@test -s $(LOCALBIN)/golangci-lint || { curl -s $(GOLANGCI_INSTALL_SCRIPT) | bash -s -- $(GOLANGCI_VERSION) $(LOCALBIN); }
 
 ## Bundle
 

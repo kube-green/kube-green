@@ -20,6 +20,8 @@ import (
 )
 
 func TestResource(t *testing.T) {
+	const newImageName = "new-image"
+
 	deployment := appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "my-name",
@@ -90,7 +92,7 @@ func TestResource(t *testing.T) {
 			}
 
 			newD1 := deployment.DeepCopy()
-			newD1.Spec.Template.Spec.Containers[0].Image = "new-image"
+			newD1.Spec.Template.Spec.Containers[0].Image = newImageName
 
 			require.NoError(t, c.Patch(context.Background(), &deployment, newD1))
 
@@ -131,7 +133,7 @@ func TestResource(t *testing.T) {
 			}
 
 			newD1 := deployment.DeepCopy()
-			newD1.Spec.Template.Spec.Containers[0].Image = "new-image"
+			newD1.Spec.Template.Spec.Containers[0].Image = newImageName
 
 			require.NoError(t, c.Patch(context.Background(), &deployment, newD1))
 
@@ -157,7 +159,7 @@ func TestResource(t *testing.T) {
 			}
 
 			newD1 := deployment.DeepCopy()
-			newD1.Spec.Template.Spec.Containers[0].Image = "new-image"
+			newD1.Spec.Template.Spec.Containers[0].Image = newImageName
 
 			require.EqualError(t, c.Patch(context.Background(), &deployment, newD1), "error during patch")
 		})
@@ -184,7 +186,7 @@ func TestResource(t *testing.T) {
 			}
 
 			newD1 := deployment.DeepCopy()
-			newD1.Spec.Template.Spec.Containers[0].Image = "new-image"
+			newD1.Spec.Template.Spec.Containers[0].Image = newImageName
 
 			require.EqualError(t, c.SSAPatch(context.Background(), &deployment), "error during patch")
 		})

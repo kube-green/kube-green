@@ -96,17 +96,17 @@ func TestNewResource(t *testing.T) {
 				Spec: v1alpha1.SleepInfoSpec{
 					ExcludeRef: []v1alpha1.ExcludeRef{
 						{
-							ApiVersion: "apps/v1",
+							APIVersion: "apps/v1",
 							Kind:       "Deployment",
 							Name:       deployment2.Name,
 						},
 						{
-							ApiVersion: "apps/v1",
+							APIVersion: "apps/v1",
 							Kind:       "resource",
 							Name:       "foo",
 						},
 						{
-							ApiVersion: "apps/v2",
+							APIVersion: "apps/v2",
 							Kind:       "Deployment",
 							Name:       deployment1.Name,
 						},
@@ -125,17 +125,17 @@ func TestNewResource(t *testing.T) {
 				Spec: v1alpha1.SleepInfoSpec{
 					ExcludeRef: []v1alpha1.ExcludeRef{
 						{
-							ApiVersion: "apps/v1",
+							APIVersion: "apps/v1",
 							Kind:       "Deployment",
 							Name:       deployment2.Name,
 						},
 						{
-							ApiVersion: "apps/v1",
+							APIVersion: "apps/v1",
 							Kind:       "resource",
 							Name:       "foo",
 						},
 						{
-							ApiVersion:  "apps/v1",
+							APIVersion:  "apps/v1",
 							Kind:        "Deployment",
 							MatchLabels: deploymentWithLabels.Labels,
 						},
@@ -162,7 +162,9 @@ func TestNewResource(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 			}
-			require.Equal(t, test.expected, d.data)
+			deployments, ok := d.(deployments)
+			require.True(t, ok)
+			require.Equal(t, test.expected, deployments.data)
 		})
 	}
 }
@@ -249,7 +251,7 @@ func TestSleep(t *testing.T) {
 		require.NoError(t, resource.Sleep(ctx))
 
 		list := appsv1.DeploymentList{}
-		err = c.List(context.Background(), &list, listOptions)
+		err = c.List(ctx, &list, listOptions)
 		require.NoError(t, err)
 		require.Equal(t, appsv1.DeploymentList{
 			TypeMeta: metav1.TypeMeta{
@@ -369,7 +371,7 @@ func TestWakeUp(t *testing.T) {
 		require.NoError(t, err)
 
 		list := appsv1.DeploymentList{}
-		err = c.List(context.Background(), &list, listOptions)
+		err = c.List(ctx, &list, listOptions)
 		require.NoError(t, err)
 		require.Equal(t, appsv1.DeploymentList{
 			TypeMeta: metav1.TypeMeta{
@@ -507,7 +509,6 @@ func TestDeploymentOriginalReplicas(t *testing.T) {
 		require.NoError(t, err)
 		require.Nil(t, res)
 	})
-
 }
 
 func TestLabelMatch(t *testing.T) {
@@ -555,7 +556,6 @@ func TestLabelMatch(t *testing.T) {
 			got := labelMatch(test.labels, test.matchLabels)
 			require.Equal(t, test.expected, got)
 		})
-
 	}
 }
 

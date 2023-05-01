@@ -25,7 +25,7 @@ func TestSleepInfo(t *testing.T) {
 				TimeZone:   "Europe/Rome",
 				ExcludeRef: []ExcludeRef{
 					{
-						ApiVersion: "apps/v1",
+						APIVersion: "apps/v1",
 						Kind:       "Deployment",
 						Name:       "deploy-1",
 					},
@@ -48,7 +48,7 @@ func TestSleepInfo(t *testing.T) {
 			excludeRef := sleepInfo.GetExcludeRef()
 			require.Equal(t, []ExcludeRef{
 				{
-					ApiVersion: "apps/v1",
+					APIVersion: "apps/v1",
 					Kind:       "Deployment",
 					Name:       "deploy-1",
 				},
@@ -106,7 +106,7 @@ func TestSleepInfo(t *testing.T) {
 				TimeZone:  "Europe/Rome",
 				ExcludeRef: []ExcludeRef{
 					{
-						ApiVersion: "apps/v1",
+						APIVersion: "apps/v1",
 						Kind:       "Deployment",
 						Name:       "deploy-1",
 					},
@@ -129,7 +129,7 @@ func TestSleepInfo(t *testing.T) {
 			excludeRef := sleepInfo.GetExcludeRef()
 			require.Equal(t, []ExcludeRef{
 				{
-					ApiVersion: "apps/v1",
+					APIVersion: "apps/v1",
 					Kind:       "Deployment",
 					Name:       "deploy-1",
 				},
@@ -159,7 +159,7 @@ func TestSleepInfo(t *testing.T) {
 				TimeZone:   "Europe/Rome",
 				ExcludeRef: []ExcludeRef{
 					{
-						ApiVersion: "apps/v1",
+						APIVersion: "apps/v1",
 						Kind:       "Deployment",
 						Name:       "deploy-1",
 					},
@@ -183,7 +183,7 @@ func TestSleepInfo(t *testing.T) {
 			excludeRef := sleepInfo.GetExcludeRef()
 			require.Equal(t, []ExcludeRef{
 				{
-					ApiVersion: "apps/v1",
+					APIVersion: "apps/v1",
 					Kind:       "Deployment",
 					Name:       "deploy-1",
 				},
