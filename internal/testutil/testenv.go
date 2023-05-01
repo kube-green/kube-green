@@ -75,7 +75,12 @@ func findOrInstallTestEnv(e *gexe.Echo, k8sVersion string) (string, error) {
 		}
 	}
 
-	p := e.RunProc(fmt.Sprintf("%s use -p path %s", setupEnvCommand, k8sVersion))
+	localBin, err := getLocalBin()
+	if err != nil {
+		return "", err
+	}
+
+	p := e.RunProc(fmt.Sprintf("%s use -p path --bin-dir %s %s", setupEnvCommand, localBin, k8sVersion))
 	if p.Err() != nil {
 		return "", fmt.Errorf("failed to use envtest at version %s: %s", k8sVersion, p.Err())
 	}
@@ -123,7 +128,15 @@ func getSetupEnvPath() string {
 	return ""
 }
 
+const lengthOfSemverVersionWithPatches = 3
+
 func getK8sVersionForEnvtest() string {
 	version, _ := os.LookupEnv(kindVersionVariableName)
-	return strings.TrimPrefix(version, "v")
+
+	splitVersion := strings.Split(strings.TrimLeft(version, "v"), ".")
+	if len(splitVersion) < lengthOfSemverVersionWithPatches {
+		return version
+	}
+
+	return fmt.Sprintf("%s.%s", splitVersion[0], splitVersion[1])
 }
