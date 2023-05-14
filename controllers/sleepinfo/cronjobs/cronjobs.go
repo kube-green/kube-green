@@ -29,25 +29,25 @@ type cronjobs struct {
 	areToSuspend          bool
 }
 
-func NewResource(ctx context.Context, res resource.ResourceClient, namespace string, originalSuspendStatus map[string]bool) (cronjobs, error) {
-	d := cronjobs{
+func NewResource(ctx context.Context, res resource.ResourceClient, namespace string, originalSuspendStatus map[string]bool) (resource.Resource, error) {
+	c := cronjobs{
 		ResourceClient:        res,
 		OriginalSuspendStatus: originalSuspendStatus,
 		areToSuspend:          res.SleepInfo.IsCronjobsToSuspend(),
 		data:                  []unstructured.Unstructured{},
 	}
-	if !d.areToSuspend {
-		return d, nil
+	if !c.areToSuspend {
+		return c, nil
 	}
-	if err := d.fetch(ctx, namespace); err != nil {
+	if err := c.fetch(ctx, namespace); err != nil {
 		return cronjobs{}, fmt.Errorf("%w: %s", ErrFetchingCronJobs, err)
 	}
 
-	return d, nil
+	return c, nil
 }
 
-func (d cronjobs) HasResource() bool {
-	return len(d.data) > 0
+func (c cronjobs) HasResource() bool {
+	return len(c.data) > 0
 }
 
 func getSuspendStatus(cronjob unstructured.Unstructured) (bool, bool, error) {

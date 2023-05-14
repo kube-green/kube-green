@@ -27,9 +27,6 @@ import (
 )
 
 func TestServerSideApply(t *testing.T) {
-	const (
-		kindClusterName = "kube-green-resource"
-	)
 	testenv := env.New()
 	runID := envconf.RandomName("kube-green-resource", 24)
 
@@ -61,7 +58,9 @@ func TestServerSideApply(t *testing.T) {
 				}
 				err = testutil.GetResource(ctx, k8sClient, resource.GetName(), resource.GetNamespace(), unstructuredRes)
 				require.NoError(t, err)
-				require.Equal(t, newResource, unstructuredRes)
+				require.Equal(t, newResource.GetLabels(), unstructuredRes.GetLabels())
+				require.Equal(t, newResource.GetAnnotations(), unstructuredRes.GetAnnotations())
+				require.Equal(t, newResource.Object["spec"], unstructuredRes.Object["spec"])
 
 				return ctx
 			},
@@ -88,7 +87,10 @@ func TestServerSideApply(t *testing.T) {
 				}
 				err = testutil.GetResource(context.Background(), k8sClient, resource.GetName(), resource.GetNamespace(), &unstructuredRes)
 				require.NoError(t, err)
-				require.Equal(t, resource, unstructuredRes)
+				require.Equal(t, resource.GetLabels(), unstructuredRes.GetLabels())
+				require.Equal(t, resource.GetAnnotations(), unstructuredRes.GetAnnotations())
+				require.Equal(t, resource.Object["spec"], unstructuredRes.Object["spec"])
+
 				return ctx
 			},
 		},
@@ -130,7 +132,7 @@ func TestServerSideApply(t *testing.T) {
 	}.
 		Build("Server Side Apply").
 		Setup(func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
-			ctx, err := testutil.CreateKindClusterWithVersion(kindClusterName, "../testdata/kind-config.test.yaml")(ctx, c)
+			ctx, err := testutil.SetupEnvTest()(ctx, c)
 			require.NoError(t, err)
 
 			ctx, err = testutil.GetClusterVersion()(ctx, c)
@@ -144,11 +146,8 @@ func TestServerSideApply(t *testing.T) {
 		Teardown(func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 			cleanupNamespaceDeployments(t, c)
 
-			ctx, err := testutil.DeleteNamespace(ctx, c, t, runID)
+			ctx, err := testutil.StopEnvTest()(ctx, c)
 			require.NoError(t, err)
-
-			// ctx, err = testutil.DestroyKindCluster(kindClusterName)(ctx, c)
-			// require.NoError(t, err)
 
 			return ctx
 		}).

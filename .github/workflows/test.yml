@@ -39,8 +39,8 @@ jobs:
         run: go version
       - name: Go get dependencies
         run: go get -v -t -d ./...
-      - name: Run tests
-        run: make test
+      - name: Run tests with coverage
+        run: make coverage
       - name: Vet and Build
         run: make
       - name: Send the coverage output
