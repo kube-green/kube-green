@@ -27,9 +27,6 @@ import (
 )
 
 func TestServerSideApply(t *testing.T) {
-	const (
-		kindClusterName = "kube-green-resource"
-	)
 	testenv := env.New()
 	runID := envconf.RandomName("kube-green-resource", 24)
 
@@ -135,7 +132,7 @@ func TestServerSideApply(t *testing.T) {
 	}.
 		Build("Server Side Apply").
 		Setup(func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
-			ctx, err := testutil.CreateKindClusterWithVersion(kindClusterName, "../testdata/kind-config.test.yaml")(ctx, c)
+			ctx, err := testutil.SetupEnvTest()(ctx, c)
 			require.NoError(t, err)
 
 			ctx, err = testutil.GetClusterVersion()(ctx, c)
@@ -149,10 +146,7 @@ func TestServerSideApply(t *testing.T) {
 		Teardown(func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 			cleanupNamespaceDeployments(t, c)
 
-			ctx, err := testutil.DeleteNamespace(ctx, c, t, runID)
-			require.NoError(t, err)
-
-			ctx, err = testutil.DestroyKindCluster(kindClusterName)(ctx, c)
+			ctx, err := testutil.StopEnvTest()(ctx, c)
 			require.NoError(t, err)
 
 			return ctx

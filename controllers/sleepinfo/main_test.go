@@ -12,16 +12,11 @@ import (
 	"sigs.k8s.io/e2e-framework/klient/k8s/resources"
 	"sigs.k8s.io/e2e-framework/pkg/env"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
-	"sigs.k8s.io/e2e-framework/pkg/envfuncs"
 	"sigs.k8s.io/e2e-framework/pkg/features"
 )
 
 var (
 	testenv env.Environment
-)
-
-const (
-	kindClusterName = "kube-green-sleepinfo"
 )
 
 func TestMain(m *testing.M) {
@@ -43,14 +38,13 @@ func TestMain(m *testing.M) {
 	})
 
 	testenv.Setup(
-		testutil.CreateKindClusterWithVersion(kindClusterName, "testdata/kind-config.test.yaml"),
+		testutil.SetupEnvTest(),
 		testutil.GetClusterVersion(),
 		testutil.SetupCRDs("../../config/crd/bases", "*"),
 	)
 
 	testenv.Finish(
-		envfuncs.TeardownCRDs("../../config/crd/bases", "*"),
-		testutil.DestroyKindCluster(kindClusterName),
+		testutil.StopEnvTest(),
 	)
 
 	// launch package tests
