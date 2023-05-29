@@ -272,7 +272,6 @@ release:
 	./hack/update-version.sh $(version)
 	$(MAKE)
 	$(MAKE) bundle
-	git checkout bundle/tests/scorecard/config.yaml
 	git add .
 	git commit -m "Upgrade to $(version)"
 	git tag $(version)

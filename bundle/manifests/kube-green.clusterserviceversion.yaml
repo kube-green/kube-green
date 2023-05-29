@@ -32,7 +32,7 @@ metadata:
     capabilities: Seamless Upgrades
     categories: Developer Tools
     containerImage: docker.io/kubegreen/kube-green:0.5.0
-    createdAt: "2023-05-14T21:34:35Z"
+    createdAt: "2023-05-29T15:48:26Z"
     description: Suspend your pods when no-one's using them to save energy and restore
       when necessary
     operators.operatorframework.io/builder: operator-sdk-v1.28.1
@@ -48,9 +48,13 @@ spec:
   customresourcedefinitions:
     owned:
     - description: SleepInfo is the Schema for the sleepinfos API
-      displayName: Sleep Info
+      displayName: Memcached App
       kind: SleepInfo
       name: sleepinfos.kube-green.com
+      resources:
+      - kind: Secret
+        name: sleepinfo
+        version: v1
       specDescriptors:
       - description: ExcludeRef define the resource to exclude from the sleep.
         displayName: Exclude Ref

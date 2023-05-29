@@ -128,3 +128,18 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
+  release-community-operators:
+    name: Release community operator
+    uses: ./.github/workflows/community-operators.yml@main
+    with:
+      community-operator-repo: kube-green/community-operators
+    secrets:
+      PERSONAL_ACCESS_TOKEN: ${{ secrets.PAT_UPDATE_OPERATORS }}
+
+  release-community-operators-prod:
+    name: Release community operator prod
+    uses: ./.github/workflows/community-operators.yml@main
+    with:
+      community-operator-repo: kube-green/community-operators-prod
+    secrets:
+      PERSONAL_ACCESS_TOKEN: ${{ secrets.PAT_UPDATE_OPERATORS }}
