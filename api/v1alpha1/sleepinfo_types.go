@@ -83,7 +83,7 @@ type SleepInfoStatus struct {
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 //+kubebuilder:resource:path=sleepinfos
-//+operator-sdk:csv:customresourcedefinitions:displayName="Memcached App",resources={{Secret,v1,sleepinfo}}
+//+operator-sdk:csv:customresourcedefinitions:displayName="SleepInfo",resources={{Secret,v1,sleepinfo}}
 // +genclient - this is required for auto generated docs
 
 // SleepInfo is the Schema for the sleepinfos API
