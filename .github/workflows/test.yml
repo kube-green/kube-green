@@ -130,7 +130,7 @@ jobs:
 
   release-community-operators:
     name: Release community operator
-    uses: ./.github/workflows/community-operators.yml@main
+    uses: ./.github/workflows/community-operators.yml
     with:
       community-operator-repo: kube-green/community-operators
     secrets:
@@ -138,7 +138,7 @@ jobs:
 
   release-community-operators-prod:
     name: Release community operator prod
-    uses: ./.github/workflows/community-operators.yml@main
+    uses: ./.github/workflows/community-operators.yml
     with:
       community-operator-repo: kube-green/community-operators-prod
     secrets:
