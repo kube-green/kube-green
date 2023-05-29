@@ -18,7 +18,7 @@ spec:
   customresourcedefinitions:
     owned:
     - description: SleepInfo is the Schema for the sleepinfos API
-      displayName: Memcached App
+      displayName: SleepInfo
       kind: SleepInfo
       name: sleepinfos.kube-green.com
       resources:
