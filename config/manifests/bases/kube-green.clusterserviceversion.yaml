@@ -18,9 +18,13 @@ spec:
   customresourcedefinitions:
     owned:
     - description: SleepInfo is the Schema for the sleepinfos API
-      displayName: Sleep Info
+      displayName: SleepInfo
       kind: SleepInfo
       name: sleepinfos.kube-green.com
+      resources:
+      - kind: Secret
+        name: sleepinfo
+        version: v1
       specDescriptors:
       - description: ExcludeRef define the resource to exclude from the sleep.
         displayName: Exclude Ref
