@@ -32,7 +32,7 @@ metadata:
     capabilities: Seamless Upgrades
     categories: Developer Tools
     containerImage: docker.io/kubegreen/kube-green:0.5.0
-    createdAt: "2023-05-29T15:50:41Z"
+    createdAt: "2023-05-31T19:44:39Z"
     description: Suspend your pods when no-one's using them to save energy and restore
       when necessary
     operators.operatorframework.io/builder: operator-sdk-v1.28.1
@@ -264,7 +264,7 @@ spec:
                 - --upstream=http://127.0.0.1:8080/
                 - --logtostderr=true
                 - --v=0
-                image: gcr.io/kubebuilder/kube-rbac-proxy:v0.13.1
+                image: gcr.io/kubebuilder/kube-rbac-proxy:v0.14.1
                 name: kube-rbac-proxy
                 ports:
                 - containerPort: 8443
