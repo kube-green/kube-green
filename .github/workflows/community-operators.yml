@@ -24,7 +24,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          path: ${{ inputs.operator-name }}
+          path: ${{ inputs.name }}
       - name: Checkout community-operator folder
         uses: 'actions/checkout@v3'
         with:
@@ -35,9 +35,9 @@ jobs:
           TAG=${{ github.ref_name }}
           echo "VERSION=${TAG#v}" >> $GITHUB_ENV
       - name: create folder to community-operators if not exists
-        run: mkdir -p ./community-operators/operators/${{ inputs.operator-name }}/${VERSION}
-      - name: copy bundle folder from ${{ inputs.operator-name }} to community-operators
-        run: cp ${{ inputs.source-path }} ./community-operators/operators/${{ inputs.operator-name }}/${VERSION}/
+        run: mkdir -p ./community-operators/operators/${{ inputs.name }}/${VERSION}
+      - name: copy bundle folder from ${{ inputs.name }} to community-operators
+        run: cp ${{ inputs.source-path }} ./community-operators/operators/${{ inputs.name }}/${VERSION}/
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
         with:
