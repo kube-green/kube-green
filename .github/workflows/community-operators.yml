@@ -2,10 +2,14 @@ name: Release Community Operator
 on:
   workflow_call:
     inputs:
-      community-operator-repo:
+      community-operator-fork:
         required: true
         type: string
         description: community operator fork to use in the form <owner>/<repo>
+      community-operator-repo:
+        required: true
+        type: string
+        description: original community operator to use in the form <owner>/<repo>
       source-path:
         type: string
         description: path where to find the bundle
@@ -28,7 +32,7 @@ jobs:
       - name: Checkout community-operator folder
         uses: 'actions/checkout@v3'
         with:
-          repository: ${{ inputs.community-operator-repo }}
+          repository: ${{ inputs.community-operator-fork }}
           path: community-operators
       - name: set correct version
         run: |
