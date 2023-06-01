@@ -32,7 +32,7 @@ jobs:
       - name: Checkout community-operator folder
         uses: 'actions/checkout@v3'
         with:
-          repository: ${{ inputs.community-operator-fork }}
+          repository: ${{ inputs.community-operator-repo }}
           path: community-operators
       - name: set correct version
         run: |
@@ -54,4 +54,4 @@ jobs:
           delete-branch: true
           title: operator kube-green ${{ env.VERSION }}
           body: upgrade kube-green to version ${{ env.VERSION }}
-          push-to-fork: ${{ inputs.community-operator-repo }}
+          push-to-fork: ${{ inputs.community-operator-fork }}
