@@ -50,3 +50,4 @@ jobs:
           delete-branch: true
           title: operator kube-green ${{ env.VERSION }}
           body: upgrade kube-green to version ${{ env.VERSION }}
+          push-to-fork: ${{ inputs.community-operator-repo }}
