@@ -3,7 +3,7 @@
 # To re-generate a bundle for another specific version without changing the standard setup, you can:
 # - use the VERSION as arg of the bundle target (e.g make bundle VERSION=0.0.2)
 # - use environment variables to overwrite this value (e.g export VERSION=0.0.2)
-VERSION ?= 0.5.0
+VERSION ?= 0.5.1
 DOCKER_IMAGE_NAME ?= kubegreen/kube-green
 OS=$(shell go env GOOS)
 ARCH=$(shell go env GOARCH)
@@ -182,7 +182,7 @@ GOLANCCI_LINT ?= $(LOCALBIN)/golangci-lint
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v4.5.7
 CONTROLLER_TOOLS_VERSION ?= v0.10.0
-GOTESTSUM_VERSION ?= 1.10.0
+GOTESTSUM_VERSION ?= 0.5.1
 GOLANGCI_VERSION ?= v1.52.2
 
 KUSTOMIZE_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
