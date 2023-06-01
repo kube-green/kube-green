@@ -37,7 +37,7 @@ jobs:
       - name: create folder to community-operators if not exists
         run: mkdir -p ./community-operators/operators/${{ inputs.name }}/${VERSION}
       - name: copy bundle folder from ${{ inputs.name }} to community-operators
-        run: cp ${{ inputs.source-path }} ./community-operators/operators/${{ inputs.name }}/${VERSION}/
+        run: cp -R ${{ inputs.source-path }} ./community-operators/operators/${{ inputs.name }}/${VERSION}/
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
         with:
