@@ -53,5 +53,5 @@ jobs:
           committer: ${{ github.actor }} <${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com>
           delete-branch: true
           title: operator kube-green ${{ env.VERSION }}
-          body: upgrade kube-green to version ${{ env.VERSION }}
+          body: upgrade kube-green to version (${{ env.VERSION }})
           push-to-fork: ${{ inputs.community-operator-fork }}

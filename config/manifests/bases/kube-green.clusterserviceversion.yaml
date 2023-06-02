@@ -126,4 +126,5 @@ spec:
   provider:
     name: kube-green Community
     url: https://kube-green.dev
+  replaces: kube-green.v0.5.0
   version: 0.0.0
