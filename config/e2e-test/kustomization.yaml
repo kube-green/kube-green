@@ -5,5 +5,5 @@ resources:
   - ../default
 
 images:
-  - name: kubegreen/kube-green
+  - name: docker.io/kubegreen/kube-green
     newTag: e2e-test
