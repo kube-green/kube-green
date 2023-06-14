@@ -1,0 +1,51 @@
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: kube-green-serving-cert
+  namespace: kube-green
+spec:
+  dnsNames:
+  - kube-green-webhook-service.kube-green.svc
+  - kube-green-webhook-service.kube-green.svc.cluster.local
+  issuerRef:
+    kind: Issuer
+    name: kube-green-selfsigned-issuer
+  secretName: webhook-server-cert
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: kube-green-selfsigned-issuer
+  namespace: kube-green
+spec:
+  selfSigned: {}
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  annotations:
+    cert-manager.io/inject-ca-from: kube-green/kube-green-serving-cert
+  creationTimestamp: null
+  name: kube-green-validating-webhook-configuration
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: kube-green-webhook-service
+      namespace: kube-green
+      path: /validate-kube-green-com-v1alpha1-sleepinfo
+  failurePolicy: Fail
+  name: vsleepinfo.kb.io
+  rules:
+  - apiGroups:
+    - kube-green.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - sleepinfos
+  sideEffects: None

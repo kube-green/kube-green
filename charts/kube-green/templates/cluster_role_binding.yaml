@@ -1,0 +1,41 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: kube-green-leader-election-rolebinding
+  namespace: kube-green
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: kube-green-leader-election-role
+subjects:
+- kind: ServiceAccount
+  name: kube-green-controller-manager
+  namespace: kube-green
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kube-green-manager-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kube-green-manager-role
+subjects:
+- kind: ServiceAccount
+  name: kube-green-controller-manager
+  namespace: kube-green
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kube-green-proxy-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kube-green-proxy-role
+subjects:
+- kind: ServiceAccount
+  name: kube-green-controller-manager
+  namespace: kube-green
+---
