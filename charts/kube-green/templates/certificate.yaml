@@ -3,7 +3,7 @@ apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
   name: kube-green-serving-cert
-  namespace: kube-green
+  namespace: {{ .Release.Namespace }}
 spec:
   dnsNames:
   - kube-green-webhook-service.kube-green.svc
@@ -17,7 +17,7 @@ apiVersion: cert-manager.io/v1
 kind: Issuer
 metadata:
   name: kube-green-selfsigned-issuer
-  namespace: kube-green
+  namespace: {{ .Release.Namespace }}
 spec:
   selfSigned: {}
 ---
@@ -34,7 +34,7 @@ webhooks:
   clientConfig:
     service:
       name: kube-green-webhook-service
-      namespace: kube-green
+      namespace: {{ .Release.Namespace }}
       path: /validate-kube-green-com-v1alpha1-sleepinfo
   failurePolicy: Fail
   name: vsleepinfo.kb.io

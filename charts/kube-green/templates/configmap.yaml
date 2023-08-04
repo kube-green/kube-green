@@ -16,5 +16,5 @@ data:
 kind: ConfigMap
 metadata:
   name: kube-green-manager-config
-  namespace: kube-green
+  namespace: {{ .Release.Namespace }}
 ---
