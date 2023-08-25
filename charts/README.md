@@ -23,15 +23,17 @@ helm upgrade kube-green \
 ```
 
 
-### Deploy Locally with Terraform
+# Deploy Kube-Green Helm Chart with Terraform
 
 This example show how to use [Terraform Helm Chart Provider](https://developer.hashicorp.com/terraform/tutorials/kubernetes/helm-provider) to deploy `Kube-Green` on Kubernetes Clusters. 
 
-#### Prerequisites 
+## Prerequisites 
 *   [Terraform Install](https://developer.hashicorp.com/terraform/tutorials/aws-get-started/install-cli)
 *   [Helm Provider Credentials Setup](https://developer.hashicorp.com/terraform/tutorials/kubernetes/helm-provider#review-the-helm-configuration)
 
-We need to install `cert-manager` as dependency before `kube-green` installation. To provision the both resources in same terraform run, you can declare helm release from cert_manager as dependency from kube-green helm helease using [depends_on](https://developer.hashicorp.com/terraform/language/meta-arguments/depends_on)
+## Installation
+
+We need to install `cert-manager` as dependency before `kube-green` installation. To provision the both resources in same terraform run, you can declare helm release from cert_manager as dependency from kube-green helm helease using [depends_on](https://developer.hashicorp.com/terraform/language/meta-arguments/depends_on) meta-argument. 
 
 ```hcl
 resource "helm_release" "cert_manager" {
