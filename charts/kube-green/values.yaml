@@ -7,6 +7,9 @@ manager:
     pullPolicy: IfNotPresent
     tag: "0.5.1"
 
+    logtostderr: true
+    verbosity: 0
+
   kubeRbacProxy:
     repository: gcr.io/kubebuilder/kube-rbac-proxy
     pullPolicy: IfNotPresent
@@ -56,6 +59,3 @@ tolerations: []
 affinity: {}
 
 labels: {}
-
-logtostderr: true
-verbosity: 0
