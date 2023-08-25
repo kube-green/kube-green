@@ -7,10 +7,11 @@ manager:
     pullPolicy: IfNotPresent
     tag: "0.5.1"
 
-    logtostderr: true
-    verbosity: 0
+  logtostderr: true
+  verbosity: 0
 
-  kubeRbacProxy:
+kubeRbacProxy:
+  image:
     repository: gcr.io/kubebuilder/kube-rbac-proxy
     pullPolicy: IfNotPresent
     tag: "v0.14.1"
@@ -32,12 +33,6 @@ podAnnotations: {}
 podSecurityContext: {}
   # fsGroup: 2000
 
-securityContext:
-  allowPrivilegeEscalation: false
-  capabilities:
-    drop:
-    - ALL
-    
 service:
   type: ClusterIP
   port: 80
@@ -49,6 +44,12 @@ resources:
   requests:
     cpu: 100m
     memory: 50Mi
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+    - ALL
 
 nodeSelector: {}
 

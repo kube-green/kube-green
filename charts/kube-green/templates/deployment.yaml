@@ -13,7 +13,7 @@ spec:
     matchLabels:
       app: kube-green
       control-plane: controller-manager
-      {{- include "kube-green.selectorLabels" . | nindent 8 }}
+      {{- include "kube-green.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       annotations:
@@ -24,7 +24,7 @@ spec:
       labels:
         app: kube-green
         control-plane: controller-manager
-        {{- include "kube-green.selectorLabels" . | nindent 8 }}
+        {{- include "kube-green.selectorLabels" . | nindent 6 }}
     spec:
       containers:
       - args:
@@ -54,14 +54,17 @@ spec:
           periodSeconds: 10
         {{- if .Values.resources }}
         resources:
-        {{ toYaml .Values.resources | indent 2 }}
+        {{ toYaml .Values.resources | nindent 10 }}
         {{- else }}
         resources: {}
         {{- end }}
-        {{ toYaml .Values.securityContext | indent 2 }}
+        {{- if .Values.securityContext }}
+        securityContext:
+        {{ toYaml .Values.securityContext | nindent 10 }}
         {{- else }}
         securityContext: {}
         {{- end }}
+
         volumeMounts:
         - mountPath: /tmp/k8s-webhook-server/serving-certs
           name: cert
@@ -85,11 +88,13 @@ spec:
           requests:
             cpu: 5m
             memory: 64Mi
+        {{- if .Values.securityContext }}
         securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-            - ALL
+        {{ toYaml .Values.securityContext | nindent 10 }}
+        {{- else }}
+        securityContext: {}
+        {{- end }}
+
       securityContext:
         runAsNonRoot: true
         seccompProfile:
