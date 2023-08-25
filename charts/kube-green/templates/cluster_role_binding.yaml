@@ -10,7 +10,7 @@ roleRef:
   name: kube-green-leader-election-role
 subjects:
 - kind: ServiceAccount
-  name: kube-green-controller-manager
+  name: {{ .Values.serviceAccount.name }}
   namespace: {{ .Release.Namespace }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -23,7 +23,7 @@ roleRef:
   name: kube-green-manager-role
 subjects:
 - kind: ServiceAccount
-  name: kube-green-controller-manager
+  name: {{ .Values.serviceAccount.name }}
   namespace: {{ .Release.Namespace }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -36,6 +36,6 @@ roleRef:
   name: kube-green-proxy-role
 subjects:
 - kind: ServiceAccount
-  name: kube-green-controller-manager
+  name: {{ .Values.serviceAccount.name }}
   namespace: {{ .Release.Namespace }}
 ---

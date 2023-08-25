@@ -201,7 +201,7 @@ spec:
           - subjectaccessreviews
           verbs:
           - create
-        serviceAccountName: kube-green-controller-manager
+        serviceAccountName: {{ .Values.serviceAccount.name }}
       deployments:
       - label:
           app: kube-green
@@ -286,7 +286,7 @@ spec:
                 runAsNonRoot: true
                 seccompProfile:
                   type: RuntimeDefault
-              serviceAccountName: kube-green-controller-manager
+              serviceAccountName: {{ .Values.serviceAccount.name }}
               terminationGracePeriodSeconds: 10
       permissions:
       - rules:
@@ -321,7 +321,7 @@ spec:
           verbs:
           - create
           - patch
-        serviceAccountName: kube-green-controller-manager
+        serviceAccountName: {{ .Values.serviceAccount.name }}
     strategy: deployment
   installModes:
   - supported: false
