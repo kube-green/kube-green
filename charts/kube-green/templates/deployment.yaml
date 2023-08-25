@@ -58,11 +58,10 @@ spec:
         {{- else }}
         resources: {}
         {{- end }}
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-            - ALL
+        {{ toYaml .Values.securityContext | indent 2 }}
+        {{- else }}
+        securityContext: {}
+        {{- end }}
         volumeMounts:
         - mountPath: /tmp/k8s-webhook-server/serving-certs
           name: cert
