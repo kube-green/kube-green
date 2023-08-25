@@ -12,7 +12,9 @@ spec:
   replicas: 1
   selector:
     matchLabels:
+      app: kube-green
       control-plane: controller-manager
+      {{- include "kube-green.selectorLabels" . | nindent 8 }}
   template:
     metadata:
       annotations:
