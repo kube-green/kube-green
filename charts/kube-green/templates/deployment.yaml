@@ -24,7 +24,7 @@ spec:
       labels:
         app: kube-green
         control-plane: controller-manager
-        {{- include "kube-green.selectorLabels" . | nindent 6 }}
+        {{- include "kube-green.selectorLabels" . | nindent 8 }}
     spec:
       containers:
       - args:
