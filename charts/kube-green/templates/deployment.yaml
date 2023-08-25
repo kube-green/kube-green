@@ -34,8 +34,8 @@ spec:
         - --leader-elect
         command:
         - /manager
-        image:  "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        image:  "{{ .Values.manager.image.repository }}:{{ .Values.manager.image.tag }}"
+        imagePullPolicy: {{ .Values.manager.image.pullPolicy }}
         livenessProbe:
           httpGet:
             path: /healthz
