@@ -5,8 +5,13 @@ manager:
   image:
     repository: kubegreen/kube-green
     pullPolicy: IfNotPresent
-    # Overrides the image tag whose default is the chart appVersion.
     tag: "0.5.1"
+
+  kubeRbacProxy:
+    repository: gcr.io/kubebuilder/kube-rbac-proxy
+    pullPolicy: IfNotPresent
+    tag: "v0.14.1"
+
 
 imagePullSecrets: []
 

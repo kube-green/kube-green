@@ -74,7 +74,8 @@ spec:
         - --upstream=http://127.0.0.1:8080/
         - --logtostderr={{ .Values.logtostderr }}
         - --v={{ .Values.verbosity }}
-        image: gcr.io/kubebuilder/kube-rbac-proxy:v0.14.1
+        image: "{{ .Values.kubeRbacProxy.image.repository }}:{{ .Values.kubeRbacProxy.image.tag }}"
+        imagePullPolicy: {{ .Values.kubeRbacProxy.image.pullPolicy }}
         name: kube-rbac-proxy
         ports:
         - containerPort: 8443
