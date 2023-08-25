@@ -55,6 +55,7 @@ resource "helm_release" "cert_manager" {
         value = 10
     }
 }
+```
 
 ```hcl 
 resource "helm_release" "kube_green" {
