@@ -2,8 +2,6 @@
 
 ```bash
 helm install \
---set image.repository=kubegreen/kube-green \
---set image.tag=0.5.1 kube-green \
 --namespace=kube-green \
 --create-namespace=true \
 ./charts/kube-green
