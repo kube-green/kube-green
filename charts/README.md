@@ -1,10 +1,25 @@
-### Install with Helm 
+# Install with Helm 
+
+## Deploy cert-manager chart
 
 ```bash
+helm repo add jetstack https://charts.jetstack.io
+
 helm install \
+  cert-manager jetstack/cert-manager \
+  --namespace cert-manager \
+  --create-namespace \
+  --version v1.12.0 \
+  --set installCRDs=true
+```
+
+##  Install kube-green chart 
+
+```bash
+helm upgrade \
 --namespace=kube-green \
 --create-namespace=true \
-./charts/kube-green
+./charts/kube-green --install 
 ```
 
 
