@@ -9,7 +9,7 @@ metadata:
   name: kube-green-controller-manager
   namespace: {{ .Release.Namespace }}
 spec:
-  replicas: {{ .Values.replicaCount }}
+  replicas: 1
   selector:
     matchLabels:
       control-plane: controller-manager
