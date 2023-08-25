@@ -55,11 +55,11 @@ spec:
           periodSeconds: 10
         resources:
           limits:
-            cpu: 400m
-            memory: 400Mi
+            cpu: {{ .Values.resources.limits.cpu }}
+            memory: {{ .Values.resources.limits.memory }}
           requests:
-            cpu: 100m
-            memory: 50Mi
+            cpu:  {{ .Values.resources.requests.cpu }}
+            memory: {{ .Values.resources.requests.memory }}
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
