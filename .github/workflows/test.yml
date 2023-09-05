@@ -28,7 +28,7 @@ jobs:
     env:
       KIND_K8S_VERSION: ${{matrix.k8s_version}}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Use golang ${{ matrix.go_version }}
         uses: actions/setup-go@v4
         with:
@@ -61,7 +61,7 @@ jobs:
     name: e2e test with kind
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Use golang
         uses: actions/setup-go@v3
         with:
@@ -79,7 +79,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Docker meta
         id: meta
         uses: docker/metadata-action@v4
