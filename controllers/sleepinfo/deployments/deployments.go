@@ -48,6 +48,9 @@ func (d deployments) Sleep(ctx context.Context) error {
 			continue
 		}
 		newDeploy := deployment.DeepCopy()
+ 		annotations := newDeploy.GetAnnotations()
+ 		annotations["autoscaling.keda.sh/paused-replicas"] = "0"
+  		newDeploy.SetAnnotations(annotations)
 		*newDeploy.Spec.Replicas = 0
 
 		if err := d.Patch(ctx, &deployment, newDeploy); err != nil {
@@ -74,6 +77,9 @@ func (d deployments) WakeUp(ctx context.Context) error {
 		}
 
 		newDeploy := deployment.DeepCopy()
+ 		annotations := newDeploy.GetAnnotations()
+ 		delete(annotations, "autoscaling.keda.sh/paused-replicas")
+ 		newDeploy.SetAnnotations(annotations)
 		*newDeploy.Spec.Replicas = replica
 
 		if err := d.Patch(ctx, &deployment, newDeploy); err != nil {
