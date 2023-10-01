@@ -1,6 +1,6 @@
 apiVersion: v2
 name: kube-green
-description: A Helm chart for Kubernetes
+description: kube-green helm chart
 
 # A chart can be either an 'application' or a 'library' chart.
 #

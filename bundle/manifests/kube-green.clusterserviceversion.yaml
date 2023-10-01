@@ -201,7 +201,7 @@ spec:
           - subjectaccessreviews
           verbs:
           - create
-        serviceAccountName: {{ .Values.serviceAccount.name }}
+        serviceAccountName: kube-green-controller-manager
       deployments:
       - label:
           app: kube-green

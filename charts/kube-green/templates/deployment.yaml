@@ -64,7 +64,6 @@ spec:
         {{- else }}
         securityContext: {}
         {{- end }}
-
         volumeMounts:
         - mountPath: /tmp/k8s-webhook-server/serving-certs
           name: cert
@@ -94,7 +93,6 @@ spec:
         {{- else }}
         securityContext: {}
         {{- end }}
-
       securityContext:
         runAsNonRoot: true
         seccompProfile:
