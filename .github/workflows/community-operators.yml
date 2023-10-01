@@ -26,11 +26,11 @@ jobs:
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           path: ${{ inputs.name }}
       - name: Checkout community-operator folder
-        uses: 'actions/checkout@v3'
+        uses: 'actions/checkout@v4'
         with:
           repository: ${{ inputs.community-operator-repo }}
           path: community-operators
