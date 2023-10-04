@@ -1,8 +1,8 @@
 # Build the manager binary
 FROM golang:1.20.5 as builder
 
-ARG ARCH=${TARGETARCH:-amd64}
-ARG TARGETOS=${TARGETOS:-linux}
+ARG TARGETARCH
+ARG TARGETOS
 
 WORKDIR /workspace
 # Copy the Go Modules manifests
