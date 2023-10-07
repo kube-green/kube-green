@@ -29,6 +29,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           path: ${{ inputs.name }}
+      - name: Update community-operator fork
+        run: gh repo sync ${{ inputs.community-operator-fork }} --source ${{ inputs.community-operator-repo }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
       - name: Checkout community-operator folder
         uses: 'actions/checkout@v4'
         with:
