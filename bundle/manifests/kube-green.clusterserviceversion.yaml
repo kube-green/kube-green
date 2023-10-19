@@ -32,7 +32,7 @@ metadata:
     capabilities: Seamless Upgrades
     categories: Developer Tools
     containerImage: docker.io/kubegreen/kube-green:0.5.2
-    createdAt: "2023-10-07T15:15:08Z"
+    createdAt: "2023-10-08T09:36:50Z"
     description: Suspend your pods when no-one's using them to save energy and restore
       when necessary
     operators.operatorframework.io/builder: operator-sdk-v1.29.0
@@ -284,8 +284,6 @@ spec:
                     - ALL
               securityContext:
                 runAsNonRoot: true
-                seccompProfile:
-                  type: RuntimeDefault
               serviceAccountName: kube-green-controller-manager
               terminationGracePeriodSeconds: 10
       permissions:

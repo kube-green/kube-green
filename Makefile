@@ -216,6 +216,9 @@ bundle: manifests kustomize ## Generate bundle manifests and metadata, then vali
 	operator-sdk generate kustomize manifests -q
 	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
 	$(KUSTOMIZE) build config/manifests | operator-sdk generate bundle $(BUNDLE_GEN_FLAGS)
+# This sed remove seccompProfile, since it not passes openshift 4.10 tests. Remove it when this version
+# will be unsupported
+	sed -i '' -e '/seccompProfile/,/RuntimeDefault/d' ./bundle/manifests/kube-green.clusterserviceversion.yaml
 	operator-sdk bundle validate ./bundle --select-optional suite=operatorframework
 
 .PHONY: bundle-build
