@@ -8,20 +8,6 @@ spec:
   wakeUpAt: "08:00"
   timeZone: "Europe/Rome"
   suspendCronJobs: true
-  patchesJson6902:
-    - target:
-        version: "apps/v1"
-        kind: Deployment
-        # labelSelector: "env=dev"
-      patch:
-        key: "#/spec/replicas"
-        value: 0
-    - target:
-        apiVersion: "batch/v1"
-        kind: CronJob
-      patch:
-        key: "#/spec/suspend"
-        value: true
   excludeRef:
     - apiVersion: "apps/v1"
       kind:       Deployment
