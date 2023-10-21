@@ -12,6 +12,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 // log is for logging in this package.
@@ -28,23 +29,23 @@ func (s *SleepInfo) SetupWebhookWithManager(mgr ctrl.Manager) error {
 var _ webhook.Validator = &SleepInfo{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (s *SleepInfo) ValidateCreate() error {
+func (s *SleepInfo) ValidateCreate() (admission.Warnings, error) {
 	sleepinfolog.Info("validate create", "name", s.Name, "namespace", s.Namespace)
 
-	return s.validateSleepInfo()
+	return nil, s.validateSleepInfo()
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (s *SleepInfo) ValidateUpdate(_ runtime.Object) error {
+func (s *SleepInfo) ValidateUpdate(_ runtime.Object) (admission.Warnings, error) {
 	sleepinfolog.Info("validate update", "name", s.Name, "namespace", s.Namespace)
 
-	return s.validateSleepInfo()
+	return nil, s.validateSleepInfo()
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (s *SleepInfo) ValidateDelete() error {
+func (s *SleepInfo) ValidateDelete() (admission.Warnings, error) {
 	sleepinfolog.Info("validate delete", "name", s.Name)
-	return nil
+	return nil, nil
 }
 
 func (s SleepInfo) validateSleepInfo() error {

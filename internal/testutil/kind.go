@@ -8,6 +8,7 @@ import (
 	"sigs.k8s.io/e2e-framework/pkg/env"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/envfuncs"
+	"sigs.k8s.io/e2e-framework/support/kind"
 )
 
 const (
@@ -20,12 +21,12 @@ const (
 func CreateKindClusterWithVersion(clusterName, configPath string) env.Func {
 	version, ok := os.LookupEnv(kindVersionVariableName)
 	if !ok {
-		return envfuncs.CreateKindCluster(clusterName)
+		return envfuncs.CreateCluster(kind.NewProvider(), clusterName)
 	}
 	fmt.Printf("kind use version %s\n", version)
 
 	image := fmt.Sprintf("%s:%s", kindNodeImage, version)
-	return envfuncs.CreateKindClusterWithConfig(clusterName, image, configPath)
+	return envfuncs.CreateClusterWithConfig(kind.NewProvider(), clusterName, configPath, kind.WithImage(image))
 }
 
 // CreateKindClusterWithVersion destroy KinD cluster with cluster name.
@@ -37,5 +38,5 @@ func DestroyKindCluster(clusterName string) env.Func {
 			return ctx, nil
 		}
 	}
-	return envfuncs.DestroyKindCluster(clusterName)
+	return envfuncs.DestroyCluster(clusterName)
 }
