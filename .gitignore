@@ -10,7 +10,7 @@ testbin/*
 
 # Test binary, build with `go test -c`
 *.test
-tests-logs/*
+tests/integration/tests-logs/
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
