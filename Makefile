@@ -101,7 +101,7 @@ vet: ## Run go vet against code.
 
 .PHONY: lint
 lint: golangci ## Run linter.
-	$(GOLANCCI_LINT) run
+	$(GOLANCCI_LINT) run --config=.golangci.yaml
 
 .PHONY: test
 test: manifests generate fmt vet lint gotestsum ## Run tests.
@@ -183,7 +183,7 @@ GOLANCCI_LINT ?= $(LOCALBIN)/golangci-lint
 KUSTOMIZE_VERSION ?= v4.5.7
 CONTROLLER_TOOLS_VERSION ?= v0.10.0
 GOTESTSUM_VERSION ?= 1.11.0
-GOLANGCI_VERSION ?= v1.52.2
+GOLANGCI_VERSION ?= v1.55.1
 
 KUSTOMIZE_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
 .PHONY: kustomize
