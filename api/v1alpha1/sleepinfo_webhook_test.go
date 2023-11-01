@@ -237,11 +237,13 @@ func TestSleepInfoValidation(t *testing.T) {
 	}
 
 	t.Run("create - ok", func(t *testing.T) {
-		require.NoError(t, sleepInfoOk.ValidateCreate())
+		_, err := sleepInfoOk.ValidateCreate()
+		require.NoError(t, err)
 	})
 
 	t.Run("create - ko", func(t *testing.T) {
-		require.EqualError(t, sleepInfoKo.ValidateCreate(), "empty weekdays from SleepInfo configuration")
+		_, err := sleepInfoKo.ValidateCreate()
+		require.EqualError(t, err, "empty weekdays from SleepInfo configuration")
 	})
 
 	t.Run("update - ok", func(t *testing.T) {
@@ -259,7 +261,8 @@ func TestSleepInfoValidation(t *testing.T) {
 				Weekdays:  "1-5",
 			},
 		}
-		require.NoError(t, sleepInfoOk.ValidateUpdate(oldSleepInfo))
+		_, err := sleepInfoOk.ValidateUpdate(oldSleepInfo)
+		require.NoError(t, err)
 	})
 
 	t.Run("update - ok", func(t *testing.T) {
@@ -277,10 +280,12 @@ func TestSleepInfoValidation(t *testing.T) {
 				Weekdays:  "1-5",
 			},
 		}
-		require.EqualError(t, sleepInfoKo.ValidateUpdate(oldSleepInfo), "empty weekdays from SleepInfo configuration")
+		_, err := sleepInfoKo.ValidateUpdate(oldSleepInfo)
+		require.EqualError(t, err, "empty weekdays from SleepInfo configuration")
 	})
 
 	t.Run("delete - ok", func(t *testing.T) {
-		require.NoError(t, (&SleepInfo{}).ValidateDelete())
+		_, err := (&SleepInfo{}).ValidateDelete()
+		require.NoError(t, err)
 	})
 }
