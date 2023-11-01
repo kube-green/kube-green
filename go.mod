@@ -4,7 +4,7 @@ go 1.21
 
 require (
 	github.com/go-logr/logr v1.2.4
-	github.com/kudobuilder/kuttl v0.15.0
+	github.com/kube-green/kuttl v0.0.0-20231101160356-d9f702030ae3
 	github.com/prometheus/client_golang v1.17.0
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/stretchr/testify v1.8.4
