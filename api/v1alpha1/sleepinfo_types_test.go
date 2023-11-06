@@ -314,6 +314,44 @@ func TestSleepInfo(t *testing.T) {
 			require.Empty(t, schedule)
 		})
 	})
+
+	t.Run("with custom patches", func(t *testing.T) {
+		sleepInfo := SleepInfo{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "SleepInfo",
+				APIVersion: "v1alpha1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "sleep-test-1",
+				Namespace: "namespace",
+			},
+			Spec: SleepInfoSpec{
+				PatchesJson6902: []PatchJson6902{
+					{
+						Target: PatchTarget{
+							APIVersion: "apps/v1",
+							Kind:       "Deployment",
+						},
+						Patches: `[
+							{"op":"replace","path":"#/spec/replicas","value":0},
+						]`,
+					},
+					{
+						Target: PatchTarget{
+							LabelSelector: map[string]string{
+								"type": "test",
+							},
+						},
+						Patches: `[
+							{"op":"replace","path":"#/spec/suspend","value":true},
+						]`,
+					},
+				},
+			},
+		}
+
+		require.NotEmpty(t, sleepInfo.GetPatchesJson6902())
+	})
 }
 
 func getPtr[T any](item T) *T {

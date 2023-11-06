@@ -65,6 +65,34 @@ type SleepInfoSpec struct {
 	// +optional
 	//+operator-sdk:csv:customresourcedefinitions:type=spec
 	SuspendDeployments *bool `json:"suspendDeployments,omitempty"`
+	// PatchesJson6902 is a list of json6902 patches to apply to the target resources.
+	// +optional
+	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	PatchesJson6902 []PatchJson6902 `json:"patchesJson6902,omitempty"`
+}
+
+type PatchJson6902 struct {
+	// Target is the target resource to patch.
+	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	Target PatchTarget `json:"target"`
+	// Patches is the json6902 patch to apply to the target resource.
+	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	Patches string `json:"patches"`
+}
+
+type PatchTarget struct {
+	// Version of the Kubernetes resources.
+	// +optional
+	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	APIVersion string `json:"apiVersion"`
+	// Kind of the Kubernetes resources.
+	// +optional
+	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	Kind string `json:"kind"`
+	// LabelSelector to select the resources to patch.
+	// +optional
+	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	LabelSelector map[string]string `json:"labelSelector"`
 }
 
 // SleepInfoStatus defines the observed state of SleepInfo
@@ -137,6 +165,10 @@ func (s SleepInfo) IsDeploymentsToSuspend() bool {
 		return true
 	}
 	return *s.Spec.SuspendDeployments
+}
+
+func (s SleepInfo) GetPatchesJson6902() []PatchJson6902 {
+	return s.Spec.PatchesJson6902
 }
 
 //+kubebuilder:object:root=true
