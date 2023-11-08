@@ -256,6 +256,8 @@ type SleepInfoData struct {
 	CurrentOperationSchedule    string
 	NextOperationSchedule       string
 	OriginalCronJobStatus       map[string]bool
+	// TODO: save original information in secret
+	// OriginalGenericResourceInfo map[string][]byte
 }
 
 func (s SleepInfoData) IsWakeUpOperation() bool {

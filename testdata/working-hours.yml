@@ -11,7 +11,7 @@ spec:
   patchesJson6902:
     - target:
         version: "apps/v1"
-        kind: Deployment
+        group: Deployment
         # labelSelector: "env=dev"
         patches: |-
           - path: /spec/replicas

@@ -81,10 +81,10 @@ type PatchJson6902 struct {
 }
 
 type PatchTarget struct {
-	// Version of the Kubernetes resources.
+	// Group of the Kubernetes resources.
 	// +optional
 	//+operator-sdk:csv:customresourcedefinitions:type=spec
-	APIVersion string `json:"apiVersion"`
+	Group string `json:"group"`
 	// Kind of the Kubernetes resources.
 	// +optional
 	//+operator-sdk:csv:customresourcedefinitions:type=spec

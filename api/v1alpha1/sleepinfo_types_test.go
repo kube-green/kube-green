@@ -329,8 +329,8 @@ func TestSleepInfo(t *testing.T) {
 				PatchesJson6902: []PatchJson6902{
 					{
 						Target: PatchTarget{
-							APIVersion: "apps/v1",
-							Kind:       "Deployment",
+							Group: "apps",
+							Kind:  "Deployment",
 						},
 						Patches: `[
 							{"op":"replace","path":"#/spec/replicas","value":0},
@@ -338,9 +338,8 @@ func TestSleepInfo(t *testing.T) {
 					},
 					{
 						Target: PatchTarget{
-							LabelSelector: map[string]string{
-								"type": "test",
-							},
+							Group: "batch",
+							Kind:  "CronJob",
 						},
 						Patches: `[
 							{"op":"replace","path":"#/spec/suspend","value":true},

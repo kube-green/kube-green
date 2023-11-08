@@ -49,6 +49,7 @@ func (r ResourceClient) SSAPatch(ctx context.Context, newObj client.Object) erro
 		return err
 	}
 	newObj.SetManagedFields(nil)
+	// newObj.SetResourceVersion("") // TODO: test this
 	if err := r.Client.Patch(ctx, newObj, client.Apply, &client.PatchOptions{
 		FieldManager: r.FieldManagerName,
 		Force:        &forceTrue,

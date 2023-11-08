@@ -3,6 +3,7 @@ module github.com/kube-green/kube-green
 go 1.21
 
 require (
+	github.com/evanphx/json-patch/v5 v5.7.0
 	github.com/go-logr/logr v1.3.0
 	github.com/kube-green/kuttl v0.0.0-20231101162742-70fde13a84f7
 	github.com/prometheus/client_golang v1.17.0
@@ -32,7 +33,6 @@ require (
 	github.com/dustinkirkland/golang-petname v0.0.0-20191129215211-8e5a1ed0cff0 // indirect
 	github.com/emicklei/go-restful/v3 v3.11.0 // indirect
 	github.com/evanphx/json-patch v5.6.0+incompatible // indirect
-	github.com/evanphx/json-patch/v5 v5.7.0 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/go-logr/zapr v1.2.4 // indirect
 	github.com/go-openapi/jsonpointer v0.20.0 // indirect
