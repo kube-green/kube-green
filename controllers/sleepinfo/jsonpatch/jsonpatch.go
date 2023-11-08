@@ -116,7 +116,6 @@ func (g managedResources) Sleep(ctx context.Context) error {
 
 func (g managedResources) WakeUp(ctx context.Context) error {
 	for _, resourceWrapper := range g.resMapping {
-
 		for _, resource := range resourceWrapper.data {
 			rawPatch, ok := resourceWrapper.restorePatches[resource.GetName()]
 			if !ok {

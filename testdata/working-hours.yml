@@ -10,20 +10,20 @@ spec:
   suspendCronJobs: true
   patchesJson6902:
     - target:
-        version: "apps/v1"
-        group: Deployment
+        group: apps
+        kind: Deployment
         # labelSelector: "env=dev"
         patches: |-
           - path: /spec/replicas
             op: replace
             value: 0
     - target:
-        apiVersion: "batch/v1"
+        group: batch
         kind: CronJob
         patches: |-
           - path: /spec/suspend
             op: replace
-            value: false
+            value: true
   excludeRef:
     - apiVersion: "apps/v1"
       kind:       Deployment
