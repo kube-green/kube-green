@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/json"
 
-	jsonpatch "github.com/evanphx/json-patch/v5"
-	"github.com/go-logr/logr"
 	"github.com/kube-green/kube-green/api/v1alpha1"
 	"github.com/kube-green/kube-green/controllers/sleepinfo/resource"
+
+	jsonpatch "github.com/evanphx/json-patch/v5"
+	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
