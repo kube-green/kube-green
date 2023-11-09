@@ -16,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -43,91 +44,120 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 		deploymentKind := "Deployment"
 		cronjobKind := "CronJob"
 
-		t.Run("patches resources", func(t *testing.T) {
-			deployPatchData := v1alpha1.PatchJson6902{
-				Target: v1alpha1.PatchTarget{
-					Group: "apps",
-					Kind:  "Deployment",
-				},
-				Patches: `[{"op": "replace", "path": "/spec/replicas", "value": 0}]`,
-			}
-			cronPatchData := v1alpha1.PatchJson6902{
-				Target: v1alpha1.PatchTarget{
-					Group: "batch",
-					Kind:  "CronJob",
-				},
-				Patches: `[{"op": "replace", "path": "/spec/suspend", "value": true}]`,
-			}
-			sleepInfo := &v1alpha1.SleepInfo{
-				TypeMeta: v1.TypeMeta{
-					Kind: "SleepInfo",
-				},
-				ObjectMeta: v1.ObjectMeta{
-					Namespace: namespace,
-					Name:      "test-sleepinfo",
-				},
-				Spec: v1alpha1.SleepInfoSpec{
-					PatchesJson6902: []v1alpha1.PatchJson6902{
-						deployPatchData,
-						cronPatchData,
-					},
-				},
-			}
-
-			deployWithReplicas := deployments.GetMock(deployments.MockSpec{
-				Name:      "d1",
+		deployPatchData := v1alpha1.PatchJson6902{
+			Target: v1alpha1.PatchTarget{
+				Group: "apps",
+				Kind:  "Deployment",
+			},
+			Patches: `[{"op": "add", "path": "/spec/replicas", "value": 0}]`,
+		}
+		cronPatchData := v1alpha1.PatchJson6902{
+			Target: v1alpha1.PatchTarget{
+				Group: "batch",
+				Kind:  "CronJob",
+			},
+			Patches: `[{"op": "add", "path": "/spec/suspend", "value": true}]`,
+		}
+		sleepInfo := &v1alpha1.SleepInfo{
+			TypeMeta: v1.TypeMeta{
+				Kind: "SleepInfo",
+			},
+			ObjectMeta: v1.ObjectMeta{
 				Namespace: namespace,
-				Replicas:  getPtr(int32(3)),
-			})
-			deployWithoutReplicas := deployments.GetMock(deployments.MockSpec{
-				Name:      "d2",
-				Namespace: namespace,
-			})
-			cronjob := cronjobs.GetMock(cronjobs.MockSpec{
-				Name:      "cron-suspend-false",
-				Namespace: namespace,
-				Suspend:   getPtr(false),
-			})
-			suspendedCj := cronjobs.GetMock(cronjobs.MockSpec{
-				Name:      "cron-suspend-true",
-				Namespace: namespace,
-				Suspend:   getPtr(true),
-			})
-			cjWithoutSuspendData := cronjobs.GetMock(cronjobs.MockSpec{
-				Name:      "cron-no-suspend",
-				Namespace: namespace,
+				Name:      "test-sleepinfo",
+			},
+			Spec: v1alpha1.SleepInfoSpec{
+				PatchesJson6902: []v1alpha1.PatchJson6902{
+					deployPatchData,
+					cronPatchData,
+				},
+			},
+		}
+
+		deployWithReplicas := deployments.GetMock(deployments.MockSpec{
+			Name:      "deploy-with-replicas",
+			Namespace: namespace,
+			Replicas:  getPtr(int32(3)),
+		})
+		deployWithoutReplicas := deployments.GetMock(deployments.MockSpec{
+			Name:      "d2",
+			Namespace: namespace,
+		})
+		cronjob := cronjobs.GetMock(cronjobs.MockSpec{
+			Name:      "cron-suspend-false",
+			Namespace: namespace,
+			Suspend:   getPtr(false),
+		})
+		suspendedCj := cronjobs.GetMock(cronjobs.MockSpec{
+			Name:      "cron-suspend-true",
+			Namespace: namespace,
+			Suspend:   getPtr(true),
+		})
+		cjWithoutSuspendData := cronjobs.GetMock(cronjobs.MockSpec{
+			Name:      "cron-no-suspend",
+			Namespace: namespace,
+		})
+
+		fakeClient := testutil.PossiblyErroringFakeCtrlRuntimeClient{
+			Client: getFakeClient().
+				WithRuntimeObjects(
+					&deployWithReplicas,
+					&deployWithoutReplicas,
+					&cronjob,
+					&suspendedCj,
+					&cjWithoutSuspendData,
+				).
+				Build(),
+		}
+
+		ctx := context.Background()
+		res := getNewResource(t, fakeClient, sleepInfo, namespace)
+
+		originalDeployments, err := res.resMapping[deploymentKind].getListByNamespace(ctx, namespace, deployPatchData.Target)
+		require.NoError(t, err)
+		originalCronJob, err := res.resMapping[cronjobKind].getListByNamespace(ctx, namespace, cronPatchData.Target)
+		require.NoError(t, err)
+
+		t.Run("sleep", func(t *testing.T) {
+			require.NoError(t, res.Sleep(ctx))
+
+			t.Run("Deployment", func(t *testing.T) {
+				resList, err := res.resMapping[deploymentKind].getListByNamespace(ctx, namespace, deployPatchData.Target)
+				require.NoError(t, err)
+
+				require.Len(t, resList, 2)
+				require.Equal(t, int64(0), findResByName(resList, "deploy-with-replicas").Object["spec"].(map[string]interface{})["replicas"].(int64))
+				require.Equal(t, int64(0), findResByName(resList, "d2").Object["spec"].(map[string]interface{})["replicas"].(int64))
 			})
 
-			fakeClient := testutil.PossiblyErroringFakeCtrlRuntimeClient{
-				Client: getFakeClient().
-					WithRuntimeObjects(
-						&deployWithReplicas,
-						&deployWithoutReplicas,
-						&cronjob,
-						&suspendedCj,
-						&cjWithoutSuspendData,
-					).
-					Build(),
-			}
+			t.Run("CronJob", func(t *testing.T) {
+				resList, err := res.resMapping[cronjobKind].getListByNamespace(ctx, namespace, cronPatchData.Target)
+				require.NoError(t, err)
 
-			ctx := context.Background()
-			res := getNewResource(t, fakeClient, sleepInfo, namespace)
+				require.Len(t, resList, 3)
+				suspend, ok, err := unstructured.NestedBool(findResByName(resList, "cron-suspend-false").Object, "spec", "suspend")
+				require.NoError(t, err)
+				require.True(t, ok)
+				require.True(t, suspend)
+				suspend2, ok, err := unstructured.NestedBool(findResByName(resList, "cron-suspend-true").Object, "spec", "suspend")
+				require.NoError(t, err)
+				require.True(t, ok)
+				require.True(t, suspend2)
+				suspend3, ok, err := unstructured.NestedBool(findResByName(resList, "cron-no-suspend").Object, "spec", "suspend")
+				require.NoError(t, err)
+				require.True(t, ok)
+				require.True(t, suspend3)
+			})
 
-			originalDeployments, err := res.resMapping[deploymentKind].getListByNamespace(ctx, namespace, deployPatchData.Target)
-			require.NoError(t, err)
-			originalCronJob, err := res.resMapping[cronjobKind].getListByNamespace(ctx, namespace, cronPatchData.Target)
-			require.NoError(t, err)
-
-			t.Run("sleep", func(t *testing.T) {
-				require.NoError(t, res.Sleep(ctx))
+			t.Run("wake up", func(t *testing.T) {
+				require.NoError(t, res.WakeUp(ctx))
 
 				t.Run("Deployment", func(t *testing.T) {
 					resList, err := res.resMapping[deploymentKind].getListByNamespace(ctx, namespace, deployPatchData.Target)
 					require.NoError(t, err)
 
 					require.Len(t, resList, 2)
-					require.Equal(t, 0, int(findResByName(resList, "d1").Object["spec"].(map[string]interface{})["replicas"].(int64)))
-					require.Nil(t, findResByName(resList, "d2").Object["spec"].(map[string]interface{})["replicas"])
+					requireEqualResources(t, originalDeployments, resList)
 				})
 
 				t.Run("CronJob", func(t *testing.T) {
@@ -135,131 +165,194 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 					require.NoError(t, err)
 
 					require.Len(t, resList, 3)
-					suspend, ok, err := unstructured.NestedBool(findResByName(resList, "cron-suspend-false").Object, "spec", "suspend")
-					require.NoError(t, err)
-					require.True(t, ok)
-					require.True(t, suspend)
-					suspend2, ok, err := unstructured.NestedBool(findResByName(resList, "cron-suspend-true").Object, "spec", "suspend")
-					require.NoError(t, err)
-					require.True(t, ok)
-					require.True(t, suspend2)
-					_, ok, err = unstructured.NestedBool(findResByName(resList, "cron-no-suspend").Object, "spec", "suspend")
-					require.NoError(t, err)
-					require.False(t, ok)
-				})
-
-				t.Run("wake up", func(t *testing.T) {
-					require.NoError(t, res.WakeUp(ctx))
-
-					t.Run("Deployment", func(t *testing.T) {
-						resList, err := res.resMapping[deploymentKind].getListByNamespace(ctx, namespace, deployPatchData.Target)
-						require.NoError(t, err)
-
-						require.Len(t, resList, 2)
-						requireEqualResources(t, originalDeployments, resList)
-					})
-
-					t.Run("CronJob", func(t *testing.T) {
-						resList, err := res.resMapping[cronjobKind].getListByNamespace(ctx, namespace, cronPatchData.Target)
-						require.NoError(t, err)
-
-						require.Len(t, resList, 3)
-						requireEqualResources(t, originalCronJob, resList)
-					})
+					requireEqualResources(t, originalCronJob, resList)
 				})
 			})
 		})
 	})
 
 	t.Run("full lifecycle - keda ScaledObject", func(t *testing.T) {
-		t.Run("patches resources", func(t *testing.T) {
-			scaledObjectPatchData := v1alpha1.PatchJson6902{
-				Target: v1alpha1.PatchTarget{
-					Group: "keda.sh",
-					Kind:  "ScaledObject",
+		scaledObjectPatchData := v1alpha1.PatchJson6902{
+			Target: v1alpha1.PatchTarget{
+				Group: "keda.sh",
+				Kind:  "ScaledObject",
+			},
+			Patches: `[{"op": "add", "path": "/metadata/annotations/autoscaling.keda.sh~1paused-replicas", "value": "0"}]`,
+		}
+		sleepInfo := &v1alpha1.SleepInfo{
+			TypeMeta: v1.TypeMeta{
+				Kind: "SleepInfo",
+			},
+			ObjectMeta: v1.ObjectMeta{
+				Namespace: namespace,
+				Name:      "test-sleepinfo",
+			},
+			Spec: v1alpha1.SleepInfoSpec{
+				PatchesJson6902: []v1alpha1.PatchJson6902{
+					scaledObjectPatchData,
 				},
-				Patches: `[{"op": "add", "path": "/metadata/annotations/autoscaling.keda.sh~1paused-replicas", "value": "0"}]`,
-			}
-			sleepInfo := &v1alpha1.SleepInfo{
-				TypeMeta: v1.TypeMeta{
-					Kind: "SleepInfo",
-				},
-				ObjectMeta: v1.ObjectMeta{
-					Namespace: namespace,
-					Name:      "test-sleepinfo",
-				},
-				Spec: v1alpha1.SleepInfoSpec{
-					PatchesJson6902: []v1alpha1.PatchJson6902{
-						scaledObjectPatchData,
-					},
-				},
-			}
+			},
+		}
 
-			scaledObject := &unstructured.Unstructured{}
-			scaledObject.SetGroupVersionKind(schema.GroupVersionKind{
-				Group:   "keda.sh",
-				Version: "v1alpha1",
-				Kind:    "ScaledObject",
+		scaledObject := &unstructured.Unstructured{}
+		scaledObject.SetGroupVersionKind(schema.GroupVersionKind{
+			Group:   "keda.sh",
+			Version: "v1alpha1",
+			Kind:    "ScaledObject",
+		})
+		scaledObject.SetName("test-scaledobject-1")
+		scaledObject.SetNamespace(namespace)
+
+		scaledObject2 := &unstructured.Unstructured{}
+		scaledObject2.SetAnnotations(map[string]string{
+			"some": "field",
+		})
+		scaledObject2.SetGroupVersionKind(schema.GroupVersionKind{
+			Group:   "keda.sh",
+			Version: "v1alpha1",
+			Kind:    "ScaledObject",
+		})
+		scaledObject2.SetName("test-scaledobject-2")
+		scaledObject2.SetNamespace(namespace)
+
+		fakeClient := testutil.PossiblyErroringFakeCtrlRuntimeClient{
+			Client: getFakeClient().
+				WithRuntimeObjects(
+					scaledObject,
+					scaledObject2,
+				).
+				Build(),
+		}
+
+		ctx := context.Background()
+		res := getNewResource(t, fakeClient, sleepInfo, namespace)
+
+		originalScaledObject, err := res.resMapping["ScaledObject"].getListByNamespace(ctx, namespace, scaledObjectPatchData.Target)
+		require.NoError(t, err)
+
+		t.Run("sleep", func(t *testing.T) {
+			require.NoError(t, res.Sleep(ctx))
+
+			t.Run("ScaledObject", func(t *testing.T) {
+				resList, err := res.resMapping["ScaledObject"].getListByNamespace(ctx, namespace, scaledObjectPatchData.Target)
+				require.NoError(t, err)
+
+				require.Len(t, resList, 2)
+
+				v, ok, err := unstructured.NestedString(findResByName(resList, "test-scaledobject-1").Object, "metadata", "annotations", "autoscaling.keda.sh/paused-replicas")
+				require.NoError(t, err)
+				require.True(t, ok)
+				require.Equal(t, "0", v)
+				v, ok, err = unstructured.NestedString(findResByName(resList, "test-scaledobject-2").Object, "metadata", "annotations", "autoscaling.keda.sh/paused-replicas")
+				require.NoError(t, err)
+				require.True(t, ok)
+				require.Equal(t, "0", v)
 			})
-			scaledObject.SetName("test-scaledobject-1")
-			scaledObject.SetNamespace(namespace)
 
-			scaledObject2 := &unstructured.Unstructured{}
-			scaledObject2.SetAnnotations(map[string]string{
-				"some": "field",
-			})
-			scaledObject2.SetGroupVersionKind(schema.GroupVersionKind{
-				Group:   "keda.sh",
-				Version: "v1alpha1",
-				Kind:    "ScaledObject",
-			})
-			scaledObject2.SetName("test-scaledobject-2")
-			scaledObject2.SetNamespace(namespace)
-
-			fakeClient := testutil.PossiblyErroringFakeCtrlRuntimeClient{
-				Client: getFakeClient().
-					WithRuntimeObjects(
-						scaledObject,
-						scaledObject2,
-					).
-					Build(),
-			}
-
-			ctx := context.Background()
-			res := getNewResource(t, fakeClient, sleepInfo, namespace)
-
-			originalScaledObject, err := res.resMapping["ScaledObject"].getListByNamespace(ctx, namespace, scaledObjectPatchData.Target)
-			require.NoError(t, err)
-
-			t.Run("sleep", func(t *testing.T) {
-				require.NoError(t, res.Sleep(ctx))
+			t.Run("wake up", func(t *testing.T) {
+				require.NoError(t, res.WakeUp(ctx))
 
 				t.Run("ScaledObject", func(t *testing.T) {
 					resList, err := res.resMapping["ScaledObject"].getListByNamespace(ctx, namespace, scaledObjectPatchData.Target)
 					require.NoError(t, err)
 
 					require.Len(t, resList, 2)
-
-					v, ok, err := unstructured.NestedString(findResByName(resList, "test-scaledobject-1").Object, "metadata", "annotations", "autoscaling.keda.sh/paused-replicas")
-					require.NoError(t, err)
-					require.True(t, ok)
-					require.Equal(t, "0", v)
-					v, ok, err = unstructured.NestedString(findResByName(resList, "test-scaledobject-2").Object, "metadata", "annotations", "autoscaling.keda.sh/paused-replicas")
-					require.NoError(t, err)
-					require.True(t, ok)
-					require.Equal(t, "0", v)
+					requireEqualResources(t, originalScaledObject, resList)
 				})
+			})
+		})
+	})
 
-				t.Run("wake up", func(t *testing.T) {
-					require.NoError(t, res.WakeUp(ctx))
+	t.Run("resources changed between sleep and wake up", func(t *testing.T) {
+		deploymentKind := "Deployment"
 
-					t.Run("ScaledObject", func(t *testing.T) {
-						resList, err := res.resMapping["ScaledObject"].getListByNamespace(ctx, namespace, scaledObjectPatchData.Target)
-						require.NoError(t, err)
+		deployPatchData := v1alpha1.PatchJson6902{
+			Target: v1alpha1.PatchTarget{
+				Group: "apps",
+				Kind:  "Deployment",
+			},
+			Patches: `[{"op": "replace", "path": "/spec/replicas", "value": 0}]`,
+		}
+		sleepInfo := &v1alpha1.SleepInfo{
+			TypeMeta: v1.TypeMeta{
+				Kind: "SleepInfo",
+			},
+			ObjectMeta: v1.ObjectMeta{
+				Namespace: namespace,
+				Name:      "test-sleepinfo",
+			},
+			Spec: v1alpha1.SleepInfoSpec{
+				PatchesJson6902: []v1alpha1.PatchJson6902{
+					deployPatchData,
+				},
+			},
+		}
 
-						require.Len(t, resList, 2)
-						requireEqualResources(t, originalScaledObject, resList)
-					})
+		deployWithReplicas := deployments.GetMock(deployments.MockSpec{
+			Name:      "deploy-with-replicas",
+			Namespace: namespace,
+			Replicas:  getPtr(int32(3)),
+		})
+		deployWithoutReplicas := deployments.GetMock(deployments.MockSpec{
+			Name:      "d2",
+			Namespace: namespace,
+		})
+
+		fakeClient := testutil.PossiblyErroringFakeCtrlRuntimeClient{
+			Client: getFakeClient().
+				WithRuntimeObjects(
+					&deployWithReplicas,
+					&deployWithoutReplicas,
+				).
+				Build(),
+		}
+
+		ctx := context.Background()
+		res := getNewResource(t, fakeClient, sleepInfo, namespace)
+
+		originalDeployments, err := res.resMapping[deploymentKind].getListByNamespace(ctx, namespace, deployPatchData.Target)
+		require.NoError(t, err)
+
+		t.Run("sleep", func(t *testing.T) {
+			require.NoError(t, res.Sleep(ctx))
+			resList, err := res.resMapping[deploymentKind].getListByNamespace(ctx, namespace, deployPatchData.Target)
+			require.NoError(t, err)
+
+			t.Run("Deployment", func(t *testing.T) {
+				require.Len(t, resList, 2)
+				require.Equal(t, 0, int(findResByName(resList, "deploy-with-replicas").Object["spec"].(map[string]interface{})["replicas"].(int64)))
+				require.Nil(t, findResByName(resList, "d2").Object["spec"].(map[string]interface{})["replicas"])
+			})
+
+			deployClient := res.resMapping[deploymentKind].Client
+
+			// change replicas to 1
+			resList, err = res.resMapping[deploymentKind].getListByNamespace(ctx, namespace, deployPatchData.Target)
+			require.NoError(t, err)
+			sleepDeployWithReplicas := findResByName(resList, "deploy-with-replicas")
+			newDeployWithReplicas := sleepDeployWithReplicas.DeepCopy()
+			unstructured.SetNestedField(newDeployWithReplicas.Object, int64(1), "spec", "replicas")
+
+			err = deployClient.Patch(ctx, newDeployWithReplicas, client.MergeFrom(sleepDeployWithReplicas))
+			require.NoError(t, err)
+
+			t.Run("wake up", func(t *testing.T) {
+				require.NoError(t, res.WakeUp(ctx))
+
+				t.Run("Deployment", func(t *testing.T) {
+					resList, err := res.resMapping[deploymentKind].getListByNamespace(ctx, namespace, deployPatchData.Target)
+					require.NoError(t, err)
+
+					require.Len(t, resList, 2)
+
+					unstructuredCronJob, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&newDeployWithReplicas)
+					require.NoError(t, err)
+					expectedDeployments := []unstructured.Unstructured{
+						{Object: unstructuredCronJob},
+						*findResByName(originalDeployments, "d2"),
+					}
+
+					requireEqualResources(t, expectedDeployments, resList)
 				})
 			})
 		})

@@ -72,9 +72,9 @@ func (g managedResources) Sleep(ctx context.Context) error {
 			return fmt.Errorf(`%w: invalid empty patch`, ErrJSONPatch)
 		}
 
-		patch, err := jsonpatch.DecodePatch([]byte(resourceWrapper.patchData.Patches))
+		patcherFn, err := createPatch([]byte(resourceWrapper.patchData.Patches))
 		if err != nil {
-			return fmt.Errorf(`%w: %s`, ErrJSONPatch, err)
+			return fmt.Errorf("%w: %s", ErrJSONPatch, err)
 		}
 
 		resourceList, err := resourceWrapper.getListByNamespace(ctx, g.namespace, resourceWrapper.patchData.Target)
@@ -92,10 +92,7 @@ func (g managedResources) Sleep(ctx context.Context) error {
 				return fmt.Errorf("%w: %s", ErrJSONPatch, err)
 			}
 
-			modified, err := patch.ApplyWithOptions(original, &jsonpatch.ApplyOptions{
-				EnsurePathExistsOnAdd:    true,
-				AllowMissingPathOnRemove: true,
-			})
+			modified, err := patcherFn.Exec(original)
 			if err != nil {
 				g.logger.Error(err, "fails to apply patch",
 					"resourceName", resource.GetName(),
@@ -132,7 +129,37 @@ func (g managedResources) WakeUp(ctx context.Context) error {
 			return fmt.Errorf("%w: %s", ErrListResources, err)
 		}
 
+		patcherFn, err := createPatch([]byte(resourceWrapper.patchData.Patches))
+		if err != nil {
+			return fmt.Errorf("%w: %s", ErrJSONPatch, err)
+		}
+
 		for _, resource := range resourceList {
+			current, err := json.Marshal(resource.Object)
+			if err != nil {
+				return fmt.Errorf("%w: %s", ErrJSONPatch, err)
+			}
+
+			modified, err := patcherFn.Exec(current)
+			if err != nil {
+				g.logger.Error(err, "fails to apply patch",
+					"resourceName", resource.GetName(),
+					"resourceKind", resource.GetKind(),
+					"patch", resourceWrapper.patchData.Patches,
+				)
+				continue
+			}
+
+			if !jsonpatch.Equal(current, modified) {
+				// This means that the resource is modified
+				g.logger.Info("resource modified between sleep and wake up, skip wake up",
+					"resourceName", resource.GetName(),
+					"resourceKind", resource.GetKind(),
+					"patch", resourceWrapper.patchData.Patches,
+				)
+				continue
+			}
+
 			rawPatch, ok := resourceWrapper.restorePatches[resource.GetName()]
 			if !ok {
 				g.logger.Info("no restore patch found for resource, skipped",
@@ -140,11 +167,6 @@ func (g managedResources) WakeUp(ctx context.Context) error {
 					"resourceKind", resource.GetKind(),
 				)
 				continue
-			}
-
-			current, err := json.Marshal(resource.Object)
-			if err != nil {
-				return fmt.Errorf("%w: %s", ErrJSONPatch, err)
 			}
 
 			restored, err := jsonpatch.MergePatch(current, rawPatch)
@@ -220,4 +242,26 @@ func (c genericResource) getListByNamespace(ctx context.Context, namespace strin
 	}
 
 	return resourceList.Items, nil
+}
+
+type patcher struct {
+	jsonpatch.Patch
+}
+
+func (p patcher) Exec(original []byte) ([]byte, error) {
+	return p.ApplyWithOptions(original, &jsonpatch.ApplyOptions{
+		EnsurePathExistsOnAdd:    true,
+		AllowMissingPathOnRemove: true,
+	})
+}
+
+func createPatch(patchToApply []byte) (*patcher, error) {
+	patch, err := jsonpatch.DecodePatch(patchToApply)
+	if err != nil {
+		return nil, err
+	}
+
+	return &patcher{
+		Patch: patch,
+	}, nil
 }
