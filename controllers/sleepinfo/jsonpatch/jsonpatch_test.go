@@ -331,7 +331,7 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 			require.NoError(t, err)
 			sleepDeployWithReplicas := findResByName(resList, "deploy-with-replicas")
 			newDeployWithReplicas := sleepDeployWithReplicas.DeepCopy()
-			unstructured.SetNestedField(newDeployWithReplicas.Object, int64(1), "spec", "replicas")
+			require.NoError(t, unstructured.SetNestedField(newDeployWithReplicas.Object, int64(1), "spec", "replicas"))
 
 			err = deployClient.Patch(ctx, newDeployWithReplicas, client.MergeFrom(sleepDeployWithReplicas))
 			require.NoError(t, err)
