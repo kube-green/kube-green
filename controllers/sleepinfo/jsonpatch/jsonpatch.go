@@ -3,6 +3,7 @@ package jsonpatch
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	"github.com/kube-green/kube-green/api/v1alpha1"
 	"github.com/kube-green/kube-green/controllers/sleepinfo/resource"
@@ -14,43 +15,41 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+var (
+	ErrJSONPatch     = fmt.Errorf("jsonpatch error")
+	ErrListResources = fmt.Errorf("list resources error")
+)
+
 type managedResources struct {
 	logger     logr.Logger
 	resMapping map[string]genericResource
+	namespace  string
 }
 
 type genericResource struct {
 	resource.ResourceClient
-	OriginalData   any
-	data           []unstructured.Unstructured
 	patchData      v1alpha1.PatchJson6902
 	restorePatches map[string][]byte
 }
 
 type ResourceList []map[string][]byte
 
-type OriginalData map[string]ResourceList
-
-func NewResources(ctx context.Context, res resource.ResourceClient, namespace string, originalData OriginalData) (resource.Resource, error) {
+func NewResources(ctx context.Context, res resource.ResourceClient, namespace string) (resource.Resource, error) {
+	if res.SleepInfo == nil {
+		return nil, fmt.Errorf("%w: sleepInfo is not provided", ErrJSONPatch)
+	}
 	resources := managedResources{
 		logger:     res.Log,
 		resMapping: map[string]genericResource{},
+		namespace:  namespace,
 	}
 
 	for _, patchData := range res.SleepInfo.GetPatchesJson6902() {
 		generic := genericResource{
 			ResourceClient: res,
-			OriginalData:   originalData,
-			data:           []unstructured.Unstructured{},
 			patchData:      patchData,
 			restorePatches: map[string][]byte{},
 		}
-
-		resourceList, err := generic.getListByNamespace(ctx, namespace, patchData)
-		if err != nil {
-			return nil, err
-		}
-		generic.data = resourceList
 
 		resources.resMapping[patchData.Target.Kind] = generic
 	}
@@ -60,7 +59,7 @@ func NewResources(ctx context.Context, res resource.ResourceClient, namespace st
 
 func (g managedResources) HasResource() bool {
 	for _, res := range g.resMapping {
-		if len(res.data) > 0 {
+		if len(res.restorePatches) > 0 {
 			return true
 		}
 	}
@@ -69,22 +68,34 @@ func (g managedResources) HasResource() bool {
 
 func (g managedResources) Sleep(ctx context.Context) error {
 	for _, resourceWrapper := range g.resMapping {
-		patch, err := jsonpatch.DecodePatch([]byte(resourceWrapper.patchData.Patches))
-		if err != nil {
-			return err
+		if resourceWrapper.patchData.Patches == "" {
+			return fmt.Errorf(`%w: invalid empty patch`, ErrJSONPatch)
 		}
 
-		for _, resource := range resourceWrapper.data {
+		patch, err := jsonpatch.DecodePatch([]byte(resourceWrapper.patchData.Patches))
+		if err != nil {
+			return fmt.Errorf(`%w: %s`, ErrJSONPatch, err)
+		}
+
+		resourceList, err := resourceWrapper.getListByNamespace(ctx, g.namespace, resourceWrapper.patchData.Target)
+		if err != nil {
+			return fmt.Errorf("%w: %s", ErrListResources, err)
+		}
+
+		for _, resource := range resourceList {
 			// TODO: test this
 			// remove resourceVersion from patch target for SSA patch to work correctly
 			unstructured.RemoveNestedField(resource.Object, "metadata", "resourceVersion")
 
 			original, err := json.Marshal(resource.Object)
 			if err != nil {
-				return err
+				return fmt.Errorf("%w: %s", ErrJSONPatch, err)
 			}
 
-			modified, err := patch.Apply(original)
+			modified, err := patch.ApplyWithOptions(original, &jsonpatch.ApplyOptions{
+				EnsurePathExistsOnAdd:    true,
+				AllowMissingPathOnRemove: true,
+			})
 			if err != nil {
 				g.logger.Error(err, "fails to apply patch",
 					"resourceName", resource.GetName(),
@@ -96,17 +107,17 @@ func (g managedResources) Sleep(ctx context.Context) error {
 
 			restorePatch, err := jsonpatch.CreateMergePatch(modified, original)
 			if err != nil {
-				return err
+				return fmt.Errorf("%w: %s", ErrJSONPatch, err)
 			}
 			resourceWrapper.restorePatches[resource.GetName()] = restorePatch
 
 			res := &unstructured.Unstructured{}
 			if err := json.Unmarshal(modified, &res.Object); err != nil {
-				return err
+				return fmt.Errorf("%w: %s", ErrJSONPatch, err)
 			}
 
 			if err := resourceWrapper.SSAPatch(ctx, res); err != nil {
-				return err
+				return fmt.Errorf("%w: %s", ErrJSONPatch, err)
 			}
 		}
 	}
@@ -116,37 +127,42 @@ func (g managedResources) Sleep(ctx context.Context) error {
 
 func (g managedResources) WakeUp(ctx context.Context) error {
 	for _, resourceWrapper := range g.resMapping {
-		for _, resource := range resourceWrapper.data {
+		resourceList, err := resourceWrapper.getListByNamespace(ctx, g.namespace, resourceWrapper.patchData.Target)
+		if err != nil {
+			return fmt.Errorf("%w: %s", ErrListResources, err)
+		}
+
+		for _, resource := range resourceList {
 			rawPatch, ok := resourceWrapper.restorePatches[resource.GetName()]
 			if !ok {
-				// TODO: log
 				g.logger.Info("no restore patch found for resource, skipped",
 					"resourceName", resource.GetName(),
 					"resourceKind", resource.GetKind(),
 				)
 				continue
 			}
-			// TODO: test this
-			// remove resourceVersion from patch target for SSA patch to work correctly
-			unstructured.RemoveNestedField(resource.Object, "metadata", "resourceVersion")
 
-			original, err := json.Marshal(resource.Object)
+			current, err := json.Marshal(resource.Object)
 			if err != nil {
-				return err
+				return fmt.Errorf("%w: %s", ErrJSONPatch, err)
 			}
 
-			restored, err := jsonpatch.MergePatch(original, rawPatch)
+			restored, err := jsonpatch.MergePatch(current, rawPatch)
 			if err != nil {
-				return err
+				return fmt.Errorf("%w: %s", ErrJSONPatch, err)
 			}
 
 			res := &unstructured.Unstructured{}
 			if err := json.Unmarshal(restored, &res.Object); err != nil {
-				return err
+				return fmt.Errorf("%w: %s", ErrJSONPatch, err)
 			}
 
-			if err := resourceWrapper.SSAPatch(ctx, res); err != nil {
-				return err
+			// Here we need to use Patch because SSA patch will not work for restore,
+			// for example if we should remove an object, SSA patch will not work correctly
+			// (the applied resources does not have the object removed, so SSA patch will not remove it.
+			// To work properly, the value of the object should be null)
+			if err := resourceWrapper.Patch(ctx, resource.DeepCopy(), res); err != nil {
+				return fmt.Errorf("%w: %s", ErrJSONPatch, err)
 			}
 		}
 	}
@@ -158,7 +174,7 @@ func (g managedResources) GetOriginalInfoToSave() ([]byte, error) {
 	return nil, nil
 }
 
-func (c genericResource) getListByNamespace(ctx context.Context, namespace string, patchData v1alpha1.PatchJson6902) ([]unstructured.Unstructured, error) {
+func (c genericResource) getListByNamespace(ctx context.Context, namespace string, patchTarget v1alpha1.PatchTarget) ([]unstructured.Unstructured, error) {
 	listOptions := &client.ListOptions{
 		Namespace: namespace,
 		Limit:     500,
@@ -189,8 +205,8 @@ func (c genericResource) getListByNamespace(ctx context.Context, namespace strin
 	// }
 
 	restMapping, err := c.Client.RESTMapper().RESTMapping(schema.GroupKind{
-		Group: patchData.Target.Group,
-		Kind:  patchData.Target.Kind,
+		Group: patchTarget.Group,
+		Kind:  patchTarget.Kind,
 	})
 	if err != nil {
 		return nil, err

@@ -3,6 +3,7 @@ package jsonpatch
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/kube-green/kube-green/api/v1alpha1"
@@ -21,35 +22,26 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
-func TestUpdateResourcesJSONPatch(t *testing.T) {
+func TestNewResources(t *testing.T) {
 	nullogger := &bytes.Buffer{}
 	testLogger := zap.New(zap.WriteTo(nullogger))
 	namespace := "test"
 
-	getNewResource := func(t *testing.T, client client.Client, sleepInfo *v1alpha1.SleepInfo) managedResources {
-		t.Helper()
+	t.Run("throws if SleepInfo not provided", func(t *testing.T) {
+		_, err := NewResources(context.Background(), resource.ResourceClient{
+			Client: getFakeClient().Build(),
+			Log:    testLogger,
+		}, namespace)
+		require.EqualError(t, err, fmt.Sprintf("%s: sleepInfo is not provided", ErrJSONPatch))
+	})
+}
 
-		resource, err := NewResources(context.Background(), resource.ResourceClient{
-			Client:    client,
-			Log:       testLogger,
-			SleepInfo: sleepInfo,
-		}, namespace, nil)
-		require.NoError(t, err)
+func TestUpdateResourcesJSONPatch(t *testing.T) {
+	namespace := "test"
 
-		generic, ok := resource.(managedResources)
-		require.True(t, ok)
-		return generic
-	}
-
-	t.Run("full lifecycle - one resource type", func(t *testing.T) {
+	t.Run("full lifecycle - deployment + cronjob", func(t *testing.T) {
 		deploymentKind := "Deployment"
 		cronjobKind := "CronJob"
-
-		t.Run("not throws if no data", func(t *testing.T) {
-			t.SkipNow()
-			c := getNewResource(t, getFakeClient().Build(), nil)
-			require.NoError(t, c.Sleep(context.Background()))
-		})
 
 		t.Run("patches resources", func(t *testing.T) {
 			deployPatchData := v1alpha1.PatchJson6902{
@@ -119,18 +111,18 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 			}
 
 			ctx := context.Background()
-			res := getNewResource(t, fakeClient, sleepInfo)
+			res := getNewResource(t, fakeClient, sleepInfo, namespace)
 
-			originalDeployments, err := res.resMapping[deploymentKind].getListByNamespace(ctx, namespace, deployPatchData)
+			originalDeployments, err := res.resMapping[deploymentKind].getListByNamespace(ctx, namespace, deployPatchData.Target)
 			require.NoError(t, err)
-			originalCronJob, err := res.resMapping[cronjobKind].getListByNamespace(ctx, namespace, cronPatchData)
+			originalCronJob, err := res.resMapping[cronjobKind].getListByNamespace(ctx, namespace, cronPatchData.Target)
 			require.NoError(t, err)
 
 			t.Run("sleep", func(t *testing.T) {
 				require.NoError(t, res.Sleep(ctx))
 
 				t.Run("Deployment", func(t *testing.T) {
-					resList, err := res.resMapping[deploymentKind].getListByNamespace(ctx, namespace, deployPatchData)
+					resList, err := res.resMapping[deploymentKind].getListByNamespace(ctx, namespace, deployPatchData.Target)
 					require.NoError(t, err)
 
 					require.Len(t, resList, 2)
@@ -139,7 +131,7 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 				})
 
 				t.Run("CronJob", func(t *testing.T) {
-					resList, err := res.resMapping[cronjobKind].getListByNamespace(ctx, namespace, cronPatchData)
+					resList, err := res.resMapping[cronjobKind].getListByNamespace(ctx, namespace, cronPatchData.Target)
 					require.NoError(t, err)
 
 					require.Len(t, resList, 3)
@@ -160,7 +152,7 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 					require.NoError(t, res.WakeUp(ctx))
 
 					t.Run("Deployment", func(t *testing.T) {
-						resList, err := res.resMapping[deploymentKind].getListByNamespace(ctx, namespace, deployPatchData)
+						resList, err := res.resMapping[deploymentKind].getListByNamespace(ctx, namespace, deployPatchData.Target)
 						require.NoError(t, err)
 
 						require.Len(t, resList, 2)
@@ -168,7 +160,7 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 					})
 
 					t.Run("CronJob", func(t *testing.T) {
-						resList, err := res.resMapping[cronjobKind].getListByNamespace(ctx, namespace, cronPatchData)
+						resList, err := res.resMapping[cronjobKind].getListByNamespace(ctx, namespace, cronPatchData.Target)
 						require.NoError(t, err)
 
 						require.Len(t, resList, 3)
@@ -178,12 +170,185 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 			})
 		})
 	})
+
+	t.Run("full lifecycle - keda ScaledObject", func(t *testing.T) {
+		t.Run("patches resources", func(t *testing.T) {
+			scaledObjectPatchData := v1alpha1.PatchJson6902{
+				Target: v1alpha1.PatchTarget{
+					Group: "keda.sh",
+					Kind:  "ScaledObject",
+				},
+				Patches: `[{"op": "add", "path": "/metadata/annotations/autoscaling.keda.sh~1paused-replicas", "value": "0"}]`,
+			}
+			sleepInfo := &v1alpha1.SleepInfo{
+				TypeMeta: v1.TypeMeta{
+					Kind: "SleepInfo",
+				},
+				ObjectMeta: v1.ObjectMeta{
+					Namespace: namespace,
+					Name:      "test-sleepinfo",
+				},
+				Spec: v1alpha1.SleepInfoSpec{
+					PatchesJson6902: []v1alpha1.PatchJson6902{
+						scaledObjectPatchData,
+					},
+				},
+			}
+
+			scaledObject := &unstructured.Unstructured{}
+			scaledObject.SetGroupVersionKind(schema.GroupVersionKind{
+				Group:   "keda.sh",
+				Version: "v1alpha1",
+				Kind:    "ScaledObject",
+			})
+			scaledObject.SetName("test-scaledobject-1")
+			scaledObject.SetNamespace(namespace)
+
+			scaledObject2 := &unstructured.Unstructured{}
+			scaledObject2.SetAnnotations(map[string]string{
+				"some": "field",
+			})
+			scaledObject2.SetGroupVersionKind(schema.GroupVersionKind{
+				Group:   "keda.sh",
+				Version: "v1alpha1",
+				Kind:    "ScaledObject",
+			})
+			scaledObject2.SetName("test-scaledobject-2")
+			scaledObject2.SetNamespace(namespace)
+
+			fakeClient := testutil.PossiblyErroringFakeCtrlRuntimeClient{
+				Client: getFakeClient().
+					WithRuntimeObjects(
+						scaledObject,
+						scaledObject2,
+					).
+					Build(),
+			}
+
+			ctx := context.Background()
+			res := getNewResource(t, fakeClient, sleepInfo, namespace)
+
+			originalScaledObject, err := res.resMapping["ScaledObject"].getListByNamespace(ctx, namespace, scaledObjectPatchData.Target)
+			require.NoError(t, err)
+
+			t.Run("sleep", func(t *testing.T) {
+				require.NoError(t, res.Sleep(ctx))
+
+				t.Run("ScaledObject", func(t *testing.T) {
+					resList, err := res.resMapping["ScaledObject"].getListByNamespace(ctx, namespace, scaledObjectPatchData.Target)
+					require.NoError(t, err)
+
+					require.Len(t, resList, 2)
+
+					v, ok, err := unstructured.NestedString(findResByName(resList, "test-scaledobject-1").Object, "metadata", "annotations", "autoscaling.keda.sh/paused-replicas")
+					require.NoError(t, err)
+					require.True(t, ok)
+					require.Equal(t, "0", v)
+					v, ok, err = unstructured.NestedString(findResByName(resList, "test-scaledobject-2").Object, "metadata", "annotations", "autoscaling.keda.sh/paused-replicas")
+					require.NoError(t, err)
+					require.True(t, ok)
+					require.Equal(t, "0", v)
+				})
+
+				t.Run("wake up", func(t *testing.T) {
+					require.NoError(t, res.WakeUp(ctx))
+
+					t.Run("ScaledObject", func(t *testing.T) {
+						resList, err := res.resMapping["ScaledObject"].getListByNamespace(ctx, namespace, scaledObjectPatchData.Target)
+						require.NoError(t, err)
+
+						require.Len(t, resList, 2)
+						requireEqualResources(t, originalScaledObject, resList)
+					})
+				})
+			})
+		})
+	})
+
+	t.Run("throws if patch is invalid", func(t *testing.T) {
+		sleepInfo := &v1alpha1.SleepInfo{
+			TypeMeta: v1.TypeMeta{
+				Kind: "SleepInfo",
+			},
+			ObjectMeta: v1.ObjectMeta{
+				Namespace: namespace,
+				Name:      "test-sleepinfo",
+			},
+			Spec: v1alpha1.SleepInfoSpec{
+				PatchesJson6902: []v1alpha1.PatchJson6902{
+					{
+						Target: v1alpha1.PatchTarget{
+							Group: "apps",
+							Kind:  "Deployment",
+						},
+						Patches: `[{"op": "wrong", "path": "/spec/replicas", "value": 0}]`,
+					},
+				},
+			},
+		}
+
+		m := getNewResource(t, getFakeClient().Build(), sleepInfo, namespace)
+		require.EqualError(t, m.Sleep(context.Background()), `jsonpatch error: invalid operation {"op":"wrong","path":"/spec/replicas","value":0}: unsupported operation`)
+	})
+
+	t.Run("throws if resource group not in cluster", func(t *testing.T) {
+		sleepInfo := &v1alpha1.SleepInfo{
+			TypeMeta: v1.TypeMeta{
+				Kind: "SleepInfo",
+			},
+			ObjectMeta: v1.ObjectMeta{
+				Namespace: namespace,
+				Name:      "test-sleepinfo",
+			},
+			Spec: v1alpha1.SleepInfoSpec{
+				PatchesJson6902: []v1alpha1.PatchJson6902{
+					{
+						Target: v1alpha1.PatchTarget{
+							Group: "not-existing-group",
+							Kind:  "something",
+						},
+						Patches: `[]`,
+					},
+				},
+			},
+		}
+		res := getNewResource(t, getFakeClient().Build(), sleepInfo, namespace)
+
+		err := res.Sleep(context.Background())
+		require.EqualError(t, err, fmt.Sprintf(`%s: no matches for kind "something" in group "not-existing-group"`, ErrListResources))
+	})
+
+	t.Run("throws if patch not exists", func(t *testing.T) {
+		sleepInfo := &v1alpha1.SleepInfo{
+			TypeMeta: v1.TypeMeta{
+				Kind: "SleepInfo",
+			},
+			ObjectMeta: v1.ObjectMeta{
+				Namespace: namespace,
+				Name:      "test-sleepinfo",
+			},
+			Spec: v1alpha1.SleepInfoSpec{
+				PatchesJson6902: []v1alpha1.PatchJson6902{
+					{
+						Target: v1alpha1.PatchTarget{
+							Group: "apps",
+							Kind:  "Deployment",
+						},
+					},
+				},
+			},
+		}
+		res := getNewResource(t, getFakeClient().Build(), sleepInfo, namespace)
+		err := res.Sleep(context.Background())
+		require.EqualError(t, err, fmt.Sprintf(`%s: invalid empty patch`, ErrJSONPatch))
+	})
 }
 
 func getFakeClient() *fake.ClientBuilder {
 	groupVersion := []schema.GroupVersion{
 		{Group: "apps", Version: "v1"},
 		{Group: "batch", Version: "v1"},
+		{Group: "keda.sh", Version: "v1alpha1"},
 	}
 	restMapper := meta.NewDefaultRESTMapper(groupVersion)
 	restMapper.Add(schema.GroupVersionKind{
@@ -195,6 +360,11 @@ func getFakeClient() *fake.ClientBuilder {
 		Group:   "batch",
 		Version: "v1",
 		Kind:    "CronJob",
+	}, meta.RESTScopeNamespace)
+	restMapper.Add(schema.GroupVersionKind{
+		Group:   "keda.sh",
+		Version: "v1alpha1",
+		Kind:    "ScaledObject",
 	}, meta.RESTScopeNamespace)
 
 	return fake.
@@ -229,4 +399,21 @@ func requireEqualResources(t *testing.T, expectedList, actualList []unstructured
 
 		require.Equal(t, expected, *actual)
 	}
+}
+
+func getNewResource(t *testing.T, client client.Client, sleepInfo *v1alpha1.SleepInfo, namespace string) managedResources {
+	nullogger := &bytes.Buffer{}
+	testLogger := zap.New(zap.WriteTo(nullogger))
+	t.Helper()
+
+	resource, err := NewResources(context.Background(), resource.ResourceClient{
+		Client:    client,
+		Log:       testLogger,
+		SleepInfo: sleepInfo,
+	}, namespace)
+	require.NoError(t, err)
+
+	generic, ok := resource.(managedResources)
+	require.True(t, ok)
+	return generic
 }
