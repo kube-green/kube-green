@@ -92,7 +92,7 @@ func (g managedResources) Sleep(ctx context.Context) error {
 				return fmt.Errorf("%w: %s", ErrJSONPatch, err)
 			}
 
-			modified, err := patcherFn.Exec(original)
+			modified, err := patcherFn.exec(original)
 			if err != nil {
 				g.logger.Error(err, "fails to apply patch",
 					"resourceName", resource.GetName(),
@@ -140,18 +140,16 @@ func (g managedResources) WakeUp(ctx context.Context) error {
 				return fmt.Errorf("%w: %s", ErrJSONPatch, err)
 			}
 
-			modified, err := patcherFn.Exec(current)
+			isResourceChanged, err := patcherFn.isResourceChanged(current)
 			if err != nil {
-				g.logger.Error(err, "fails to apply patch",
+				g.logger.Error(err, "fails to calculate if resource is changed",
 					"resourceName", resource.GetName(),
 					"resourceKind", resource.GetKind(),
 					"patch", resourceWrapper.patchData.Patches,
 				)
 				continue
 			}
-
-			if !jsonpatch.Equal(current, modified) {
-				// This means that the resource is modified
+			if isResourceChanged {
 				g.logger.Info("resource modified between sleep and wake up, skip wake up",
 					"resourceName", resource.GetName(),
 					"resourceKind", resource.GetKind(),
@@ -248,11 +246,20 @@ type patcher struct {
 	jsonpatch.Patch
 }
 
-func (p patcher) Exec(original []byte) ([]byte, error) {
+func (p patcher) exec(original []byte) ([]byte, error) {
 	return p.ApplyWithOptions(original, &jsonpatch.ApplyOptions{
 		EnsurePathExistsOnAdd:    true,
 		AllowMissingPathOnRemove: true,
 	})
+}
+
+func (p patcher) isResourceChanged(original []byte) (bool, error) {
+	modified, err := p.exec(original)
+	if err != nil {
+		return false, err
+	}
+
+	return !jsonpatch.Equal(original, modified), nil
 }
 
 func createPatch(patchToApply []byte) (*patcher, error) {
