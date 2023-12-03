@@ -69,8 +69,8 @@ spec:
                     target:
                       description: Target is the target resource to patch.
                       properties:
-                        apiVersion:
-                          description: Version of the Kubernetes resources.
+                        group:
+                          description: Group of the Kubernetes resources.
                           type: string
                         kind:
                           description: Kind of the Kubernetes resources.

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	kubegreenv1alpha1 "github.com/kube-green/kube-green/api/v1alpha1"
+	"github.com/kube-green/kube-green/controllers/sleepinfo/jsonpatch"
 	"github.com/kube-green/kube-green/controllers/sleepinfo/metrics"
 	"github.com/kube-green/kube-green/controllers/sleepinfo/resource"
 
@@ -30,6 +31,7 @@ const (
 	lastOperationKey              = "operation-type"
 	replicasBeforeSleepKey        = "deployment-replicas"
 	originalCronjobStatusKey      = "cronjobs-info"
+	originalJSONPatchDataKey      = "original-resource-info"
 	replicasBeforeSleepAnnotation = "sleepinfo.kube-green.com/replicas-before-sleep"
 
 	sleepOperation  = "SLEEP"
@@ -256,8 +258,7 @@ type SleepInfoData struct {
 	CurrentOperationSchedule    string
 	NextOperationSchedule       string
 	OriginalCronJobStatus       map[string]bool
-	// TODO: save original information in secret
-	// OriginalGenericResourceInfo map[string][]byte
+	OriginalGenericResourceInfo map[string]jsonpatch.RestorePatches
 }
 
 func (s SleepInfoData) IsWakeUpOperation() bool {

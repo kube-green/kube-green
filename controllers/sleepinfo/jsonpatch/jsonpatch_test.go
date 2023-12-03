@@ -470,6 +470,50 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 		})
 	})
 
+	t.Run("full lifecycle - no resources set to patch", func(t *testing.T) {
+		sleepInfo := &v1alpha1.SleepInfo{
+			TypeMeta: v1.TypeMeta{
+				Kind: "SleepInfo",
+			},
+			ObjectMeta: v1.ObjectMeta{
+				Namespace: namespace,
+				Name:      "test-sleepinfo",
+			},
+			Spec: v1alpha1.SleepInfoSpec{
+				PatchesJson6902: []v1alpha1.PatchJson6902{},
+			},
+		}
+
+		fakeClient := testutil.PossiblyErroringFakeCtrlRuntimeClient{
+			Client: getFakeClient().
+				Build(),
+		}
+
+		ctx := context.Background()
+		res := getNewResource(t, fakeClient, sleepInfo, namespace)
+
+		t.Run("check that there are resources", func(t *testing.T) {
+			require.False(t, res.HasResource())
+		})
+
+		t.Run("sleep", func(t *testing.T) {
+			require.NoError(t, res.Sleep(ctx))
+
+			t.Run("GetOriginalInfoToSave", func(t *testing.T) {
+				originalInfo, err := res.GetOriginalInfoToSave()
+				require.NoError(t, err)
+				fmt.Printf("originalInfo: %s\n", originalInfo)
+				require.Nil(t, originalInfo)
+
+				t.Run("GetOriginalInfoToRestore", func(t *testing.T) {
+					patches, err := GetOriginalInfoToRestore(originalInfo)
+					require.NoError(t, err)
+					require.Nil(t, patches)
+				})
+			})
+		})
+	})
+
 	t.Run("throws if patch is invalid", func(t *testing.T) {
 		sleepInfo := &v1alpha1.SleepInfo{
 			TypeMeta: v1.TypeMeta{

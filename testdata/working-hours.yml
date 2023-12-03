@@ -13,17 +13,25 @@ spec:
         group: apps
         kind: Deployment
         # labelSelector: "env=dev"
-        patches: |-
-          - path: /spec/replicas
-            op: replace
-            value: 0
+      patches: |-
+        - path: /spec/replicas
+          op: replace
+          value: 0
     - target:
         group: batch
         kind: CronJob
-        patches: |-
-          - path: /spec/suspend
-            op: replace
-            value: true
+      patches: |-
+        - path: /spec/suspend
+          op: replace
+          value: true
+  # disableDefaultPatches: true
+  # defaultPatches:
+  # - group: apps
+  #   kind: Deployment
+  #   enabled: true
+  # - group: batch
+  #   kind: CronJob
+  #   enabled: false
   excludeRef:
     - apiVersion: "apps/v1"
       kind:       Deployment
