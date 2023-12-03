@@ -149,10 +149,7 @@ func TestNewResources(t *testing.T) {
 			Client: testutil.PossiblyErroringFakeCtrlRuntimeClient{
 				Client: mocks.FakeClient().Build(),
 				ShouldError: func(method testutil.Method, obj runtime.Object) bool {
-					if obj.GetObjectKind().GroupVersionKind().Kind == "StatefulSet" {
-						return true
-					}
-					return false
+					return obj.GetObjectKind().GroupVersionKind().Kind == "StatefulSet"
 				},
 			},
 			Log: zap.New(zap.UseDevMode(true)),
