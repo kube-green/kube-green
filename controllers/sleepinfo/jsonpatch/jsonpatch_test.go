@@ -44,14 +44,22 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 			Group: "apps",
 			Kind:  "Deployment",
 		},
-		Patches: `[{"op": "add", "path": "/spec/replicas", "value": 0}]`,
+		Patches: `
+- op: add
+  path: /spec/replicas
+  value: 0
+`,
 	}
 	cronPatchData := v1alpha1.PatchJson6902{
 		Target: v1alpha1.PatchTarget{
 			Group: "batch",
 			Kind:  "CronJob",
 		},
-		Patches: `[{"op": "add", "path": "/spec/suspend", "value": true}]`,
+		Patches: `
+- op: add
+  path: /spec/suspend
+  value: true
+`,
 	}
 
 	t.Run("full lifecycle - deployment and cronjob", func(t *testing.T) {
@@ -207,7 +215,11 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 				Group: "keda.sh",
 				Kind:  "ScaledObject",
 			},
-			Patches: `[{"op": "add", "path": "/metadata/annotations/autoscaling.keda.sh~1paused-replicas", "value": "0"}]`,
+			Patches: `
+- op: add
+  path: /metadata/annotations/autoscaling.keda.sh~1paused-replicas
+  value: "0"
+`,
 		}
 		sleepInfo := &v1alpha1.SleepInfo{
 			TypeMeta: v1.TypeMeta{
@@ -530,7 +542,11 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 							Group: "apps",
 							Kind:  "Deployment",
 						},
-						Patches: `[{"op": "wrong", "path": "/spec/replicas", "value": 0}]`,
+						Patches: `
+- op: wrong
+  path: /spec/replicas
+  value: 0
+`,
 					},
 				},
 			},

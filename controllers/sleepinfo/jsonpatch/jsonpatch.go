@@ -13,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/yaml"
 )
 
 var (
@@ -318,7 +319,12 @@ func (p patcher) isResourceChanged(original []byte) (bool, error) {
 }
 
 func createPatch(patchToApply []byte) (*patcher, error) {
-	patch, err := jsonpatch.DecodePatch(patchToApply)
+	jsonPatchToApply, err := yaml.YAMLToJSON(patchToApply)
+	if err != nil {
+		return nil, err
+	}
+
+	patch, err := jsonpatch.DecodePatch(jsonPatchToApply)
 	if err != nil {
 		return nil, err
 	}
