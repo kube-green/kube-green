@@ -1,0 +1,24 @@
+apiVersion: kube-green.com/v1alpha1
+kind: SleepInfo
+metadata:
+  name: working-hours
+spec:
+  weekdays: "*"
+  sleepAt: "20:00"
+  wakeUpAt: "08:00"
+  suspendCronJobs: true
+  patches:
+    - target:
+        group: apps
+        kind: StatefulSet
+      patch: |-
+        - path: /spec/replicas
+          op: add
+          value: 0
+    - target:
+        group: apps
+        kind: ReplicaSet
+      patch: |-
+        - path: /spec/replicas
+          op: add
+          value: 0
