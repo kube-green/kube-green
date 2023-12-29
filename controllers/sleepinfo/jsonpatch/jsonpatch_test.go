@@ -39,23 +39,23 @@ func TestNewResources(t *testing.T) {
 
 func TestUpdateResourcesJSONPatch(t *testing.T) {
 	namespace := "test"
-	deployPatchData := v1alpha1.PatchJson6902{
+	deployPatchData := v1alpha1.Patches{
 		Target: v1alpha1.PatchTarget{
 			Group: "apps",
 			Kind:  "Deployment",
 		},
-		Patches: `
+		Patch: `
 - op: add
   path: /spec/replicas
   value: 0
 `,
 	}
-	cronPatchData := v1alpha1.PatchJson6902{
+	cronPatchData := v1alpha1.Patches{
 		Target: v1alpha1.PatchTarget{
 			Group: "batch",
 			Kind:  "CronJob",
 		},
-		Patches: `
+		Patch: `
 - op: add
   path: /spec/suspend
   value: true
@@ -72,7 +72,7 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 				Name:      "test-sleepinfo",
 			},
 			Spec: v1alpha1.SleepInfoSpec{
-				PatchesJson6902: []v1alpha1.PatchJson6902{
+				Patches: []v1alpha1.Patches{
 					deployPatchData,
 					cronPatchData,
 				},
@@ -210,12 +210,12 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 	})
 
 	t.Run("full lifecycle - keda ScaledObject", func(t *testing.T) {
-		scaledObjectPatchData := v1alpha1.PatchJson6902{
+		scaledObjectPatchData := v1alpha1.Patches{
 			Target: v1alpha1.PatchTarget{
 				Group: "keda.sh",
 				Kind:  "ScaledObject",
 			},
-			Patches: `
+			Patch: `
 - op: add
   path: /metadata/annotations/autoscaling.keda.sh~1paused-replicas
   value: "0"
@@ -230,7 +230,7 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 				Name:      "test-sleepinfo",
 			},
 			Spec: v1alpha1.SleepInfoSpec{
-				PatchesJson6902: []v1alpha1.PatchJson6902{
+				Patches: []v1alpha1.Patches{
 					scaledObjectPatchData,
 				},
 			},
@@ -317,7 +317,7 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 				Name:      "test-sleepinfo",
 			},
 			Spec: v1alpha1.SleepInfoSpec{
-				PatchesJson6902: []v1alpha1.PatchJson6902{
+				Patches: []v1alpha1.Patches{
 					deployPatchData,
 				},
 			},
@@ -405,7 +405,7 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 				Name:      "test-sleepinfo",
 			},
 			Spec: v1alpha1.SleepInfoSpec{
-				PatchesJson6902: []v1alpha1.PatchJson6902{
+				Patches: []v1alpha1.Patches{
 					deployPatchData,
 				},
 			},
@@ -492,7 +492,7 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 				Name:      "test-sleepinfo",
 			},
 			Spec: v1alpha1.SleepInfoSpec{
-				PatchesJson6902: []v1alpha1.PatchJson6902{},
+				Patches: []v1alpha1.Patches{},
 			},
 		}
 
@@ -536,13 +536,13 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 				Name:      "test-sleepinfo",
 			},
 			Spec: v1alpha1.SleepInfoSpec{
-				PatchesJson6902: []v1alpha1.PatchJson6902{
+				Patches: []v1alpha1.Patches{
 					{
 						Target: v1alpha1.PatchTarget{
 							Group: "apps",
 							Kind:  "Deployment",
 						},
-						Patches: `
+						Patch: `
 - op: wrong
   path: /spec/replicas
   value: 0
@@ -568,13 +568,13 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 				Name:      "test-sleepinfo",
 			},
 			Spec: v1alpha1.SleepInfoSpec{
-				PatchesJson6902: []v1alpha1.PatchJson6902{
+				Patches: []v1alpha1.Patches{
 					{
 						Target: v1alpha1.PatchTarget{
 							Group: "not-existing-group",
 							Kind:  "something",
 						},
-						Patches: `[]`,
+						Patch: `[]`,
 					},
 				},
 			},
@@ -598,7 +598,7 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 				Name:      "test-sleepinfo",
 			},
 			Spec: v1alpha1.SleepInfoSpec{
-				PatchesJson6902: []v1alpha1.PatchJson6902{
+				Patches: []v1alpha1.Patches{
 					{
 						Target: v1alpha1.PatchTarget{
 							Group: "apps",
@@ -623,7 +623,7 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 				Name:      "test-sleepinfo",
 			},
 			Spec: v1alpha1.SleepInfoSpec{
-				PatchesJson6902: []v1alpha1.PatchJson6902{
+				Patches: []v1alpha1.Patches{
 					deployPatchData,
 				},
 			},

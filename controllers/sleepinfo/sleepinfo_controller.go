@@ -169,13 +169,6 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		}, nil
 	}
 
-	if err = r.upsertSecret(ctx, log, now, secretName, req.Namespace, sleepInfo, secret, sleepInfoData, resources); err != nil {
-		logSecret.Error(err, "fails to update secret")
-		return ctrl.Result{
-			Requeue: true,
-		}, nil
-	}
-
 	switch {
 	case sleepInfoData.IsSleepOperation():
 		if err := resources.sleep(ctx); err != nil {
@@ -193,6 +186,13 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		}
 	default:
 		return ctrl.Result{}, fmt.Errorf("operation %s not supported", sleepInfoData.CurrentOperationType)
+	}
+
+	if err = r.upsertSecret(ctx, log, now, secretName, req.Namespace, sleepInfo, secret, sleepInfoData, resources); err != nil {
+		logSecret.Error(err, "fails to update secret")
+		return ctrl.Result{
+			Requeue: true,
+		}, nil
 	}
 
 	return ctrl.Result{

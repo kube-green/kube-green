@@ -68,16 +68,16 @@ type SleepInfoSpec struct {
 	// PatchesJson6902 is a list of json6902 patches to apply to the target resources.
 	// +optional
 	//+operator-sdk:csv:customresourcedefinitions:type=spec
-	PatchesJson6902 []PatchJson6902 `json:"patchesJson6902,omitempty"`
+	Patches []Patches `json:"patches,omitempty"`
 }
 
-type PatchJson6902 struct {
+type Patches struct {
 	// Target is the target resource to patch.
 	//+operator-sdk:csv:customresourcedefinitions:type=spec
 	Target PatchTarget `json:"target"`
-	// Patches is the json6902 patch to apply to the target resource.
+	// Patch is the json6902 patch to apply to the target resource.
 	//+operator-sdk:csv:customresourcedefinitions:type=spec
-	Patches string `json:"patches"`
+	Patch string `json:"patch"`
 }
 
 type PatchTarget struct {
@@ -167,8 +167,8 @@ func (s SleepInfo) IsDeploymentsToSuspend() bool {
 	return *s.Spec.SuspendDeployments
 }
 
-func (s SleepInfo) GetPatchesJson6902() []PatchJson6902 {
-	return s.Spec.PatchesJson6902
+func (s SleepInfo) GetPatches() []Patches {
+	return s.Spec.Patches
 }
 
 //+kubebuilder:object:root=true

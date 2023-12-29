@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/kube-green/kube-green/api/v1alpha1"
 	kubegreenv1alpha1 "github.com/kube-green/kube-green/api/v1alpha1"
 	"github.com/kube-green/kube-green/controllers/sleepinfo/cronjobs"
 	"github.com/kube-green/kube-green/controllers/sleepinfo/deployments"
@@ -28,12 +29,14 @@ import (
 )
 
 type setupOptions struct {
-	insertCronjobs bool
+	insertCronjobs  bool
+	customResources []unstructured.Unstructured
 }
 
 type originalResources struct {
-	deploymentList []appsv1.Deployment
-	cronjobList    []unstructured.Unstructured
+	deploymentList      []appsv1.Deployment
+	cronjobList         []unstructured.Unstructured
+	genericResourcesMap resourceMap
 
 	sleepInfo kubegreenv1alpha1.SleepInfo
 }
@@ -72,6 +75,11 @@ func setupNamespaceWithResources(t *testing.T, ctx context.Context, cfg *envconf
 		originalCronJobs = upsertCronJobs(t, ctx, cfg, false)
 	}
 
+	r := resourceMap{}
+	if len(opts.customResources) > 0 {
+		r = r.upsert(t, ctx, cfg, opts.customResources)
+	}
+
 	req := reconcile.Request{
 		NamespacedName: types.NamespacedName{
 			Name:      sleepInfoToCreate.GetName(),
@@ -99,8 +107,9 @@ func setupNamespaceWithResources(t *testing.T, ctx context.Context, cfg *envconf
 	})
 
 	return req, originalResources{
-		deploymentList: originalDeployments,
-		cronjobList:    originalCronJobs,
+		deploymentList:      originalDeployments,
+		cronjobList:         originalCronJobs,
+		genericResourcesMap: r,
 
 		sleepInfo: sleepInfo,
 	}
@@ -320,6 +329,81 @@ func getCronJobList(t *testing.T, ctx context.Context, c *envconf.Config) []unst
 	return u.Items
 }
 
+type resourceList struct {
+	data []unstructured.Unstructured
+}
+type resourceMap map[string]resourceList
+
+func getGenericResourcesMap(t *testing.T, ctx context.Context, c *envconf.Config, patches []v1alpha1.Patches) resourceMap {
+	k8sClient := c.Client().Resources(c.Namespace()).GetControllerRuntimeClient()
+
+	m := resourceMap{}
+
+	for _, patch := range patches {
+		restMapping, err := k8sClient.RESTMapper().RESTMapping(schema.GroupKind{
+			Group: patch.Target.Group,
+			Kind:  patch.Target.Kind,
+		})
+		require.NoError(t, err)
+
+		u := unstructured.UnstructuredList{}
+		u.SetGroupVersionKind(restMapping.GroupVersionKind)
+
+		err = k8sClient.List(ctx, &u, &client.ListOptions{
+			Namespace: c.Namespace(),
+		})
+		require.NoError(t, err)
+
+		m[m.key(restMapping.GroupVersionKind)] = resourceList{
+			data: u.Items,
+		}
+	}
+
+	return m
+}
+
+func (r resourceMap) upsert(t *testing.T, ctx context.Context, c *envconf.Config, resources []unstructured.Unstructured) resourceMap {
+	k8sClient := c.Client().Resources(c.Namespace()).GetControllerRuntimeClient()
+
+	for _, resource := range resources {
+		resource := resource
+		gvk := resource.GetObjectKind().GroupVersionKind()
+
+		if obj := findResourceByName(r.getResourceList(gvk), resource.GetName()); obj != nil {
+			patch := client.MergeFrom(obj)
+			if err := k8sClient.Patch(ctx, &resource, patch); err != nil {
+				require.NoError(t, err)
+			}
+		} else {
+			require.NoError(t, k8sClient.Create(ctx, &resource))
+		}
+
+		r[r.key(gvk)] = resourceList{
+			data: append(r.getResourceList(gvk), resource),
+		}
+
+		err := wait.For(conditions.New(c.Client().Resources(c.Namespace())).ResourceMatch(resource.DeepCopy(), func(object k8s.Object) bool {
+			actualObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(object)
+			require.NoError(t, err)
+			return resource.GetResourceVersion() == actualObj["metadata"].(map[string]interface{})["resourceVersion"]
+		}), wait.WithTimeout(time.Second*10), wait.WithInterval(time.Millisecond*250))
+		require.NoError(t, err)
+	}
+
+	return r
+}
+
+func (r resourceMap) key(gvk schema.GroupVersionKind) string {
+	return gvk.String()
+}
+
+func (r resourceMap) getResourceList(gvk schema.GroupVersionKind) []unstructured.Unstructured {
+	if r[r.key(gvk)].data == nil {
+		return []unstructured.Unstructured{}
+	}
+	return r[r.key(gvk)].data
+}
+
 func parseTime(t *testing.T, mockNowRaw string) time.Time {
 	t.Helper()
 
@@ -415,6 +499,15 @@ func findResourceByName(resources []unstructured.Unstructured, nameToFind string
 	for _, resource := range resources {
 		if resource.GetName() == nameToFind {
 			return resource.DeepCopy()
+		}
+	}
+	return nil
+}
+
+func findPatchByTarget(patches []v1alpha1.Patches, target schema.GroupVersionKind) []byte {
+	for _, patch := range patches {
+		if patch.Target.Group == target.Group && patch.Target.Kind == target.Kind {
+			return []byte(patch.Patch)
 		}
 	}
 	return nil

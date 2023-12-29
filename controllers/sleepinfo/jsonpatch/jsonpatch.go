@@ -13,7 +13,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/yaml"
 )
 
 var (
@@ -29,7 +28,7 @@ type managedResources struct {
 
 type genericResource struct {
 	resource.ResourceClient
-	patchData      v1alpha1.PatchJson6902
+	patchData      v1alpha1.Patches
 	restorePatches RestorePatches
 	data           []unstructured.Unstructured
 	// FIXME:
@@ -47,6 +46,7 @@ func getTargetKey(target v1alpha1.PatchTarget) string {
 	return fmt.Sprintf("%s-%s", target.Group, target.Kind)
 }
 
+// TODO: give some check on ownerReferences. Maybe does not change if kind already managed by kube-green?
 func NewResources(ctx context.Context, res resource.ResourceClient, namespace string, restorePatches map[string]RestorePatches) (resource.Resource, error) {
 	if res.SleepInfo == nil {
 		return nil, fmt.Errorf("%w: sleepInfo is not provided", ErrJSONPatch)
@@ -60,7 +60,7 @@ func NewResources(ctx context.Context, res resource.ResourceClient, namespace st
 		restorePatches = map[string]RestorePatches{}
 	}
 
-	for _, patchData := range res.SleepInfo.GetPatchesJson6902() {
+	for _, patchData := range res.SleepInfo.GetPatches() {
 		restorePatch, ok := restorePatches[getTargetKey(patchData.Target)]
 		if !ok {
 			restorePatch = RestorePatches{}
@@ -95,11 +95,11 @@ func (g managedResources) HasResource() bool {
 
 func (g managedResources) Sleep(ctx context.Context) error {
 	for _, resourceWrapper := range g.resMapping {
-		if resourceWrapper.patchData.Patches == "" {
+		if resourceWrapper.patchData.Patch == "" {
 			return fmt.Errorf(`%w: invalid empty patch`, ErrJSONPatch)
 		}
 
-		patcherFn, err := createPatch([]byte(resourceWrapper.patchData.Patches))
+		patcherFn, err := CreatePatch([]byte(resourceWrapper.patchData.Patch))
 		if err != nil {
 			return fmt.Errorf("%w: %s", ErrJSONPatch, err)
 		}
@@ -121,12 +121,12 @@ func (g managedResources) Sleep(ctx context.Context) error {
 				return fmt.Errorf("%w: %s", ErrJSONPatch, err)
 			}
 
-			modified, err := patcherFn.exec(original)
+			modified, err := patcherFn.Exec(original)
 			if err != nil {
 				g.logger.Error(err, "fails to apply patch",
 					"resourceName", resource.GetName(),
 					"resourceKind", resource.GetKind(),
-					"patch", resourceWrapper.patchData.Patches,
+					"patch", resourceWrapper.patchData.Patch,
 				)
 				continue
 			}
@@ -162,7 +162,7 @@ func (g managedResources) WakeUp(ctx context.Context) error {
 			}
 		}
 
-		patcherFn, err := createPatch([]byte(resourceWrapper.patchData.Patches))
+		patcherFn, err := CreatePatch([]byte(resourceWrapper.patchData.Patch))
 		if err != nil {
 			return fmt.Errorf("%w: %s", ErrJSONPatch, err)
 		}
@@ -173,12 +173,12 @@ func (g managedResources) WakeUp(ctx context.Context) error {
 				return fmt.Errorf("%w: %s", ErrJSONPatch, err)
 			}
 
-			isResourceChanged, err := patcherFn.isResourceChanged(current)
+			isResourceChanged, err := patcherFn.IsResourceChanged(current)
 			if err != nil {
 				g.logger.Error(err, "fails to calculate if resource is changed",
 					"resourceName", resource.GetName(),
 					"resourceKind", resource.GetKind(),
-					"patch", resourceWrapper.patchData.Patches,
+					"patch", resourceWrapper.patchData.Patch,
 				)
 				continue
 			}
@@ -186,7 +186,7 @@ func (g managedResources) WakeUp(ctx context.Context) error {
 				g.logger.Info("resource modified between sleep and wake up, skip wake up",
 					"resourceName", resource.GetName(),
 					"resourceKind", resource.GetKind(),
-					"patch", resourceWrapper.patchData.Patches,
+					"patch", resourceWrapper.patchData.Patch,
 				)
 				continue
 			}
@@ -267,6 +267,8 @@ func (c genericResource) getListByNamespace(ctx context.Context, namespace strin
 	// 	listOptions.LabelSelector = labelSelector
 	// }
 
+	// TODO: manage optional version. So it will be possible to manage also multiple
+	// version of the same resource
 	restMapping, err := c.Client.RESTMapper().RESTMapping(schema.GroupKind{
 		Group: patchTarget.Group,
 		Kind:  patchTarget.Kind,
@@ -296,40 +298,4 @@ func GetOriginalInfoToRestore(data []byte) (map[string]RestorePatches, error) {
 	}
 
 	return resourcePatches, nil
-}
-
-type patcher struct {
-	jsonpatch.Patch
-}
-
-func (p patcher) exec(original []byte) ([]byte, error) {
-	return p.ApplyWithOptions(original, &jsonpatch.ApplyOptions{
-		EnsurePathExistsOnAdd:    true,
-		AllowMissingPathOnRemove: true,
-	})
-}
-
-func (p patcher) isResourceChanged(original []byte) (bool, error) {
-	modified, err := p.exec(original)
-	if err != nil {
-		return false, err
-	}
-
-	return !jsonpatch.Equal(original, modified), nil
-}
-
-func createPatch(patchToApply []byte) (*patcher, error) {
-	jsonPatchToApply, err := yaml.YAMLToJSON(patchToApply)
-	if err != nil {
-		return nil, err
-	}
-
-	patch, err := jsonpatch.DecodePatch(jsonPatchToApply)
-	if err != nil {
-		return nil, err
-	}
-
-	return &patcher{
-		Patch: patch,
-	}, nil
 }

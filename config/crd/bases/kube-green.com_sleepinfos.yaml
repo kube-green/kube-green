@@ -57,13 +57,13 @@ spec:
                       type: string
                   type: object
                 type: array
-              patchesJson6902:
+              patches:
                 description: PatchesJson6902 is a list of json6902 patches to apply
                   to the target resources.
                 items:
                   properties:
-                    patches:
-                      description: Patches is the json6902 patch to apply to the target
+                    patch:
+                      description: Patch is the json6902 patch to apply to the target
                         resource.
                       type: string
                     target:
@@ -82,7 +82,7 @@ spec:
                           type: object
                       type: object
                   required:
-                  - patches
+                  - patch
                   - target
                   type: object
                 type: array

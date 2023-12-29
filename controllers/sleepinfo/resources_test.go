@@ -33,17 +33,17 @@ func TestNewResources(t *testing.T) {
 		Replicas:  &replica1,
 		Namespace: namespace,
 	})
-	statefulSet := mocks.StatefulSet(mocks.MockSpec{
+	statefulSet := mocks.StatefulSet(mocks.StatefulSetOptions{
 		Name:      "statefulset",
 		Replicas:  &replica1,
 		Namespace: namespace,
-	})
-	statefulSetPatch := v1alpha1.PatchJson6902{
+	}).Resource()
+	statefulSetPatch := v1alpha1.Patches{
 		Target: v1alpha1.PatchTarget{
 			Kind:  "StatefulSet",
 			Group: "apps",
 		},
-		Patches: `[{"op": "add", "path": "/spec/replicas", "value": 0}]`,
+		Patch: `[{"op": "add", "path": "/spec/replicas", "value": 0}]`,
 	}
 
 	t.Run("errors if client is not valid", func(t *testing.T) {
@@ -89,7 +89,7 @@ func TestNewResources(t *testing.T) {
 			Log:    zap.New(zap.UseDevMode(true)),
 			SleepInfo: &v1alpha1.SleepInfo{
 				Spec: v1alpha1.SleepInfoSpec{
-					PatchesJson6902: []v1alpha1.PatchJson6902{
+					Patches: []v1alpha1.Patches{
 						statefulSetPatch,
 					},
 				},
@@ -155,7 +155,7 @@ func TestNewResources(t *testing.T) {
 			Log: zap.New(zap.UseDevMode(true)),
 			SleepInfo: &v1alpha1.SleepInfo{
 				Spec: v1alpha1.SleepInfoSpec{
-					PatchesJson6902: []v1alpha1.PatchJson6902{
+					Patches: []v1alpha1.Patches{
 						statefulSetPatch,
 					},
 				},

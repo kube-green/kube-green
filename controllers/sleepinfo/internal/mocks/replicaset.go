@@ -6,7 +6,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type StatefulSetOptions struct {
+type ReplicaSetSetOptions struct {
 	Namespace       string
 	Name            string
 	Labels          map[string]string
@@ -16,15 +16,15 @@ type StatefulSetOptions struct {
 	MatchLabels     map[string]string
 }
 
-func StatefulSet(opts StatefulSetOptions) ResourceMock[appsv1.StatefulSet] {
+func ReplicaSet(opts ReplicaSetSetOptions) ResourceMock[appsv1.ReplicaSet] {
 	matchLabels := opts.MatchLabels
 	if matchLabels == nil {
 		opts.MatchLabels = map[string]string{
 			"app": opts.Name,
 		}
 	}
-	return ResourceMock[appsv1.StatefulSet]{
-		resource: appsv1.StatefulSet{
+	return ResourceMock[appsv1.ReplicaSet]{
+		resource: appsv1.ReplicaSet{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       "StatefulSet",
 				APIVersion: "apps/v1",
@@ -36,7 +36,7 @@ func StatefulSet(opts StatefulSetOptions) ResourceMock[appsv1.StatefulSet] {
 				Annotations:     opts.PodAnnotations,
 				Labels:          opts.Labels,
 			},
-			Spec: appsv1.StatefulSetSpec{
+			Spec: appsv1.ReplicaSetSpec{
 				Selector: &metav1.LabelSelector{
 					MatchLabels: opts.MatchLabels,
 				},

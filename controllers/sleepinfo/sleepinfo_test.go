@@ -11,6 +11,8 @@ import (
 	kubegreenv1alpha1 "github.com/kube-green/kube-green/api/v1alpha1"
 	"github.com/kube-green/kube-green/controllers/sleepinfo/cronjobs"
 	"github.com/kube-green/kube-green/controllers/sleepinfo/deployments"
+	"github.com/kube-green/kube-green/controllers/sleepinfo/internal/mocks"
+	"github.com/kube-green/kube-green/controllers/sleepinfo/jsonpatch"
 	"github.com/kube-green/kube-green/controllers/sleepinfo/metrics"
 
 	"github.com/go-logr/logr"
@@ -48,7 +50,7 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 
 			return ctx
 		}).
-		Assess("is requeue d if not sleep time", func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		Assess("is requeued if not sleep time", func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 			sleepInfoReconciler := getSleepInfoReconciler(t, c, testLogger, mockNow)
 
 			req := reconcile.Request{
@@ -515,6 +517,156 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 		}).
 		Feature()
 
+	withGenericResources := features.New("with generic resources").
+		Setup(func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+			sleepInfo := getDefaultSleepInfo(sleepInfoName, c.Namespace())
+			sleepInfo.Spec.Patches = []kubegreenv1alpha1.Patches{
+				{
+					Target: kubegreenv1alpha1.PatchTarget{
+						Group: "apps",
+						Kind:  "StatefulSet",
+					},
+					Patch: `
+- op: add
+  path: /spec/replicas
+  value: 0
+`,
+				},
+				{
+					Target: kubegreenv1alpha1.PatchTarget{
+						Group: "apps",
+						Kind:  "ReplicaSet",
+					},
+					Patch: `
+- path: /spec/replicas
+  op: replace
+  value: 0
+`,
+				},
+			}
+
+			ctx = withSetupOptions(ctx, setupOptions{
+				customResources: []unstructured.Unstructured{
+					mocks.StatefulSet(mocks.StatefulSetOptions{
+						Name:      "statefulset-1",
+						Replicas:  getPtr[int32](1),
+						Namespace: c.Namespace(),
+					}).Unstructured(t),
+					// mocks.ReplicaSet(mocks.ReplicaSetSetOptions{
+					// 	Name:     "replicaset-1",
+					// 	Replicas: getPtr[int32](3),
+					// }).Unstructured(t),
+				},
+			})
+			return reconciliationSetup(t, ctx, c, mockNow, sleepInfo)
+		}).
+		Assess("sleep #1", func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+			assert := getAssertOperation(t, ctx).withScheduleAndExpectedSchedule(sleepTime).nextWakeUp()
+			ctx = withAssertOperation(ctx, assert)
+			sleepInfoReconciler := nextReconciler(t, ctx)
+
+			listGenericResources := getGenericResourcesMap(t, ctx, c, assert.originalResources.sleepInfo.GetPatches())
+
+			t.Run("generic resources are correctly patched", func(t *testing.T) {
+				for _, genericResource := range listGenericResources {
+					for _, res := range genericResource.data {
+						patch := findPatchByTarget(assert.originalResources.sleepInfo.GetPatches(), res.GroupVersionKind())
+						require.NotNil(t, patch)
+						patcher, err := jsonpatch.CreatePatch(patch)
+						require.NoError(t, err)
+						new, err := json.Marshal(res.Object)
+						require.NoError(t, err)
+						output, err := patcher.Exec(new)
+						require.NoError(t, err)
+						require.Equal(t, output, new)
+					}
+				}
+			})
+
+			t.Run("secrets correctly created", func(t *testing.T) {
+				secret, err := sleepInfoReconciler.getSecret(ctx, getSecretName(assert.originalResources.sleepInfo.GetName()), c.Namespace())
+				require.NoError(t, err)
+				secretData := secret.Data
+				require.Equal(t, map[string][]byte{
+					lastScheduleKey:          []byte(parseTime(t, assert.expectedScheduleTime).Truncate(time.Second).Format(time.RFC3339)),
+					lastOperationKey:         []byte(sleepOperation),
+					replicasBeforeSleepKey:   []byte(`[{"name":"service-1","replicas":3},{"name":"service-2","replicas":1}]`),
+					originalJSONPatchDataKey: []byte(`{"apps-ReplicaSet":{},"apps-StatefulSet":{"statefulset-1":"{\"spec\":{\"replicas\":1}}"}}`),
+				}, secretData)
+			})
+
+			return ctx
+		}).
+		Assess("wake up", func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+			assert := getAssertOperation(t, ctx).withScheduleAndExpectedSchedule(wakeUpTime).nextSleep()
+			ctx = withAssertOperation(ctx, assert)
+			sleepInfoReconciler := nextReconciler(t, ctx)
+
+			listGenericResources := getGenericResourcesMap(t, ctx, c, assert.originalResources.sleepInfo.GetPatches())
+
+			t.Run("generic resources are correctly patched", func(t *testing.T) {
+				for _, genericResource := range listGenericResources {
+					for _, res := range genericResource.data {
+						originalRes := findResourceByName(assert.originalResources.genericResourcesMap.getResourceList(res.GroupVersionKind()), res.GetName())
+						require.NotNil(t, originalRes, "resource not found: %s and type %s", res.GetName(), res.GroupVersionKind().String())
+						originalSpec := originalRes.Object["spec"].(map[string]interface{})
+						spec := res.Object["spec"].(map[string]interface{})
+						require.Equal(t, originalSpec, spec)
+					}
+				}
+			})
+
+			t.Run("secrets correctly created", func(t *testing.T) {
+				secret, err := sleepInfoReconciler.getSecret(ctx, getSecretName(assert.originalResources.sleepInfo.GetName()), c.Namespace())
+				require.NoError(t, err)
+				secretData := secret.Data
+				require.Equal(t, map[string][]byte{
+					lastScheduleKey:  []byte(parseTime(t, assert.expectedScheduleTime).Truncate(time.Second).Format(time.RFC3339)),
+					lastOperationKey: []byte(wakeUpOperation),
+				}, secretData)
+			})
+
+			return ctx
+		}).
+		Assess("sleep #2", func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+			assert := getAssertOperation(t, ctx).withScheduleAndExpectedSchedule(sleepTime2).nextWakeUp()
+			ctx = withAssertOperation(ctx, assert)
+
+			sleepInfoReconciler := nextReconciler(t, ctx)
+
+			listGenericResources := getGenericResourcesMap(t, ctx, c, assert.originalResources.sleepInfo.GetPatches())
+
+			t.Run("generic resources are correctly patched", func(t *testing.T) {
+				for _, genericResource := range listGenericResources {
+					for _, res := range genericResource.data {
+						patch := findPatchByTarget(assert.originalResources.sleepInfo.GetPatches(), res.GroupVersionKind())
+						require.NotNil(t, patch)
+						patcher, err := jsonpatch.CreatePatch(patch)
+						require.NoError(t, err)
+						new, err := json.Marshal(res.Object)
+						require.NoError(t, err)
+						output, err := patcher.Exec(new)
+						require.NoError(t, err)
+						require.Equal(t, output, new)
+					}
+				}
+			})
+
+			t.Run("secrets correctly created", func(t *testing.T) {
+				secret, err := sleepInfoReconciler.getSecret(ctx, getSecretName(assert.originalResources.sleepInfo.GetName()), c.Namespace())
+				require.NoError(t, err)
+				secretData := secret.Data
+				require.Equal(t, map[string][]byte{
+					lastScheduleKey:          []byte(parseTime(t, assert.expectedScheduleTime).Truncate(time.Second).Format(time.RFC3339)),
+					lastOperationKey:         []byte(sleepOperation),
+					replicasBeforeSleepKey:   []byte(`[{"name":"service-1","replicas":3},{"name":"service-2","replicas":1}]`),
+					originalJSONPatchDataKey: []byte(`{"apps-ReplicaSet":{},"apps-StatefulSet":{"statefulset-1":"{\"spec\":{\"replicas\":1}}"}}`),
+				}, secretData)
+			})
+			return ctx
+		}).
+		Feature()
+
 	testenv.TestInParallel(t,
 		zeroDeployments,
 		notExistentResource,
@@ -529,6 +681,7 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 		newDeploymentBeforeWakeUp,
 		withDeploymentAndCronJobs,
 		deleteSleepInfo,
+		withGenericResources,
 	)
 }
 
@@ -795,8 +948,9 @@ func reconciliationSetup(t *testing.T, ctx context.Context, c *envconf.Config, m
 	testLogger := zap.New(zap.UseDevMode(true))
 
 	reconciler := getSleepInfoReconciler(t, c, testLogger, mockNow)
+	opts := getSetupOptions(t, ctx)
 
-	req, originalResources := setupNamespaceWithResources(t, ctx, c, sleepInfo, reconciler, getSetupOptions(t, ctx))
+	req, originalResources := setupNamespaceWithResources(t, ctx, c, sleepInfo, reconciler, opts)
 	assertContextInfo := AssertOperation{
 		req:                req,
 		originalResources:  originalResources,
@@ -835,19 +989,7 @@ func getSleepInfoReconciler(t *testing.T, c *envconf.Config, logger logr.Logger,
 
 func assertCorrectSleepOperation(t *testing.T, ctx context.Context, cfg *envconf.Config) {
 	assert := getAssertOperation(t, ctx)
-
-	sleepInfoReconciler := SleepInfoReconciler{
-		Clock: mockClock{
-			now: assert.scheduleTime,
-			t:   t,
-		},
-		Client:     assert.reconciler.Client,
-		Log:        assert.reconciler.Log,
-		Metrics:    assert.reconciler.Metrics,
-		SleepDelta: 60,
-	}
-	result, err := sleepInfoReconciler.Reconcile(ctx, assert.req)
-	require.NoError(t, err)
+	sleepInfoReconciler := nextReconciler(t, ctx)
 
 	t.Run("replicas are set to 0 to all deployments set to sleep", func(t *testing.T) {
 		deployments := getDeploymentList(t, ctx, cfg)
@@ -980,12 +1122,6 @@ func assertCorrectSleepOperation(t *testing.T, ctx context.Context, cfg *envconf
 		}, sleepInfo.Status)
 	})
 
-	t.Run("is requeued after correct duration to wake up", func(t *testing.T) {
-		require.Equal(t, ctrl.Result{
-			RequeueAfter: assert.expectedNextRequeue,
-		}, result)
-	})
-
 	t.Run("metrics correctly collected - quantitatively", func(*testing.T) {
 		metrics := sleepInfoReconciler.Metrics
 
@@ -1001,20 +1137,7 @@ func assertCorrectSleepOperation(t *testing.T, ctx context.Context, cfg *envconf
 
 func assertCorrectWakeUpOperation(t *testing.T, ctx context.Context, cfg *envconf.Config) {
 	assert := getAssertOperation(t, ctx)
-
-	sleepInfoReconciler := SleepInfoReconciler{
-		Clock: mockClock{
-			now: assert.scheduleTime,
-			t:   t,
-		},
-		Client:     assert.reconciler.Client,
-		Log:        assert.reconciler.Log,
-		Metrics:    assert.reconciler.Metrics,
-		SleepDelta: 60,
-	}
-
-	result, err := sleepInfoReconciler.Reconcile(ctx, assert.req)
-	require.NoError(t, err)
+	sleepInfoReconciler := nextReconciler(t, ctx)
 
 	t.Run("deployment replicas correctly waked up", func(t *testing.T) {
 		deployments := getDeploymentList(t, ctx, cfg)
@@ -1055,12 +1178,6 @@ func assertCorrectWakeUpOperation(t *testing.T, ctx context.Context, cfg *envcon
 		}, sleepInfo.Status)
 	})
 
-	t.Run("is requeued after correct duration to sleep", func(t *testing.T) {
-		require.Equal(t, ctrl.Result{
-			RequeueAfter: assert.expectedNextRequeue,
-		}, result)
-	})
-
 	t.Run("metrics correctly collected - quantitatively", func(t *testing.T) {
 		metrics := sleepInfoReconciler.Metrics
 
@@ -1068,7 +1185,29 @@ func assertCorrectWakeUpOperation(t *testing.T, ctx context.Context, cfg *envcon
 	})
 }
 
-// TODO: check all values if necessary, e.g. remove namespace
+func nextReconciler(t *testing.T, ctx context.Context) SleepInfoReconciler {
+	assert := getAssertOperation(t, ctx)
+
+	sleepInfoReconciler := SleepInfoReconciler{
+		Clock: mockClock{
+			now: assert.scheduleTime,
+			t:   t,
+		},
+		Client:     assert.reconciler.Client,
+		Log:        assert.reconciler.Log,
+		Metrics:    assert.reconciler.Metrics,
+		SleepDelta: 60,
+	}
+	result, err := sleepInfoReconciler.Reconcile(ctx, assert.req)
+	require.NoError(t, err)
+
+	require.Equal(t, ctrl.Result{
+		RequeueAfter: assert.expectedNextRequeue,
+	}, result, "requeue correctly")
+
+	return sleepInfoReconciler
+}
+
 type AssertOperation struct {
 	req        ctrl.Request
 	reconciler SleepInfoReconciler

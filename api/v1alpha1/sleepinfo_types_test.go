@@ -326,13 +326,13 @@ func TestSleepInfo(t *testing.T) {
 				Namespace: "namespace",
 			},
 			Spec: SleepInfoSpec{
-				PatchesJson6902: []PatchJson6902{
+				Patches: []Patches{
 					{
 						Target: PatchTarget{
 							Group: "apps",
 							Kind:  "Deployment",
 						},
-						Patches: `[
+						Patch: `[
 							{"op":"replace","path":"#/spec/replicas","value":0},
 						]`,
 					},
@@ -341,7 +341,7 @@ func TestSleepInfo(t *testing.T) {
 							Group: "batch",
 							Kind:  "CronJob",
 						},
-						Patches: `[
+						Patch: `[
 							{"op":"replace","path":"#/spec/suspend","value":true},
 						]`,
 					},
@@ -349,7 +349,7 @@ func TestSleepInfo(t *testing.T) {
 			},
 		}
 
-		require.NotEmpty(t, sleepInfo.GetPatchesJson6902())
+		require.NotEmpty(t, sleepInfo.GetPatches())
 	})
 }
 
