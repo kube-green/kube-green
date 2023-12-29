@@ -61,6 +61,7 @@ func NewResources(ctx context.Context, res resource.ResourceClient, namespace st
 	}
 
 	for _, patchData := range res.SleepInfo.GetPatches() {
+		res.Log.V(8).Info("patch data", "patch", patchData.Patch, "target", patchData.Target)
 		restorePatch, ok := restorePatches[getTargetKey(patchData.Target)]
 		if !ok {
 			restorePatch = RestorePatches{}
@@ -283,6 +284,8 @@ func (c genericResource) getListByNamespace(ctx context.Context, namespace strin
 	if err := c.Client.List(ctx, &resourceList, listOptions); err != nil {
 		return nil, client.IgnoreNotFound(err)
 	}
+
+	c.Log.V(8).Info("resources list", "gvk", restMapping.GroupVersionKind.String(), "length", len(resourceList.Items))
 
 	return resourceList.Items, nil
 }

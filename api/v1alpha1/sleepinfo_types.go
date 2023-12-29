@@ -89,10 +89,6 @@ type PatchTarget struct {
 	// +optional
 	//+operator-sdk:csv:customresourcedefinitions:type=spec
 	Kind string `json:"kind"`
-	// LabelSelector to select the resources to patch.
-	// +optional
-	//+operator-sdk:csv:customresourcedefinitions:type=spec
-	LabelSelector map[string]string `json:"labelSelector"`
 }
 
 // SleepInfoStatus defines the observed state of SleepInfo

@@ -139,7 +139,7 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		log.Error(err, "unable to update sleepInfo status")
 		return ctrl.Result{}, err
 	}
-	log.V(1).Info("update status info")
+	log.V(8).Info("update status info")
 
 	logSecret := log.WithValues("secret", secretName)
 	if !resources.hasResources() {

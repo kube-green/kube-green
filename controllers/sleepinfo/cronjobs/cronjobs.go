@@ -135,7 +135,7 @@ func (c cronjobs) GetOriginalInfoToSave() ([]byte, error) {
 func (c *cronjobs) fetch(ctx context.Context, namespace string) error {
 	var err error
 	c.data, err = c.getListByNamespace(ctx, namespace)
-	c.Log.V(1).WithValues("number of cron jobs", len(c.data), "namespace", namespace).Info("cron jobs in namespace")
+	c.Log.V(8).WithValues("number of cron jobs", len(c.data), "namespace", namespace).Info("cron jobs in namespace")
 	return err
 }
 
