@@ -65,7 +65,7 @@ type SleepInfoSpec struct {
 	// +optional
 	//+operator-sdk:csv:customresourcedefinitions:type=spec
 	SuspendDeployments *bool `json:"suspendDeployments,omitempty"`
-	// PatchesJson6902 is a list of json6902 patches to apply to the target resources.
+	// Patches is a list of json 6902 patches to apply to the target resources.
 	// +optional
 	//+operator-sdk:csv:customresourcedefinitions:type=spec
 	Patches []Patches `json:"patches,omitempty"`
