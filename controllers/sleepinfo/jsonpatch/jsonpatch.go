@@ -136,7 +136,15 @@ func (g managedResources) Sleep(ctx context.Context) error {
 			if err != nil {
 				return fmt.Errorf("%w: %s", ErrJSONPatch, err)
 			}
-			resourceWrapper.restorePatches[resource.GetName()] = string(restorePatch)
+			restorePatchString := string(restorePatch)
+
+			// an empty patch means that the resource is not changed, so we can skip it
+			isEmptyPatch := restorePatchString == "{}"
+			if isEmptyPatch {
+				continue
+			}
+
+			resourceWrapper.restorePatches[resource.GetName()] = restorePatchString
 
 			res := &unstructured.Unstructured{}
 			if err := json.Unmarshal(modified, &res.Object); err != nil {

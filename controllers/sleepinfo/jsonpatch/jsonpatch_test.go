@@ -166,7 +166,7 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 				require.NoError(t, err)
 				require.JSONEq(t, `{
 					"apps-Deployment": {"d2":"{\"spec\":{\"replicas\":null}}","deploy-with-replicas":"{\"spec\":{\"replicas\":3}}"},
-					"batch-CronJob": {"cron-no-suspend":"{\"spec\":{\"suspend\":null}}", "cron-suspend-false":"{\"spec\":{\"suspend\":false}}", "cron-suspend-true":"{}"}
+					"batch-CronJob": {"cron-no-suspend":"{\"spec\":{\"suspend\":null}}", "cron-suspend-false":"{\"spec\":{\"suspend\":false}}"}
 				}`, string(originalInfo))
 
 				t.Run("GetOriginalInfoToRestore", func(t *testing.T) {
@@ -180,8 +180,6 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 						"batch-CronJob": map[string]string{
 							"cron-no-suspend":    "{\"spec\":{\"suspend\":null}}",
 							"cron-suspend-false": "{\"spec\":{\"suspend\":false}}",
-							// TODO: in this case, we should avoid to save an empty object, so a not modified ones?
-							"cron-suspend-true": "{}",
 						},
 					}, patches)
 				})
@@ -204,6 +202,38 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 
 					require.Len(t, resList, 3)
 					requireEqualResources(t, originalCronJob, resList)
+				})
+
+				t.Run("sleep", func(t *testing.T) {
+					require.NoError(t, res.Sleep(ctx))
+
+					t.Run("Deployment", func(t *testing.T) {
+						resList, err := deployRes.getListByNamespace(ctx, namespace, deployPatchData.Target)
+						require.NoError(t, err)
+
+						require.Len(t, resList, 2)
+						require.Equal(t, int64(0), findResByName(resList, "deploy-with-replicas").Object["spec"].(map[string]interface{})["replicas"].(int64))
+						require.Equal(t, int64(0), findResByName(resList, "d2").Object["spec"].(map[string]interface{})["replicas"].(int64))
+					})
+
+					t.Run("CronJob", func(t *testing.T) {
+						resList, err := res.resMapping[getTargetKey(cronPatchData.Target)].getListByNamespace(ctx, namespace, cronPatchData.Target)
+						require.NoError(t, err)
+
+						require.Len(t, resList, 3)
+						suspend, ok, err := unstructured.NestedBool(findResByName(resList, "cron-suspend-false").Object, "spec", "suspend")
+						require.NoError(t, err)
+						require.True(t, ok)
+						require.True(t, suspend)
+						suspend2, ok, err := unstructured.NestedBool(findResByName(resList, "cron-suspend-true").Object, "spec", "suspend")
+						require.NoError(t, err)
+						require.True(t, ok)
+						require.True(t, suspend2)
+						suspend3, ok, err := unstructured.NestedBool(findResByName(resList, "cron-no-suspend").Object, "spec", "suspend")
+						require.NoError(t, err)
+						require.True(t, ok)
+						require.True(t, suspend3)
+					})
 				})
 			})
 		})
