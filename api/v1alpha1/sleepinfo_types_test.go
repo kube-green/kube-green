@@ -332,18 +332,22 @@ func TestSleepInfo(t *testing.T) {
 							Group: "apps",
 							Kind:  "Deployment",
 						},
-						Patch: `[
-							{"op":"replace","path":"#/spec/replicas","value":0},
-						]`,
+						Patch: `
+- op: add
+  path: /spec/replicas
+  value: 0
+`,
 					},
 					{
 						Target: PatchTarget{
 							Group: "batch",
 							Kind:  "CronJob",
 						},
-						Patch: `[
-							{"op":"replace","path":"#/spec/suspend","value":true},
-						]`,
+						Patch: `
+- op: add
+  path: /spec/suspent
+  value: true
+`,
 					},
 				},
 			},
