@@ -13,8 +13,29 @@ status:
   readyReplicas: 3
 ---
 apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: echo-service-exclude-with-label
+status:
+  readyReplicas: 1
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: do-not-sleep
+status:
+  readyReplicas: 3
+---
+apiVersion: apps/v1
 kind: ReplicaSet
 metadata:
   name: echo-service-replicaset
 status:
   readyReplicas: 2
+---
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: echo-service-exclude-with-label
+status:
+  readyReplicas: 1

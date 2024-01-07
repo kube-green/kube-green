@@ -40,6 +40,9 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 		sleepTime     = "2021-03-23T20:05:59.000Z"
 		wakeUpTime    = "2021-03-23T20:19:50.100Z"
 		sleepTime2    = "2021-03-23T21:05:00.000Z"
+
+		excludeLabelsKey   = "kube-green.dev/exclude"
+		excludeLabelsValue = "true"
 	)
 	testLogger := zap.New(zap.UseDevMode(true))
 
@@ -520,7 +523,7 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 	withGenericResources := features.New("with generic resources").
 		Setup(func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 			sleepInfo := getDefaultSleepInfo(sleepInfoName, c.Namespace())
-			sleepInfo.Spec.Patches = []kubegreenv1alpha1.Patches{
+			sleepInfo.Spec.Patches = []kubegreenv1alpha1.Patch{
 				{
 					Target: kubegreenv1alpha1.PatchTarget{
 						Group: "apps",
@@ -544,6 +547,18 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 `,
 				},
 			}
+			sleepInfo.Spec.ExcludeRef = []kubegreenv1alpha1.ExcludeRef{
+				{
+					MatchLabels: map[string]string{
+						excludeLabelsKey: excludeLabelsValue,
+					},
+				},
+				{
+					APIVersion: "apps/v1",
+					Kind:       "StatefulSet",
+					Name:       "exclude-by-name",
+				},
+			}
 
 			ctx = withSetupOptions(ctx, setupOptions{
 				customResources: []unstructured.Unstructured{
@@ -551,11 +566,20 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 						Name:      "statefulset-1",
 						Replicas:  getPtr[int32](1),
 						Namespace: c.Namespace(),
-					}).Unstructured(t),
-					// mocks.ReplicaSet(mocks.ReplicaSetSetOptions{
-					// 	Name:     "replicaset-1",
-					// 	Replicas: getPtr[int32](3),
-					// }).Unstructured(t),
+					}).Unstructured(),
+					mocks.StatefulSet(mocks.StatefulSetOptions{
+						Name:      "statefulset-to-exclude-with-labels",
+						Replicas:  getPtr[int32](1),
+						Namespace: c.Namespace(),
+						Labels: map[string]string{
+							excludeLabelsKey: excludeLabelsValue,
+						},
+					}).Unstructured(),
+					mocks.StatefulSet(mocks.StatefulSetOptions{
+						Name:      "exclude-by-name",
+						Replicas:  getPtr[int32](1),
+						Namespace: c.Namespace(),
+					}).Unstructured(),
 				},
 			})
 			return reconciliationSetup(t, ctx, c, mockNow, sleepInfo)
@@ -570,6 +594,15 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 			t.Run("generic resources are correctly patched", func(t *testing.T) {
 				for _, genericResource := range listGenericResources {
 					for _, res := range genericResource.data {
+						// resource to exclude by labels
+						if res.GetLabels()[excludeLabelsKey] == excludeLabelsValue {
+							continue
+						}
+						// resource to exclude by name
+						if res.GetKind() == "StatefulSet" && res.GetAPIVersion() == "apps/v1" && res.GetName() == "exclude-by-name" {
+							continue
+						}
+
 						patch := findPatchByTarget(assert.originalResources.sleepInfo.GetPatches(), res.GroupVersionKind())
 						require.NotNil(t, patch)
 						patcher, err := jsonpatch.CreatePatch(patch)
@@ -639,6 +672,15 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 			t.Run("generic resources are correctly patched", func(t *testing.T) {
 				for _, genericResource := range listGenericResources {
 					for _, res := range genericResource.data {
+						// resource to exclude by labels
+						if res.GetLabels()[excludeLabelsKey] == excludeLabelsValue {
+							continue
+						}
+						// resource to exclude by name
+						if res.GetKind() == "StatefulSet" && res.GetAPIVersion() == "apps/v1" && res.GetName() == "exclude-by-name" {
+							continue
+						}
+
 						patch := findPatchByTarget(assert.originalResources.sleepInfo.GetPatches(), res.GroupVersionKind())
 						require.NotNil(t, patch)
 						patcher, err := jsonpatch.CreatePatch(patch)

@@ -38,7 +38,7 @@ func TestNewResources(t *testing.T) {
 		Replicas:  &replica1,
 		Namespace: namespace,
 	}).Resource()
-	statefulSetPatch := v1alpha1.Patches{
+	statefulSetPatch := v1alpha1.Patch{
 		Target: v1alpha1.PatchTarget{
 			Kind:  "StatefulSet",
 			Group: "apps",
@@ -85,11 +85,11 @@ func TestNewResources(t *testing.T) {
 
 	t.Run("retrieve generic data", func(t *testing.T) {
 		resClient := resource.ResourceClient{
-			Client: mocks.FakeClient().WithRuntimeObjects(&statefulSet).Build(),
+			Client: mocks.FakeClient().WithRuntimeObjects(statefulSet).Build(),
 			Log:    zap.New(zap.UseDevMode(true)),
 			SleepInfo: &v1alpha1.SleepInfo{
 				Spec: v1alpha1.SleepInfoSpec{
-					Patches: []v1alpha1.Patches{
+					Patches: []v1alpha1.Patch{
 						statefulSetPatch,
 					},
 				},
@@ -155,7 +155,7 @@ func TestNewResources(t *testing.T) {
 			Log: zap.New(zap.UseDevMode(true)),
 			SleepInfo: &v1alpha1.SleepInfo{
 				Spec: v1alpha1.SleepInfoSpec{
-					Patches: []v1alpha1.Patches{
+					Patches: []v1alpha1.Patch{
 						statefulSetPatch,
 					},
 				},

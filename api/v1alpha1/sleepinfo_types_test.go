@@ -326,7 +326,7 @@ func TestSleepInfo(t *testing.T) {
 				Namespace: "namespace",
 			},
 			Spec: SleepInfoSpec{
-				Patches: []Patches{
+				Patches: []Patch{
 					{
 						Target: PatchTarget{
 							Group: "apps",

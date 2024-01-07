@@ -22,3 +22,9 @@ spec:
         - path: /spec/replicas
           op: add
           value: 0
+  excludeRef:
+    - apiVersion: "apps/v1"
+      kind:       StatefulSet
+      name:       do-not-sleep
+    - matchLabels:
+        kube-green.dev/exclude: "true"

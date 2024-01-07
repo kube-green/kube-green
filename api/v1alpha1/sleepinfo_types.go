@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 type ExcludeRef struct {
@@ -68,10 +69,10 @@ type SleepInfoSpec struct {
 	// Patches is a list of json 6902 patches to apply to the target resources.
 	// +optional
 	//+operator-sdk:csv:customresourcedefinitions:type=spec
-	Patches []Patches `json:"patches,omitempty"`
+	Patches []Patch `json:"patches,omitempty"`
 }
 
-type Patches struct {
+type Patch struct {
 	// Target is the target resource to patch.
 	//+operator-sdk:csv:customresourcedefinitions:type=spec
 	Target PatchTarget `json:"target"`
@@ -89,6 +90,13 @@ type PatchTarget struct {
 	// +optional
 	//+operator-sdk:csv:customresourcedefinitions:type=spec
 	Kind string `json:"kind"`
+}
+
+func (p PatchTarget) GroupKind() schema.GroupKind {
+	return schema.GroupKind{
+		Group: p.Group,
+		Kind:  p.Kind,
+	}
 }
 
 // SleepInfoStatus defines the observed state of SleepInfo
@@ -163,7 +171,7 @@ func (s SleepInfo) IsDeploymentsToSuspend() bool {
 	return *s.Spec.SuspendDeployments
 }
 
-func (s SleepInfo) GetPatches() []Patches {
+func (s SleepInfo) GetPatches() []Patch {
 	return s.Spec.Patches
 }
 

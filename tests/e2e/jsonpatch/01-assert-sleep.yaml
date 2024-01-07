@@ -13,8 +13,29 @@ spec:
   replicas: 0
 ---
 apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: echo-service-exclude-with-label
+spec:
+  replicas: 1
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: do-not-sleep
+spec:
+  replicas: 3
+---
+apiVersion: apps/v1
 kind: ReplicaSet
 metadata:
   name: echo-service-replicaset
 spec:
   replicas: 0
+---
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: echo-service-exclude-with-label
+spec:
+  replicas: 1

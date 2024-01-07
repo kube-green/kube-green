@@ -11,8 +11,6 @@ import (
 	jsonpatch "github.com/evanphx/json-patch/v5"
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var (
@@ -24,20 +22,6 @@ type managedResources struct {
 	logger     logr.Logger
 	resMapping map[string]*genericResource
 	namespace  string
-}
-
-type genericResource struct {
-	resource.ResourceClient
-	patchData      v1alpha1.Patches
-	restorePatches RestorePatches
-	data           []unstructured.Unstructured
-	// FIXME:
-	// this cache parameter is used to simplify the implementation (avoiding to repeat
-	// some error done in other resource implementation managing data) without change
-	// the basic controller logic and without performance issues (it avoids to useless refetch
-	// 2 times the resources).
-	// This implementation should be improved.
-	isCacheInvalid bool
 }
 
 type RestorePatches map[string]string
@@ -52,7 +36,8 @@ func NewResources(ctx context.Context, res resource.ResourceClient, namespace st
 		return nil, fmt.Errorf("%w: sleepInfo is not provided", ErrJSONPatch)
 	}
 	resources := managedResources{
-		logger:     res.Log,
+		logger: res.Log,
+		// TODO: Use map[v1alpha1.PatchTarget]string
 		resMapping: map[string]*genericResource{},
 		namespace:  namespace,
 	}
@@ -67,11 +52,7 @@ func NewResources(ctx context.Context, res resource.ResourceClient, namespace st
 			restorePatch = RestorePatches{}
 		}
 
-		generic := genericResource{
-			ResourceClient: res,
-			patchData:      patchData,
-			restorePatches: restorePatch,
-		}
+		generic := newGenericResource(res, patchData, restorePatch)
 
 		var err error
 		generic.data, err = generic.getListByNamespace(ctx, namespace, patchData.Target)
@@ -79,7 +60,8 @@ func NewResources(ctx context.Context, res resource.ResourceClient, namespace st
 			return nil, fmt.Errorf("%w: %s", ErrListResources, err)
 		}
 
-		resources.resMapping[getTargetKey(patchData.Target)] = &generic
+		// TODO: avoid to save if no resource is found
+		resources.resMapping[getTargetKey(patchData.Target)] = generic
 	}
 
 	return resources, nil
@@ -244,58 +226,6 @@ func (g managedResources) GetOriginalInfoToSave() ([]byte, error) {
 	}
 
 	return json.Marshal(dataToSave)
-}
-
-func (c genericResource) getListByNamespace(ctx context.Context, namespace string, patchTarget v1alpha1.PatchTarget) ([]unstructured.Unstructured, error) {
-	listOptions := &client.ListOptions{
-		Namespace: namespace,
-		Limit:     500,
-	}
-
-	// TODO: implement excludeRef [and include by labels?]
-	// excludeRef := c.ResourceClient.SleepInfo.GetExcludeRef()
-	// cronJobsToExclude := getCronJobNameToExclude(excludeRef)
-	// cronJobLabelsToExclude := getCronJobLabelsToExclude(excludeRef)
-	// fieldsSelector := []string{}
-	// for _, cronJobToExclude := range cronJobsToExclude {
-	// 	fieldsSelector = append(fieldsSelector, fmt.Sprintf("metadata.name!=%s", cronJobToExclude))
-	// }
-	// if len(fieldsSelector) > 0 {
-	// 	fSel, err := fields.ParseSelector(strings.Join(fieldsSelector, ","))
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	listOptions.FieldSelector = fSel
-	// }
-
-	// if cronJobLabelsToExclude != nil {
-	// 	labelSelector, err := labels.Parse(strings.Join(cronJobLabelsToExclude, ","))
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	listOptions.LabelSelector = labelSelector
-	// }
-
-	// TODO: manage optional version. So it will be possible to manage also multiple
-	// version of the same resource
-	restMapping, err := c.Client.RESTMapper().RESTMapping(schema.GroupKind{
-		Group: patchTarget.Group,
-		Kind:  patchTarget.Kind,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	resourceList := unstructured.UnstructuredList{}
-	resourceList.SetGroupVersionKind(restMapping.GroupVersionKind)
-
-	if err := c.Client.List(ctx, &resourceList, listOptions); err != nil {
-		return nil, client.IgnoreNotFound(err)
-	}
-
-	c.Log.V(8).Info("resources list", "gvk", restMapping.GroupVersionKind.String(), "length", len(resourceList.Items))
-
-	return resourceList.Items, nil
 }
 
 func GetOriginalInfoToRestore(data []byte) (map[string]RestorePatches, error) {

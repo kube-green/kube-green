@@ -9,6 +9,7 @@ import (
 	"github.com/kube-green/kube-green/api/v1alpha1"
 	"github.com/kube-green/kube-green/controllers/sleepinfo/cronjobs"
 	"github.com/kube-green/kube-green/controllers/sleepinfo/deployments"
+	"github.com/kube-green/kube-green/controllers/sleepinfo/internal/mocks"
 	"github.com/kube-green/kube-green/controllers/sleepinfo/resource"
 	"github.com/kube-green/kube-green/internal/testutil"
 
@@ -21,6 +22,31 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+)
+
+var (
+	deployPatchData = v1alpha1.Patch{
+		Target: v1alpha1.PatchTarget{
+			Group: "apps",
+			Kind:  "Deployment",
+		},
+		Patch: `
+- op: add
+  path: /spec/replicas
+  value: 0
+`,
+	}
+	cronPatchData = v1alpha1.Patch{
+		Target: v1alpha1.PatchTarget{
+			Group: "batch",
+			Kind:  "CronJob",
+		},
+		Patch: `
+- op: add
+  path: /spec/suspend
+  value: true
+`,
+	}
 )
 
 func TestNewResources(t *testing.T) {
@@ -39,30 +65,11 @@ func TestNewResources(t *testing.T) {
 
 func TestUpdateResourcesJSONPatch(t *testing.T) {
 	namespace := "test"
-	deployPatchData := v1alpha1.Patches{
-		Target: v1alpha1.PatchTarget{
-			Group: "apps",
-			Kind:  "Deployment",
-		},
-		Patch: `
-- op: add
-  path: /spec/replicas
-  value: 0
-`,
-	}
-	cronPatchData := v1alpha1.Patches{
-		Target: v1alpha1.PatchTarget{
-			Group: "batch",
-			Kind:  "CronJob",
-		},
-		Patch: `
-- op: add
-  path: /spec/suspend
-  value: true
-`,
-	}
 
 	t.Run("full lifecycle - deployment and cronjob", func(t *testing.T) {
+		labelsKeyToExclude := "kube-green.dev/exclude"
+		labelsValueToExclude := "true"
+
 		sleepInfo := &v1alpha1.SleepInfo{
 			TypeMeta: v1.TypeMeta{
 				Kind: "SleepInfo",
@@ -72,22 +79,37 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 				Name:      "test-sleepinfo",
 			},
 			Spec: v1alpha1.SleepInfoSpec{
-				Patches: []v1alpha1.Patches{
+				Patches: []v1alpha1.Patch{
 					deployPatchData,
 					cronPatchData,
+				},
+				ExcludeRef: []v1alpha1.ExcludeRef{
+					{
+						MatchLabels: map[string]string{
+							labelsKeyToExclude: labelsValueToExclude,
+						},
+					},
 				},
 			},
 		}
 
-		deployWithReplicas := deployments.GetMock(deployments.MockSpec{
+		deployWithReplicas := mocks.Deployment(mocks.DeploymentOptions{
 			Name:      "deploy-with-replicas",
 			Namespace: namespace,
 			Replicas:  getPtr(int32(3)),
-		})
-		deployWithoutReplicas := deployments.GetMock(deployments.MockSpec{
+		}).Resource()
+		deployWithoutReplicas := mocks.Deployment(mocks.DeploymentOptions{
 			Name:      "d2",
 			Namespace: namespace,
-		})
+		}).Resource()
+		deployToExclude := mocks.Deployment(mocks.DeploymentOptions{
+			Name:      "deploy-to-exclude",
+			Namespace: namespace,
+			Replicas:  getPtr(int32(1)),
+			Labels: map[string]string{
+				labelsKeyToExclude: labelsValueToExclude,
+			},
+		}).Resource()
 		cronjob := cronjobs.GetMock(cronjobs.MockSpec{
 			Name:      "cron-suspend-false",
 			Namespace: namespace,
@@ -106,8 +128,9 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 		fakeClient := testutil.PossiblyErroringFakeCtrlRuntimeClient{
 			Client: getFakeClient().
 				WithRuntimeObjects(
-					&deployWithReplicas,
-					&deployWithoutReplicas,
+					deployWithReplicas,
+					deployWithoutReplicas,
+					deployToExclude,
 					&cronjob,
 					&suspendedCj,
 					&cjWithoutSuspendData,
@@ -240,7 +263,7 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 	})
 
 	t.Run("full lifecycle - keda ScaledObject", func(t *testing.T) {
-		scaledObjectPatchData := v1alpha1.Patches{
+		scaledObjectPatchData := v1alpha1.Patch{
 			Target: v1alpha1.PatchTarget{
 				Group: "keda.sh",
 				Kind:  "ScaledObject",
@@ -260,7 +283,7 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 				Name:      "test-sleepinfo",
 			},
 			Spec: v1alpha1.SleepInfoSpec{
-				Patches: []v1alpha1.Patches{
+				Patches: []v1alpha1.Patch{
 					scaledObjectPatchData,
 				},
 			},
@@ -347,7 +370,7 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 				Name:      "test-sleepinfo",
 			},
 			Spec: v1alpha1.SleepInfoSpec{
-				Patches: []v1alpha1.Patches{
+				Patches: []v1alpha1.Patch{
 					deployPatchData,
 				},
 			},
@@ -435,7 +458,7 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 				Name:      "test-sleepinfo",
 			},
 			Spec: v1alpha1.SleepInfoSpec{
-				Patches: []v1alpha1.Patches{
+				Patches: []v1alpha1.Patch{
 					deployPatchData,
 				},
 			},
@@ -522,7 +545,7 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 				Name:      "test-sleepinfo",
 			},
 			Spec: v1alpha1.SleepInfoSpec{
-				Patches: []v1alpha1.Patches{},
+				Patches: []v1alpha1.Patch{},
 			},
 		}
 
@@ -566,7 +589,7 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 				Name:      "test-sleepinfo",
 			},
 			Spec: v1alpha1.SleepInfoSpec{
-				Patches: []v1alpha1.Patches{
+				Patches: []v1alpha1.Patch{
 					{
 						Target: v1alpha1.PatchTarget{
 							Group: "apps",
@@ -598,7 +621,7 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 				Name:      "test-sleepinfo",
 			},
 			Spec: v1alpha1.SleepInfoSpec{
-				Patches: []v1alpha1.Patches{
+				Patches: []v1alpha1.Patch{
 					{
 						Target: v1alpha1.PatchTarget{
 							Group: "not-existing-group",
@@ -628,7 +651,7 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 				Name:      "test-sleepinfo",
 			},
 			Spec: v1alpha1.SleepInfoSpec{
-				Patches: []v1alpha1.Patches{
+				Patches: []v1alpha1.Patch{
 					{
 						Target: v1alpha1.PatchTarget{
 							Group: "apps",
@@ -653,7 +676,7 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 				Name:      "test-sleepinfo",
 			},
 			Spec: v1alpha1.SleepInfoSpec{
-				Patches: []v1alpha1.Patches{
+				Patches: []v1alpha1.Patch{
 					deployPatchData,
 				},
 			},

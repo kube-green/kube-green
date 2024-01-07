@@ -334,7 +334,7 @@ type resourceList struct {
 }
 type resourceMap map[string]resourceList
 
-func getGenericResourcesMap(t *testing.T, ctx context.Context, c *envconf.Config, patches []v1alpha1.Patches) resourceMap {
+func getGenericResourcesMap(t *testing.T, ctx context.Context, c *envconf.Config, patches []v1alpha1.Patch) resourceMap {
 	k8sClient := c.Client().Resources(c.Namespace()).GetControllerRuntimeClient()
 
 	m := resourceMap{}
@@ -504,7 +504,7 @@ func findResourceByName(resources []unstructured.Unstructured, nameToFind string
 	return nil
 }
 
-func findPatchByTarget(patches []v1alpha1.Patches, target schema.GroupVersionKind) []byte {
+func findPatchByTarget(patches []v1alpha1.Patch, target schema.GroupVersionKind) []byte {
 	for _, patch := range patches {
 		if patch.Target.Group == target.Group && patch.Target.Kind == target.Kind {
 			return []byte(patch.Patch)

@@ -17,6 +17,7 @@ spec:
       containers:
       - name: echo-service
         image: davidebianchi/echo-service
+        imagePullPolicy: IfNotPresent
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -38,21 +39,91 @@ spec:
       containers:
       - name: echo-service
         image: davidebianchi/echo-service
+        imagePullPolicy: IfNotPresent
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: echo-service-exclude-with-label
+  labels:
+    app: echo-service-exclude-with-label
+    kube-green.dev/exclude: "true"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: echo-service-exclude-with-label
+  serviceName: echo-service
+  template:
+    metadata:
+      labels:
+        app: echo-service-exclude-with-label
+    spec:
+      containers:
+      - name: echo-service
+        image: davidebianchi/echo-service
+        imagePullPolicy: IfNotPresent
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: do-not-sleep
+  labels:
+    app: do-not-sleep
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: do-not-sleep
+  serviceName: echo-service
+  template:
+    metadata:
+      labels:
+        app: do-not-sleep
+    spec:
+      containers:
+      - name: echo-service
+        image: davidebianchi/echo-service
+        imagePullPolicy: IfNotPresent
 ---
 apiVersion: apps/v1
 kind: ReplicaSet
 metadata:
   name: echo-service-replicaset
+  labels:
+    app: echo-service-replicaset
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: echo-service
+      app: echo-service-replicaset
   template:
     metadata:
       labels:
-        app: echo-service
+        app: echo-service-replicaset
     spec:
       containers:
       - name: echo-service
         image: davidebianchi/echo-service
+        imagePullPolicy: IfNotPresent
+---
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: echo-service-exclude-with-label
+  labels:
+    kube-green.dev/exclude: "true"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: echo-service-exclude-with-label
+  template:
+    metadata:
+      labels:
+        app: echo-service-exclude-with-label
+    spec:
+      containers:
+      - name: echo-service
+        image: davidebianchi/echo-service
+        imagePullPolicy: IfNotPresent
