@@ -20,15 +20,11 @@ var (
 
 type managedResources struct {
 	logger     logr.Logger
-	resMapping map[string]*genericResource
+	resMapping map[v1alpha1.PatchTarget]*genericResource
 	namespace  string
 }
 
 type RestorePatches map[string]string
-
-func getTargetKey(target v1alpha1.PatchTarget) string {
-	return fmt.Sprintf("%s-%s", target.Group, target.Kind)
-}
 
 // TODO: give some check on ownerReferences. Maybe does not change if kind already managed by kube-green?
 func NewResources(ctx context.Context, res resource.ResourceClient, namespace string, restorePatches map[string]RestorePatches) (resource.Resource, error) {
@@ -36,9 +32,8 @@ func NewResources(ctx context.Context, res resource.ResourceClient, namespace st
 		return nil, fmt.Errorf("%w: sleepInfo is not provided", ErrJSONPatch)
 	}
 	resources := managedResources{
-		logger: res.Log,
-		// TODO: Use map[v1alpha1.PatchTarget]string
-		resMapping: map[string]*genericResource{},
+		logger:     res.Log,
+		resMapping: map[v1alpha1.PatchTarget]*genericResource{},
 		namespace:  namespace,
 	}
 	if restorePatches == nil {
@@ -47,7 +42,7 @@ func NewResources(ctx context.Context, res resource.ResourceClient, namespace st
 
 	for _, patchData := range res.SleepInfo.GetPatches() {
 		res.Log.V(8).Info("patch data", "patch", patchData.Patch, "target", patchData.Target)
-		restorePatch, ok := restorePatches[getTargetKey(patchData.Target)]
+		restorePatch, ok := restorePatches[patchData.Target.String()]
 		if !ok {
 			restorePatch = RestorePatches{}
 		}
@@ -61,7 +56,7 @@ func NewResources(ctx context.Context, res resource.ResourceClient, namespace st
 		}
 
 		// TODO: avoid to save if no resource is found
-		resources.resMapping[getTargetKey(patchData.Target)] = generic
+		resources.resMapping[patchData.Target] = generic
 	}
 
 	return resources, nil
@@ -222,7 +217,7 @@ func (g managedResources) GetOriginalInfoToSave() ([]byte, error) {
 
 	dataToSave := map[string]RestorePatches{}
 	for key, res := range g.resMapping {
-		dataToSave[key] = res.restorePatches
+		dataToSave[key.String()] = res.restorePatches
 	}
 
 	return json.Marshal(dataToSave)

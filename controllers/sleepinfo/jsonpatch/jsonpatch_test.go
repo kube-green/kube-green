@@ -145,8 +145,8 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 			require.True(t, res.HasResource())
 		})
 
-		deployRes := res.resMapping[getTargetKey(deployPatchData.Target)]
-		cronRes := res.resMapping[getTargetKey(cronPatchData.Target)]
+		deployRes := res.resMapping[deployPatchData.Target]
+		cronRes := res.resMapping[cronPatchData.Target]
 
 		originalDeployments, err := deployRes.getListByNamespace(ctx, namespace, deployPatchData.Target)
 		require.NoError(t, err)
@@ -166,7 +166,7 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 			})
 
 			t.Run("CronJob", func(t *testing.T) {
-				resList, err := res.resMapping[getTargetKey(cronPatchData.Target)].getListByNamespace(ctx, namespace, cronPatchData.Target)
+				resList, err := res.resMapping[cronPatchData.Target].getListByNamespace(ctx, namespace, cronPatchData.Target)
 				require.NoError(t, err)
 
 				require.Len(t, resList, 3)
@@ -188,19 +188,19 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 				originalInfo, err := res.GetOriginalInfoToSave()
 				require.NoError(t, err)
 				require.JSONEq(t, `{
-					"apps-Deployment": {"d2":"{\"spec\":{\"replicas\":null}}","deploy-with-replicas":"{\"spec\":{\"replicas\":3}}"},
-					"batch-CronJob": {"cron-no-suspend":"{\"spec\":{\"suspend\":null}}", "cron-suspend-false":"{\"spec\":{\"suspend\":false}}"}
+					"Deployment.apps": {"d2":"{\"spec\":{\"replicas\":null}}","deploy-with-replicas":"{\"spec\":{\"replicas\":3}}"},
+					"CronJob.batch": {"cron-no-suspend":"{\"spec\":{\"suspend\":null}}", "cron-suspend-false":"{\"spec\":{\"suspend\":false}}"}
 				}`, string(originalInfo))
 
 				t.Run("GetOriginalInfoToRestore", func(t *testing.T) {
 					patches, err := GetOriginalInfoToRestore(originalInfo)
 					require.NoError(t, err)
 					require.Equal(t, map[string]RestorePatches{
-						"apps-Deployment": map[string]string{
+						"Deployment.apps": map[string]string{
 							"d2":                   "{\"spec\":{\"replicas\":null}}",
 							"deploy-with-replicas": "{\"spec\":{\"replicas\":3}}",
 						},
-						"batch-CronJob": map[string]string{
+						"CronJob.batch": map[string]string{
 							"cron-no-suspend":    "{\"spec\":{\"suspend\":null}}",
 							"cron-suspend-false": "{\"spec\":{\"suspend\":false}}",
 						},
@@ -212,7 +212,7 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 				require.NoError(t, res.WakeUp(ctx))
 
 				t.Run("Deployment", func(t *testing.T) {
-					resList, err := res.resMapping[getTargetKey(deployPatchData.Target)].getListByNamespace(ctx, namespace, deployPatchData.Target)
+					resList, err := res.resMapping[deployPatchData.Target].getListByNamespace(ctx, namespace, deployPatchData.Target)
 					require.NoError(t, err)
 
 					require.Len(t, resList, 2)
@@ -220,7 +220,7 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 				})
 
 				t.Run("CronJob", func(t *testing.T) {
-					resList, err := res.resMapping[getTargetKey(cronPatchData.Target)].getListByNamespace(ctx, namespace, cronPatchData.Target)
+					resList, err := res.resMapping[cronPatchData.Target].getListByNamespace(ctx, namespace, cronPatchData.Target)
 					require.NoError(t, err)
 
 					require.Len(t, resList, 3)
@@ -240,7 +240,7 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 					})
 
 					t.Run("CronJob", func(t *testing.T) {
-						resList, err := res.resMapping[getTargetKey(cronPatchData.Target)].getListByNamespace(ctx, namespace, cronPatchData.Target)
+						resList, err := res.resMapping[cronPatchData.Target].getListByNamespace(ctx, namespace, cronPatchData.Target)
 						require.NoError(t, err)
 
 						require.Len(t, resList, 3)
@@ -322,7 +322,7 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 		ctx := context.Background()
 		res := getNewResource(t, fakeClient, sleepInfo, namespace)
 
-		scaledObjectResource := res.resMapping[getTargetKey(scaledObjectPatchData.Target)]
+		scaledObjectResource := res.resMapping[scaledObjectPatchData.Target]
 
 		originalScaledObject, err := scaledObjectResource.getListByNamespace(ctx, namespace, scaledObjectPatchData.Target)
 		require.NoError(t, err)
@@ -356,6 +356,78 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 					require.Len(t, resList, 2)
 					requireEqualResources(t, originalScaledObject, resList)
 				})
+			})
+		})
+	})
+
+	t.Run("full lifecycle - patch to restore", func(t *testing.T) {
+		labelsKeyToExclude := "kube-green.dev/exclude"
+		labelsValueToExclude := "true"
+
+		sleepInfo := &v1alpha1.SleepInfo{
+			TypeMeta: v1.TypeMeta{
+				Kind: "SleepInfo",
+			},
+			ObjectMeta: v1.ObjectMeta{
+				Namespace: namespace,
+				Name:      "test-sleepinfo",
+			},
+			Spec: v1alpha1.SleepInfoSpec{
+				Patches: []v1alpha1.Patch{
+					deployPatchData,
+					cronPatchData,
+				},
+				ExcludeRef: []v1alpha1.ExcludeRef{
+					{
+						MatchLabels: map[string]string{
+							labelsKeyToExclude: labelsValueToExclude,
+						},
+					},
+				},
+			},
+		}
+
+		deployWithReplicas := mocks.Deployment(mocks.DeploymentOptions{
+			Name:      "deploy-with-replicas",
+			Namespace: namespace,
+			Replicas:  getPtr(int32(0)),
+		}).Resource()
+
+		fakeClient := testutil.PossiblyErroringFakeCtrlRuntimeClient{
+			Client: getFakeClient().
+				WithRuntimeObjects(
+					deployWithReplicas,
+				).
+				Build(),
+		}
+
+		restorePatches := map[string]RestorePatches{
+			"Deployment.apps": RestorePatches{"deploy-with-replicas": "{\"spec\":{\"replicas\":3}}"},
+		}
+
+		ctx := context.Background()
+		res := getNewResourceWithPatchToRestore(t, fakeClient, sleepInfo, namespace, restorePatches)
+
+		t.Run("check that there are resources", func(t *testing.T) {
+			require.True(t, res.HasResource())
+		})
+
+		t.Run("wake up", func(t *testing.T) {
+			require.NoError(t, res.WakeUp(ctx))
+
+			t.Run("Deployment", func(t *testing.T) {
+				resList, err := res.resMapping[deployPatchData.Target].getListByNamespace(ctx, namespace, deployPatchData.Target)
+				require.NoError(t, err)
+
+				require.Len(t, resList, 1)
+				expectedDeploy := deployWithReplicas.DeepCopy()
+				expectedDeploy.Spec.Replicas = getPtr(int32(3))
+				unstructuredDeploy, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&expectedDeploy)
+				require.NoError(t, err)
+
+				requireEqualResources(t, []unstructured.Unstructured{
+					unstructured.Unstructured{Object: unstructuredDeploy},
+				}, resList)
 			})
 		})
 	})
@@ -398,7 +470,7 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 		ctx := context.Background()
 		res := getNewResource(t, fakeClient, sleepInfo, namespace)
 
-		deployRes := res.resMapping[getTargetKey(deployPatchData.Target)]
+		deployRes := res.resMapping[deployPatchData.Target]
 
 		originalDeployments, err := deployRes.getListByNamespace(ctx, namespace, deployPatchData.Target)
 		require.NoError(t, err)
@@ -486,7 +558,7 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 		ctx := context.Background()
 		res := getNewResource(t, fakeClient, sleepInfo, namespace)
 
-		deployRes := res.resMapping[getTargetKey(deployPatchData.Target)]
+		deployRes := res.resMapping[deployPatchData.Target]
 
 		originalDeployments, err := deployRes.getListByNamespace(ctx, namespace, deployPatchData.Target)
 		require.NoError(t, err)
@@ -747,6 +819,10 @@ func requireEqualResources(t *testing.T, expectedList, actualList []unstructured
 }
 
 func getNewResource(t *testing.T, client client.Client, sleepInfo *v1alpha1.SleepInfo, namespace string) managedResources {
+	return getNewResourceWithPatchToRestore(t, client, sleepInfo, namespace, nil)
+}
+
+func getNewResourceWithPatchToRestore(t *testing.T, client client.Client, sleepInfo *v1alpha1.SleepInfo, namespace string, patchToRestore map[string]RestorePatches) managedResources {
 	nullogger := &bytes.Buffer{}
 	testLogger := zap.New(zap.WriteTo(nullogger))
 	t.Helper()
@@ -755,7 +831,7 @@ func getNewResource(t *testing.T, client client.Client, sleepInfo *v1alpha1.Slee
 		Client:    client,
 		Log:       testLogger,
 		SleepInfo: sleepInfo,
-	}, namespace, nil)
+	}, namespace, patchToRestore)
 	require.NoError(t, err)
 
 	generic, ok := resource.(managedResources)

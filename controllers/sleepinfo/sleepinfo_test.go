@@ -624,7 +624,7 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 					lastScheduleKey:          []byte(parseTime(t, assert.expectedScheduleTime).Truncate(time.Second).Format(time.RFC3339)),
 					lastOperationKey:         []byte(sleepOperation),
 					replicasBeforeSleepKey:   []byte(`[{"name":"service-1","replicas":3},{"name":"service-2","replicas":1}]`),
-					originalJSONPatchDataKey: []byte(`{"apps-ReplicaSet":{},"apps-StatefulSet":{"statefulset-1":"{\"spec\":{\"replicas\":1}}"}}`),
+					originalJSONPatchDataKey: []byte(`{"ReplicaSet.apps":{},"StatefulSet.apps":{"statefulset-1":"{\"spec\":{\"replicas\":1}}"}}`),
 				}, secretData)
 			})
 
@@ -702,7 +702,7 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 					lastScheduleKey:          []byte(parseTime(t, assert.expectedScheduleTime).Truncate(time.Second).Format(time.RFC3339)),
 					lastOperationKey:         []byte(sleepOperation),
 					replicasBeforeSleepKey:   []byte(`[{"name":"service-1","replicas":3},{"name":"service-2","replicas":1}]`),
-					originalJSONPatchDataKey: []byte(`{"apps-ReplicaSet":{},"apps-StatefulSet":{"statefulset-1":"{\"spec\":{\"replicas\":1}}"}}`),
+					originalJSONPatchDataKey: []byte(`{"ReplicaSet.apps":{},"StatefulSet.apps":{"statefulset-1":"{\"spec\":{\"replicas\":1}}"}}`),
 				}, secretData)
 			})
 			return ctx

@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 func TestSleepInfo(t *testing.T) {
@@ -354,6 +355,27 @@ func TestSleepInfo(t *testing.T) {
 		}
 
 		require.NotEmpty(t, sleepInfo.GetPatches())
+	})
+
+	t.Run("PatchTarget", func(t *testing.T) {
+		t.Run("String method", func(t *testing.T) {
+			target := PatchTarget{
+				Group: "apps",
+				Kind:  "Deployment",
+			}
+			require.Equal(t, "Deployment.apps", target.String())
+		})
+
+		t.Run("GroupKind method", func(t *testing.T) {
+			target := PatchTarget{
+				Group: "apps",
+				Kind:  "Deployment",
+			}
+			require.Equal(t, schema.GroupKind{
+				Group: "apps",
+				Kind:  "Deployment",
+			}, target.GroupKind())
+		})
 	})
 }
 

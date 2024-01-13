@@ -83,13 +83,15 @@ type Patch struct {
 
 type PatchTarget struct {
 	// Group of the Kubernetes resources.
-	// +optional
 	//+operator-sdk:csv:customresourcedefinitions:type=spec
 	Group string `json:"group"`
 	// Kind of the Kubernetes resources.
-	// +optional
 	//+operator-sdk:csv:customresourcedefinitions:type=spec
 	Kind string `json:"kind"`
+}
+
+func (p PatchTarget) String() string {
+	return fmt.Sprintf("%s.%s", p.Kind, p.Group)
 }
 
 func (p PatchTarget) GroupKind() schema.GroupKind {

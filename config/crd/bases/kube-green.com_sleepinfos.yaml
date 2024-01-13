@@ -75,6 +75,9 @@ spec:
                         kind:
                           description: Kind of the Kubernetes resources.
                           type: string
+                      required:
+                      - group
+                      - kind
                       type: object
                   required:
                   - patch
