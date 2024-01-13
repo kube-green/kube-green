@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/kube-green/kube-green/api/v1alpha1"
-	kubegreenv1alpha1 "github.com/kube-green/kube-green/api/v1alpha1"
 	"github.com/kube-green/kube-green/controllers/sleepinfo/cronjobs"
 	"github.com/kube-green/kube-green/controllers/sleepinfo/deployments"
 
@@ -38,24 +37,24 @@ type originalResources struct {
 	cronjobList         []unstructured.Unstructured
 	genericResourcesMap resourceMap
 
-	sleepInfo kubegreenv1alpha1.SleepInfo
+	sleepInfo v1alpha1.SleepInfo
 }
 
-func createSleepInfoCRD(t *testing.T, ctx context.Context, c *envconf.Config, sleepInfo *kubegreenv1alpha1.SleepInfo) kubegreenv1alpha1.SleepInfo {
+func createSleepInfoCRD(t *testing.T, ctx context.Context, c *envconf.Config, sleepInfo *v1alpha1.SleepInfo) v1alpha1.SleepInfo {
 	t.Helper()
 
 	r, err := resources.New(c.Client().RESTConfig())
 	require.NoError(t, err)
-	err = kubegreenv1alpha1.AddToScheme(r.GetScheme())
+	err = v1alpha1.AddToScheme(r.GetScheme())
 	require.NoError(t, err)
 
 	err = c.Client().Resources().Create(ctx, sleepInfo)
 	require.NoError(t, err, "error creating SleepInfo")
 
-	createdSleepInfo := &kubegreenv1alpha1.SleepInfo{}
+	createdSleepInfo := &v1alpha1.SleepInfo{}
 
 	err = wait.For(conditions.New(c.Client().Resources(c.Namespace())).ResourceMatch(sleepInfo, func(object k8s.Object) bool {
-		createdSleepInfo = object.(*kubegreenv1alpha1.SleepInfo)
+		createdSleepInfo = object.(*v1alpha1.SleepInfo)
 		return true
 	}), wait.WithTimeout(time.Second*10), wait.WithInterval(time.Millisecond*250))
 	require.NoError(t, err)
@@ -63,7 +62,7 @@ func createSleepInfoCRD(t *testing.T, ctx context.Context, c *envconf.Config, sl
 	return *createdSleepInfo
 }
 
-func setupNamespaceWithResources(t *testing.T, ctx context.Context, cfg *envconf.Config, sleepInfoToCreate *kubegreenv1alpha1.SleepInfo, reconciler SleepInfoReconciler, opts setupOptions) (ctrl.Request, originalResources) {
+func setupNamespaceWithResources(t *testing.T, ctx context.Context, cfg *envconf.Config, sleepInfoToCreate *v1alpha1.SleepInfo, reconciler SleepInfoReconciler, opts setupOptions) (ctrl.Request, originalResources) {
 	t.Helper()
 
 	sleepInfo := createSleepInfoCRD(t, ctx, cfg, sleepInfoToCreate)
@@ -242,8 +241,8 @@ func upsertCronJobs(t *testing.T, ctx context.Context, c *envconf.Config, update
 	return cronJobs
 }
 
-func getDefaultSleepInfo(name, namespace string) *kubegreenv1alpha1.SleepInfo {
-	return &kubegreenv1alpha1.SleepInfo{
+func getDefaultSleepInfo(name, namespace string) *v1alpha1.SleepInfo {
+	return &v1alpha1.SleepInfo{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "SleepInfo",
 			APIVersion: "kube-green.com/v1alpha1",
@@ -252,7 +251,7 @@ func getDefaultSleepInfo(name, namespace string) *kubegreenv1alpha1.SleepInfo {
 			Name:      name,
 			Namespace: namespace,
 		},
-		Spec: kubegreenv1alpha1.SleepInfoSpec{
+		Spec: v1alpha1.SleepInfoSpec{
 			Weekdays:   "*",
 			SleepTime:  "*:05", // at minute 5
 			WakeUpTime: "*:20", // at minute 20
