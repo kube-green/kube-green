@@ -402,7 +402,7 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 		}
 
 		restorePatches := map[string]RestorePatches{
-			"Deployment.apps": RestorePatches{"deploy-with-replicas": "{\"spec\":{\"replicas\":3}}"},
+			"Deployment.apps": {"deploy-with-replicas": "{\"spec\":{\"replicas\":3}}"},
 		}
 
 		ctx := context.Background()
@@ -426,7 +426,7 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 				require.NoError(t, err)
 
 				requireEqualResources(t, []unstructured.Unstructured{
-					unstructured.Unstructured{Object: unstructuredDeploy},
+					{Object: unstructuredDeploy},
 				}, resList)
 			})
 		})
