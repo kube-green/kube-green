@@ -55,7 +55,6 @@ func NewResources(ctx context.Context, res resource.ResourceClient, namespace st
 			return nil, fmt.Errorf("%w: %s", ErrListResources, err)
 		}
 
-		// TODO: avoid to save if no resource is found
 		resources.resMapping[patchData.Target] = generic
 	}
 
@@ -234,6 +233,9 @@ func (g managedResources) GetOriginalInfoToSave() ([]byte, error) {
 
 	dataToSave := map[string]RestorePatches{}
 	for key, res := range g.resMapping {
+		if len(res.restorePatches) == 0 {
+			continue
+		}
 		dataToSave[key.String()] = res.restorePatches
 	}
 

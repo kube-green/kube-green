@@ -351,8 +351,7 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 				originalInfo, err := res.GetOriginalInfoToSave()
 				require.NoError(t, err)
 				require.JSONEq(t, `{
-					"Deployment.apps": {"deployment-1":"{\"spec\":{\"replicas\":1}}"},
-					"ReplicaSet.apps": {}
+					"Deployment.apps": {"deployment-1":"{\"spec\":{\"replicas\":1}}"}
 				}`, string(originalInfo))
 
 				t.Run("GetOriginalInfoToRestore", func(t *testing.T) {
@@ -362,7 +361,6 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 						"Deployment.apps": map[string]string{
 							"deployment-1": "{\"spec\":{\"replicas\":1}}",
 						},
-						"ReplicaSet.apps": map[string]string{},
 					}, patches)
 				})
 			})
