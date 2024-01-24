@@ -106,10 +106,6 @@ func (g managedResources) Sleep(ctx context.Context) error {
 				continue
 			}
 
-			// TODO: test this
-			// remove resourceVersion from patch target for SSA patch to work correctly
-			unstructured.RemoveNestedField(resource.Object, "metadata", "resourceVersion")
-
 			original, err := json.Marshal(resource.Object)
 			if err != nil {
 				return fmt.Errorf("%w: %s", ErrJSONPatch, err)
