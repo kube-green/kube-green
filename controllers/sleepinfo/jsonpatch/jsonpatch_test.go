@@ -47,6 +47,17 @@ var (
   value: true
 `,
 	}
+	replicaSetPatchData = v1alpha1.Patch{
+		Target: v1alpha1.PatchTarget{
+			Group: "apps",
+			Kind:  "ReplicaSet",
+		},
+		Patch: `
+- op: add
+  path: /spec/replicas
+  value: 0
+`,
+	}
 )
 
 func TestNewResources(t *testing.T) {
@@ -257,6 +268,102 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 						require.True(t, ok)
 						require.True(t, suspend3)
 					})
+				})
+			})
+		})
+	})
+
+	t.Run("full lifecycle - deployment and replicaset managed by it", func(t *testing.T) {
+		sleepInfo := &v1alpha1.SleepInfo{
+			TypeMeta: v1.TypeMeta{
+				Kind: "SleepInfo",
+			},
+			ObjectMeta: v1.ObjectMeta{
+				Namespace: namespace,
+				Name:      "test-sleepinfo",
+			},
+			Spec: v1alpha1.SleepInfoSpec{
+				Patches: []v1alpha1.Patch{
+					replicaSetPatchData,
+					deployPatchData,
+				},
+			},
+		}
+
+		ownerDeployment := mocks.Deployment(mocks.DeploymentOptions{
+			Name:      "deployment-1",
+			Namespace: namespace,
+			Replicas:  getPtr(int32(1)),
+		}).Resource()
+		replicaSetWithOwner := mocks.ReplicaSet(mocks.ReplicaSetSetOptions{
+			Name:      "controlled-replica-set",
+			Namespace: namespace,
+			Replicas:  getPtr(int32(1)),
+			OwnerReferences: []v1.OwnerReference{
+				{
+					APIVersion: "apps/v1",
+					Kind:       "Deployment",
+					Name:       "deployment-1",
+					Controller: getPtr(true),
+				},
+			},
+		}).Resource()
+
+		fakeClient := testutil.PossiblyErroringFakeCtrlRuntimeClient{
+			Client: getFakeClient().
+				WithRuntimeObjects(
+					replicaSetWithOwner,
+					ownerDeployment,
+				).
+				Build(),
+		}
+
+		ctx := context.Background()
+		res := getNewResource(t, fakeClient, sleepInfo, namespace)
+
+		t.Run("check that there are resources", func(t *testing.T) {
+			require.True(t, res.HasResource())
+		})
+
+		replicaSetRes := res.resMapping[replicaSetPatchData.Target]
+		deployRes := res.resMapping[deployPatchData.Target]
+
+		t.Run("sleep", func(t *testing.T) {
+			require.NoError(t, res.Sleep(ctx))
+
+			t.Run("Deployment", func(t *testing.T) {
+				resList, err := deployRes.getListByNamespace(ctx, namespace, deployPatchData.Target)
+				require.NoError(t, err)
+
+				require.Len(t, resList, 1)
+				require.Equal(t, int64(0), resList[0].Object["spec"].(map[string]interface{})["replicas"].(int64))
+			})
+
+			t.Run("ReplicaSet", func(t *testing.T) {
+				resList, err := replicaSetRes.getListByNamespace(ctx, namespace, replicaSetPatchData.Target)
+				require.NoError(t, err)
+
+				require.Len(t, resList, 1)
+				require.Equal(t, int64(1), resList[0].Object["spec"].(map[string]interface{})["replicas"].(int64))
+			})
+
+			t.Run("GetOriginalInfoToSave", func(t *testing.T) {
+				originalInfo, err := res.GetOriginalInfoToSave()
+				require.NoError(t, err)
+				require.JSONEq(t, `{
+					"Deployment.apps": {"deployment-1":"{\"spec\":{\"replicas\":1}}"},
+					"ReplicaSet.apps": {}
+				}`, string(originalInfo))
+
+				t.Run("GetOriginalInfoToRestore", func(t *testing.T) {
+					patches, err := GetOriginalInfoToRestore(originalInfo)
+					require.NoError(t, err)
+					require.Equal(t, map[string]RestorePatches{
+						"Deployment.apps": map[string]string{
+							"deployment-1": "{\"spec\":{\"replicas\":1}}",
+						},
+						"ReplicaSet.apps": map[string]string{},
+					}, patches)
 				})
 			})
 		})
@@ -772,6 +879,11 @@ func getFakeClient() *fake.ClientBuilder {
 		Group:   "apps",
 		Version: "v1",
 		Kind:    "Deployment",
+	}, meta.RESTScopeNamespace)
+	restMapper.Add(schema.GroupVersionKind{
+		Group:   "apps",
+		Version: "v1",
+		Kind:    "ReplicaSet",
 	}, meta.RESTScopeNamespace)
 	restMapper.Add(schema.GroupVersionKind{
 		Group:   "batch",

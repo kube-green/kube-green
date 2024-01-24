@@ -14,6 +14,7 @@ type ReplicaSetSetOptions struct {
 	ResourceVersion string
 	PodAnnotations  map[string]string
 	MatchLabels     map[string]string
+	OwnerReferences []metav1.OwnerReference
 }
 
 func ReplicaSet(opts ReplicaSetSetOptions) ResourceMock[appsv1.ReplicaSet] {
@@ -26,7 +27,7 @@ func ReplicaSet(opts ReplicaSetSetOptions) ResourceMock[appsv1.ReplicaSet] {
 	return ResourceMock[appsv1.ReplicaSet]{
 		resource: appsv1.ReplicaSet{
 			TypeMeta: metav1.TypeMeta{
-				Kind:       "StatefulSet",
+				Kind:       "ReplicaSet",
 				APIVersion: "apps/v1",
 			},
 			ObjectMeta: metav1.ObjectMeta{
@@ -35,6 +36,7 @@ func ReplicaSet(opts ReplicaSetSetOptions) ResourceMock[appsv1.ReplicaSet] {
 				ResourceVersion: opts.ResourceVersion,
 				Annotations:     opts.PodAnnotations,
 				Labels:          opts.Labels,
+				OwnerReferences: opts.OwnerReferences,
 			},
 			Spec: appsv1.ReplicaSetSpec{
 				Selector: &metav1.LabelSelector{

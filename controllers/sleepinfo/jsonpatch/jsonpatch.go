@@ -10,6 +10,7 @@ import (
 
 	jsonpatch "github.com/evanphx/json-patch/v5"
 	"github.com/go-logr/logr"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
@@ -26,7 +27,6 @@ type managedResources struct {
 
 type RestorePatches map[string]string
 
-// TODO: give some check on ownerReferences. Maybe does not change if kind already managed by kube-green?
 func NewResources(ctx context.Context, res resource.ResourceClient, namespace string, restorePatches map[string]RestorePatches) (resource.Resource, error) {
 	if res.SleepInfo == nil {
 		return nil, fmt.Errorf("%w: sleepInfo is not provided", ErrJSONPatch)
@@ -90,6 +90,23 @@ func (g managedResources) Sleep(ctx context.Context) error {
 		}
 
 		for _, resource := range resourceWrapper.data {
+			// TODO: remove this when go >= 1.22
+			resource := resource
+
+			// This will skip resources that are managed by another controller, since
+			// we should manage the sleep on the controller itself.
+			// Some examples are:
+			// - Pod managed by ReplicaSet managed by Deployment
+			// - Pod managed by Job managed by CronJob
+			if metav1.GetControllerOfNoCopy(&resource) != nil {
+				g.logger.Info("resource is managed by another controller, skipped",
+					"resourceName", resource.GetName(),
+					"resourceKind", resource.GetKind(),
+					"patch", resourceWrapper.patchData.Patch,
+				)
+				continue
+			}
+
 			// TODO: test this
 			// remove resourceVersion from patch target for SSA patch to work correctly
 			unstructured.RemoveNestedField(resource.Object, "metadata", "resourceVersion")
@@ -154,6 +171,15 @@ func (g managedResources) WakeUp(ctx context.Context) error {
 		}
 
 		for _, resource := range resourceWrapper.data {
+			rawPatch, ok := resourceWrapper.restorePatches[resource.GetName()]
+			if !ok {
+				g.logger.Info("no restore patch found for resource, skipped",
+					"resourceName", resource.GetName(),
+					"resourceKind", resource.GetKind(),
+				)
+				continue
+			}
+
 			current, err := json.Marshal(resource.Object)
 			if err != nil {
 				return fmt.Errorf("%w: %s", ErrJSONPatch, err)
@@ -173,15 +199,6 @@ func (g managedResources) WakeUp(ctx context.Context) error {
 					"resourceName", resource.GetName(),
 					"resourceKind", resource.GetKind(),
 					"patch", resourceWrapper.patchData.Patch,
-				)
-				continue
-			}
-
-			rawPatch, ok := resourceWrapper.restorePatches[resource.GetName()]
-			if !ok {
-				g.logger.Info("no restore patch found for resource, skipped",
-					"resourceName", resource.GetName(),
-					"resourceKind", resource.GetKind(),
 				)
 				continue
 			}
