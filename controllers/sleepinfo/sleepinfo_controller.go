@@ -62,7 +62,6 @@ type Clock interface {
 	Now() time.Time
 }
 
-// TODO: add documentation on current cluster role and how to set it only on specific resources
 //+kubebuilder:rbac:groups=kube-green.com,resources=sleepinfos,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=kube-green.com,resources=sleepinfos/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=kube-green.com,resources=sleepinfos/finalizers,verbs=update
