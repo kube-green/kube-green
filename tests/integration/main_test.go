@@ -40,7 +40,7 @@ func TestMain(m *testing.M) {
 		kubegreenv1alpha1.AddToScheme(r.GetScheme())
 		c = c.WithClient(c.Client())
 
-		return testutil.CreateNSForTest(ctx, c, t, runID)
+		return testutil.CreateNamespace(ctx, c, t, runID)
 	})
 
 	testenv.AfterEachFeature(func(ctx context.Context, c *envconf.Config, t *testing.T, f features.Feature) (context.Context, error) {
@@ -57,8 +57,8 @@ func TestMain(m *testing.M) {
 	)
 
 	testenv.Finish(
-		envfuncs.TeardownCRDs("/tmp", "kube-green-e2e-test.yaml"),
 		envfuncs.ExportClusterLogs(kindClusterName, fmt.Sprintf("./tests-logs/kube-green-e2e-%s", runID)),
+		envfuncs.TeardownCRDs("/tmp", "kube-green-e2e-test.yaml"),
 		testutil.DestroyKindCluster(kindClusterName),
 	)
 

@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 func TestSleepInfo(t *testing.T) {
@@ -312,6 +313,68 @@ func TestSleepInfo(t *testing.T) {
 			schedule, err := sleepInfo.GetSleepSchedule()
 			require.EqualError(t, err, "time should be of format HH:mm, actual: 20")
 			require.Empty(t, schedule)
+		})
+	})
+
+	t.Run("with custom patches", func(t *testing.T) {
+		sleepInfo := SleepInfo{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "SleepInfo",
+				APIVersion: "v1alpha1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "sleep-test-1",
+				Namespace: "namespace",
+			},
+			Spec: SleepInfoSpec{
+				Patches: []Patch{
+					{
+						Target: PatchTarget{
+							Group: "apps",
+							Kind:  "Deployment",
+						},
+						Patch: `
+- op: add
+  path: /spec/replicas
+  value: 0
+`,
+					},
+					{
+						Target: PatchTarget{
+							Group: "batch",
+							Kind:  "CronJob",
+						},
+						Patch: `
+- op: add
+  path: /spec/suspent
+  value: true
+`,
+					},
+				},
+			},
+		}
+
+		require.NotEmpty(t, sleepInfo.GetPatches())
+	})
+
+	t.Run("PatchTarget", func(t *testing.T) {
+		t.Run("String method", func(t *testing.T) {
+			target := PatchTarget{
+				Group: "apps",
+				Kind:  "Deployment",
+			}
+			require.Equal(t, "Deployment.apps", target.String())
+		})
+
+		t.Run("GroupKind method", func(t *testing.T) {
+			target := PatchTarget{
+				Group: "apps",
+				Kind:  "Deployment",
+			}
+			require.Equal(t, schema.GroupKind{
+				Group: "apps",
+				Kind:  "Deployment",
+			}, target.GroupKind())
 		})
 	})
 }

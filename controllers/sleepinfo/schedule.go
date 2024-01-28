@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/robfig/cron/v3"
 )
 
-func (r *SleepInfoReconciler) getNextSchedule(data SleepInfoData, now time.Time) (bool, time.Time, time.Duration, error) {
+func (r *SleepInfoReconciler) getNextSchedule(log logr.Logger, data SleepInfoData, now time.Time) (bool, time.Time, time.Duration, error) {
 	scheduleDelta := time.Duration(r.SleepDelta) * time.Second
 	sched, err := getCronParsed(data.CurrentOperationSchedule)
 	if err != nil {
@@ -38,7 +39,7 @@ func (r *SleepInfoReconciler) getNextSchedule(data SleepInfoData, now time.Time)
 		nextSchedule = nextOpSched.Next(now.Add(scheduleDelta))
 	}
 	requeueAfter = getRequeueAfter(nextSchedule, now)
-	r.Log.Info("is time to execute", "execute", isToExecute, "next", nextSchedule, "last", lastSchedule, "now", now)
+	log.Info("is time to execute", "execute", isToExecute, "next", nextSchedule, "last", lastSchedule, "now", now)
 
 	return isToExecute, nextSchedule, requeueAfter, nil
 }

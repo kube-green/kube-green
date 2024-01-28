@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/discovery"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -16,19 +15,6 @@ import (
 	"sigs.k8s.io/e2e-framework/pkg/env"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 )
-
-func CreateNamespace(ctx context.Context, k8sClient client.Client, name string) error {
-	namespace := &v1.Namespace{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Namespace",
-			APIVersion: "v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
-		},
-	}
-	return k8sClient.Create(ctx, namespace)
-}
 
 func GetResource(ctx context.Context, k8sClient client.Client, name, namespace string, resource *unstructured.Unstructured) error {
 	return k8sClient.Get(ctx, client.ObjectKey{
@@ -39,10 +25,9 @@ func GetResource(ctx context.Context, k8sClient client.Client, name, namespace s
 
 type nsKey struct{}
 
-// TODO: rename me in CreateNamespace
-// CreateNSForTest creates a random namespace with the runID as a prefix. It is stored in the context
+// CreateNamespace creates a random namespace with the runID as a prefix. It is stored in the context
 // so that the deleteNSForTest routine can look it up and delete it.
-func CreateNSForTest(ctx context.Context, cfg *envconf.Config, t *testing.T, runID string) (context.Context, error) {
+func CreateNamespace(ctx context.Context, cfg *envconf.Config, t *testing.T, runID string) (context.Context, error) {
 	t.Helper()
 
 	ns := envconf.RandomName(runID, 32)

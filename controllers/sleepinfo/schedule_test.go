@@ -377,7 +377,7 @@ func TestSchedule(t *testing.T) {
 	for _, test := range tests {
 		test := test // necessary to ensure the correct value is passed to the closure
 		t.Run(test.name, func(t *testing.T) {
-			isToExecute, nextSchedule, requeueAfter, err := sleepInfoReconciler.getNextSchedule(test.data, getTime(t, test.now))
+			isToExecute, nextSchedule, requeueAfter, err := sleepInfoReconciler.getNextSchedule(sleepInfoReconciler.Log, test.data, getTime(t, test.now))
 
 			expected := test.expected
 			if expected.err != "" {

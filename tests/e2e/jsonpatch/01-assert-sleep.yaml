@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: echo-service-replica-1
+spec:
+  replicas: 0
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: echo-service-statefulset
+spec:
+  replicas: 0
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: echo-service-exclude-with-label
+spec:
+  replicas: 1
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: do-not-sleep
+spec:
+  replicas: 3
+---
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: echo-service-replicaset
+spec:
+  replicas: 0
+---
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: echo-service-exclude-with-label
+spec:
+  replicas: 1
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: sleepinfo-working-hours
+type: Opaque
+data:
+  original-resource-info: eyJSZXBsaWNhU2V0LmFwcHMiOnsiZWNoby1zZXJ2aWNlLXJlcGxpY2FzZXQiOiJ7XCJzcGVjXCI6e1wicmVwbGljYXNcIjoyfX0ifSwiU3RhdGVmdWxTZXQuYXBwcyI6eyJlY2hvLXNlcnZpY2Utc3RhdGVmdWxzZXQiOiJ7XCJzcGVjXCI6e1wicmVwbGljYXNcIjozfX0ifX0=
+  operation-type: U0xFRVA=
+

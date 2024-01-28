@@ -115,6 +115,7 @@ coverage:
 .PHONY: e2e-test
 e2e-test: manifests generate kustomize
 	@$(KUSTOMIZE) build ./config/e2e-test/ -o /tmp/kube-green-e2e-test.yaml
+	@ rm -rf ./tests/integration/tests-logs/
 	@echo "==> Generated K8s resource file with Kustomize"
 	go test -tags=e2e ./tests/integration/ -count 1
 
@@ -181,7 +182,7 @@ GOLANCCI_LINT ?= $(LOCALBIN)/golangci-lint
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v4.5.7
-CONTROLLER_TOOLS_VERSION ?= v0.10.0
+CONTROLLER_TOOLS_VERSION ?= v0.13.0
 GOTESTSUM_VERSION ?= 1.11.0
 GOLANGCI_VERSION ?= v1.55.1
 

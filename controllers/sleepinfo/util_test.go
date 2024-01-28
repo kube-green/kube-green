@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	kubegreenv1alpha1 "github.com/kube-green/kube-green/api/v1alpha1"
+	"github.com/kube-green/kube-green/api/v1alpha1"
 	"github.com/kube-green/kube-green/controllers/sleepinfo/cronjobs"
 	"github.com/kube-green/kube-green/controllers/sleepinfo/deployments"
 
@@ -28,31 +28,33 @@ import (
 )
 
 type setupOptions struct {
-	insertCronjobs bool
+	insertCronjobs  bool
+	customResources []unstructured.Unstructured
 }
 
 type originalResources struct {
-	deploymentList []appsv1.Deployment
-	cronjobList    []unstructured.Unstructured
+	deploymentList      []appsv1.Deployment
+	cronjobList         []unstructured.Unstructured
+	genericResourcesMap resourceMap
 
-	sleepInfo kubegreenv1alpha1.SleepInfo
+	sleepInfo v1alpha1.SleepInfo
 }
 
-func createSleepInfoCRD(t *testing.T, ctx context.Context, c *envconf.Config, sleepInfo *kubegreenv1alpha1.SleepInfo) kubegreenv1alpha1.SleepInfo {
+func createSleepInfoCRD(t *testing.T, ctx context.Context, c *envconf.Config, sleepInfo *v1alpha1.SleepInfo) v1alpha1.SleepInfo {
 	t.Helper()
 
 	r, err := resources.New(c.Client().RESTConfig())
 	require.NoError(t, err)
-	err = kubegreenv1alpha1.AddToScheme(r.GetScheme())
+	err = v1alpha1.AddToScheme(r.GetScheme())
 	require.NoError(t, err)
 
 	err = c.Client().Resources().Create(ctx, sleepInfo)
 	require.NoError(t, err, "error creating SleepInfo")
 
-	createdSleepInfo := &kubegreenv1alpha1.SleepInfo{}
+	createdSleepInfo := &v1alpha1.SleepInfo{}
 
 	err = wait.For(conditions.New(c.Client().Resources(c.Namespace())).ResourceMatch(sleepInfo, func(object k8s.Object) bool {
-		createdSleepInfo = object.(*kubegreenv1alpha1.SleepInfo)
+		createdSleepInfo = object.(*v1alpha1.SleepInfo)
 		return true
 	}), wait.WithTimeout(time.Second*10), wait.WithInterval(time.Millisecond*250))
 	require.NoError(t, err)
@@ -60,7 +62,7 @@ func createSleepInfoCRD(t *testing.T, ctx context.Context, c *envconf.Config, sl
 	return *createdSleepInfo
 }
 
-func setupNamespaceWithResources(t *testing.T, ctx context.Context, cfg *envconf.Config, sleepInfoToCreate *kubegreenv1alpha1.SleepInfo, reconciler SleepInfoReconciler, opts setupOptions) (ctrl.Request, originalResources) {
+func setupNamespaceWithResources(t *testing.T, ctx context.Context, cfg *envconf.Config, sleepInfoToCreate *v1alpha1.SleepInfo, reconciler SleepInfoReconciler, opts setupOptions) (ctrl.Request, originalResources) {
 	t.Helper()
 
 	sleepInfo := createSleepInfoCRD(t, ctx, cfg, sleepInfoToCreate)
@@ -70,6 +72,11 @@ func setupNamespaceWithResources(t *testing.T, ctx context.Context, cfg *envconf
 	var originalCronJobs []unstructured.Unstructured
 	if opts.insertCronjobs {
 		originalCronJobs = upsertCronJobs(t, ctx, cfg, false)
+	}
+
+	r := resourceMap{}
+	if len(opts.customResources) > 0 {
+		r = r.upsert(t, ctx, cfg, opts.customResources)
 	}
 
 	req := reconcile.Request{
@@ -99,8 +106,9 @@ func setupNamespaceWithResources(t *testing.T, ctx context.Context, cfg *envconf
 	})
 
 	return req, originalResources{
-		deploymentList: originalDeployments,
-		cronjobList:    originalCronJobs,
+		deploymentList:      originalDeployments,
+		cronjobList:         originalCronJobs,
+		genericResourcesMap: r,
 
 		sleepInfo: sleepInfo,
 	}
@@ -233,8 +241,8 @@ func upsertCronJobs(t *testing.T, ctx context.Context, c *envconf.Config, update
 	return cronJobs
 }
 
-func getDefaultSleepInfo(name, namespace string) *kubegreenv1alpha1.SleepInfo {
-	return &kubegreenv1alpha1.SleepInfo{
+func getDefaultSleepInfo(name, namespace string) *v1alpha1.SleepInfo {
+	return &v1alpha1.SleepInfo{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "SleepInfo",
 			APIVersion: "kube-green.com/v1alpha1",
@@ -243,7 +251,7 @@ func getDefaultSleepInfo(name, namespace string) *kubegreenv1alpha1.SleepInfo {
 			Name:      name,
 			Namespace: namespace,
 		},
-		Spec: kubegreenv1alpha1.SleepInfoSpec{
+		Spec: v1alpha1.SleepInfoSpec{
 			Weekdays:   "*",
 			SleepTime:  "*:05", // at minute 5
 			WakeUpTime: "*:20", // at minute 20
@@ -318,6 +326,81 @@ func getCronJobList(t *testing.T, ctx context.Context, c *envconf.Config) []unst
 	require.NoError(t, err)
 
 	return u.Items
+}
+
+type resourceList struct {
+	data []unstructured.Unstructured
+}
+type resourceMap map[string]resourceList
+
+func getGenericResourcesMap(t *testing.T, ctx context.Context, c *envconf.Config, patches []v1alpha1.Patch) resourceMap {
+	k8sClient := c.Client().Resources(c.Namespace()).GetControllerRuntimeClient()
+
+	m := resourceMap{}
+
+	for _, patch := range patches {
+		restMapping, err := k8sClient.RESTMapper().RESTMapping(schema.GroupKind{
+			Group: patch.Target.Group,
+			Kind:  patch.Target.Kind,
+		})
+		require.NoError(t, err)
+
+		u := unstructured.UnstructuredList{}
+		u.SetGroupVersionKind(restMapping.GroupVersionKind)
+
+		err = k8sClient.List(ctx, &u, &client.ListOptions{
+			Namespace: c.Namespace(),
+		})
+		require.NoError(t, err)
+
+		m[m.key(restMapping.GroupVersionKind)] = resourceList{
+			data: u.Items,
+		}
+	}
+
+	return m
+}
+
+func (r resourceMap) upsert(t *testing.T, ctx context.Context, c *envconf.Config, resources []unstructured.Unstructured) resourceMap {
+	k8sClient := c.Client().Resources(c.Namespace()).GetControllerRuntimeClient()
+
+	for _, resource := range resources {
+		resource := resource
+		gvk := resource.GetObjectKind().GroupVersionKind()
+
+		if obj := findResourceByName(r.getResourceList(gvk), resource.GetName()); obj != nil {
+			patch := client.MergeFrom(obj)
+			if err := k8sClient.Patch(ctx, &resource, patch); err != nil {
+				require.NoError(t, err)
+			}
+		} else {
+			require.NoError(t, k8sClient.Create(ctx, &resource))
+		}
+
+		r[r.key(gvk)] = resourceList{
+			data: append(r.getResourceList(gvk), resource),
+		}
+
+		err := wait.For(conditions.New(c.Client().Resources(c.Namespace())).ResourceMatch(resource.DeepCopy(), func(object k8s.Object) bool {
+			actualObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(object)
+			require.NoError(t, err)
+			return resource.GetResourceVersion() == actualObj["metadata"].(map[string]interface{})["resourceVersion"]
+		}), wait.WithTimeout(time.Second*10), wait.WithInterval(time.Millisecond*250))
+		require.NoError(t, err)
+	}
+
+	return r
+}
+
+func (r resourceMap) key(gvk schema.GroupVersionKind) string {
+	return gvk.String()
+}
+
+func (r resourceMap) getResourceList(gvk schema.GroupVersionKind) []unstructured.Unstructured {
+	if r[r.key(gvk)].data == nil {
+		return []unstructured.Unstructured{}
+	}
+	return r[r.key(gvk)].data
 }
 
 func parseTime(t *testing.T, mockNowRaw string) time.Time {
@@ -415,6 +498,15 @@ func findResourceByName(resources []unstructured.Unstructured, nameToFind string
 	for _, resource := range resources {
 		if resource.GetName() == nameToFind {
 			return resource.DeepCopy()
+		}
+	}
+	return nil
+}
+
+func findPatchByTarget(patches []v1alpha1.Patch, target schema.GroupVersionKind) []byte {
+	for _, patch := range patches {
+		if patch.Target.Group == target.Group && patch.Target.Kind == target.Kind {
+			return []byte(patch.Patch)
 		}
 	}
 	return nil

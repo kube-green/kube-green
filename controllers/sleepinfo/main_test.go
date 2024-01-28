@@ -30,7 +30,7 @@ func TestMain(m *testing.M) {
 		require.NoError(t, err)
 		c = c.WithClient(c.Client())
 
-		return testutil.CreateNSForTest(ctx, c, t, runID)
+		return testutil.CreateNamespace(ctx, c, t, runID)
 	})
 
 	testenv.AfterEachFeature(func(ctx context.Context, c *envconf.Config, t *testing.T, f features.Feature) (context.Context, error) {

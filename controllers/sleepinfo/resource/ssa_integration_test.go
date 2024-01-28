@@ -138,7 +138,7 @@ func TestServerSideApply(t *testing.T) {
 			ctx, err = testutil.GetClusterVersion()(ctx, c)
 			require.NoError(t, err)
 
-			ctx, err = testutil.CreateNSForTest(ctx, c, t, runID)
+			ctx, err = testutil.CreateNamespace(ctx, c, t, runID)
 			require.NoError(t, err)
 
 			return ctx

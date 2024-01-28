@@ -90,7 +90,7 @@ func (d *deployments) fetch(ctx context.Context, namespace string) error {
 	if err != nil {
 		return err
 	}
-	log.V(1).Info("deployments in namespace", "number of deployment", len(deploymentList))
+	log.V(8).Info("deployments in namespace", "number of deployment", len(deploymentList))
 	d.data = d.filterExcludedDeployment(deploymentList)
 	return nil
 }

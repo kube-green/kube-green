@@ -5,12 +5,14 @@ import (
 
 	"github.com/kube-green/kube-green/controllers/sleepinfo/cronjobs"
 	"github.com/kube-green/kube-green/controllers/sleepinfo/deployments"
+	"github.com/kube-green/kube-green/controllers/sleepinfo/jsonpatch"
 	"github.com/kube-green/kube-green/controllers/sleepinfo/resource"
 )
 
 type Resources struct {
-	deployments resource.Resource
-	cronjobs    resource.Resource
+	deployments      resource.Resource
+	cronjobs         resource.Resource
+	genericResources resource.Resource
 }
 
 func NewResources(ctx context.Context, resourceClient resource.ResourceClient, namespace string, sleepInfoData SleepInfoData) (Resources, error) {
@@ -27,29 +29,42 @@ func NewResources(ctx context.Context, resourceClient resource.ResourceClient, n
 		resourceClient.Log.Error(err, "fails to init cronjobs")
 		return Resources{}, err
 	}
+	// TODO: what happen if Deploy and CronJob are managed also by jsonpatch?
+	genericResources, err := jsonpatch.NewResources(ctx, resourceClient, namespace, sleepInfoData.OriginalGenericResourceInfo)
+	if err != nil {
+		resourceClient.Log.Error(err, "fails to init jsonpatch resources")
+		return Resources{}, err
+	}
 
 	return Resources{
-		deployments: deployResource,
-		cronjobs:    cronJobResource,
+		deployments:      deployResource,
+		cronjobs:         cronJobResource,
+		genericResources: genericResources,
 	}, nil
 }
 
 func (r Resources) hasResources() bool {
-	return r.deployments.HasResource() || r.cronjobs.HasResource()
+	return r.deployments.HasResource() || r.cronjobs.HasResource() || r.genericResources.HasResource()
 }
 
 func (r Resources) sleep(ctx context.Context) error {
 	if err := r.deployments.Sleep(ctx); err != nil {
 		return err
 	}
-	return r.cronjobs.Sleep(ctx)
+	if err := r.cronjobs.Sleep(ctx); err != nil {
+		return err
+	}
+	return r.genericResources.Sleep(ctx)
 }
 
 func (r Resources) wakeUp(ctx context.Context) error {
 	if err := r.deployments.WakeUp(ctx); err != nil {
 		return err
 	}
-	return r.cronjobs.WakeUp(ctx)
+	if err := r.cronjobs.WakeUp(ctx); err != nil {
+		return err
+	}
+	return r.genericResources.WakeUp(ctx)
 }
 
 func (r Resources) getOriginalResourceInfoToSave() (map[string][]byte, error) {
@@ -71,21 +86,30 @@ func (r Resources) getOriginalResourceInfoToSave() (map[string][]byte, error) {
 		newData[originalCronjobStatusKey] = originalCronJobStatus
 	}
 
+	genericResourcePatch, err := r.genericResources.GetOriginalInfoToSave()
+	if err != nil {
+		return nil, err
+	}
+	if genericResourcePatch != nil {
+		newData[originalJSONPatchDataKey] = genericResourcePatch
+	}
+
 	return newData, nil
 }
 
 func setOriginalResourceInfoToRestoreInSleepInfo(data map[string][]byte, sleepInfoData *SleepInfoData) error {
-	originalDeploymentsReplicasData, err := deployments.GetOriginalInfoToRestore(data[replicasBeforeSleepKey])
-	if err != nil {
+	var err error
+	if sleepInfoData.OriginalDeploymentsReplicas, err = deployments.GetOriginalInfoToRestore(data[replicasBeforeSleepKey]); err != nil {
 		return err
 	}
-	sleepInfoData.OriginalDeploymentsReplicas = originalDeploymentsReplicasData
 
-	originalCronJobStatusData, err := cronjobs.GetOriginalInfoToRestore(data[originalCronjobStatusKey])
-	if err != nil {
+	if sleepInfoData.OriginalCronJobStatus, err = cronjobs.GetOriginalInfoToRestore(data[originalCronjobStatusKey]); err != nil {
 		return err
 	}
-	sleepInfoData.OriginalCronJobStatus = originalCronJobStatusData
+
+	if sleepInfoData.OriginalGenericResourceInfo, err = jsonpatch.GetOriginalInfoToRestore(data[originalJSONPatchDataKey]); err != nil {
+		return err
+	}
 
 	return nil
 }

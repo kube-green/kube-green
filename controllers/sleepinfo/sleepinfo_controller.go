@@ -10,6 +10,7 @@ import (
 	"time"
 
 	kubegreenv1alpha1 "github.com/kube-green/kube-green/api/v1alpha1"
+	"github.com/kube-green/kube-green/controllers/sleepinfo/jsonpatch"
 	"github.com/kube-green/kube-green/controllers/sleepinfo/metrics"
 	"github.com/kube-green/kube-green/controllers/sleepinfo/resource"
 
@@ -30,6 +31,7 @@ const (
 	lastOperationKey              = "operation-type"
 	replicasBeforeSleepKey        = "deployment-replicas"
 	originalCronjobStatusKey      = "cronjobs-info"
+	originalJSONPatchDataKey      = "original-resource-info"
 	replicasBeforeSleepAnnotation = "sleepinfo.kube-green.com/replicas-before-sleep"
 
 	sleepOperation  = "SLEEP"
@@ -63,9 +65,8 @@ type Clock interface {
 //+kubebuilder:rbac:groups=kube-green.com,resources=sleepinfos,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=kube-green.com,resources=sleepinfos/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=kube-green.com,resources=sleepinfos/finalizers,verbs=update
-//+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=batch,resources=cronjobs,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=*,resources=*,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -107,7 +108,7 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 	now := r.Clock.Now()
 
-	isToExecute, nextSchedule, requeueAfter, err := r.getNextSchedule(sleepInfoData, now)
+	isToExecute, nextSchedule, requeueAfter, err := r.getNextSchedule(log, sleepInfoData, now)
 	if err != nil {
 		log.Error(err, "unable to update deployment with 0 replicas")
 		return ctrl.Result{}, err
@@ -137,7 +138,7 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		log.Error(err, "unable to update sleepInfo status")
 		return ctrl.Result{}, err
 	}
-	log.V(1).Info("update status info")
+	log.V(8).Info("update status info")
 
 	logSecret := log.WithValues("secret", secretName)
 	if !resources.hasResources() {
@@ -167,13 +168,6 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		}, nil
 	}
 
-	if err = r.upsertSecret(ctx, log, now, secretName, req.Namespace, sleepInfo, secret, sleepInfoData, resources); err != nil {
-		logSecret.Error(err, "fails to update secret")
-		return ctrl.Result{
-			Requeue: true,
-		}, nil
-	}
-
 	switch {
 	case sleepInfoData.IsSleepOperation():
 		if err := resources.sleep(ctx); err != nil {
@@ -191,6 +185,13 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		}
 	default:
 		return ctrl.Result{}, fmt.Errorf("operation %s not supported", sleepInfoData.CurrentOperationType)
+	}
+
+	if err = r.upsertSecret(ctx, log, now, secretName, req.Namespace, sleepInfo, secret, sleepInfoData, resources); err != nil {
+		logSecret.Error(err, "fails to update secret")
+		return ctrl.Result{
+			Requeue: true,
+		}, nil
 	}
 
 	return ctrl.Result{
@@ -256,6 +257,7 @@ type SleepInfoData struct {
 	CurrentOperationSchedule    string
 	NextOperationSchedule       string
 	OriginalCronJobStatus       map[string]bool
+	OriginalGenericResourceInfo map[string]jsonpatch.RestorePatches
 }
 
 func (s SleepInfoData) IsWakeUpOperation() bool {

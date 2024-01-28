@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 type ExcludeRef struct {
@@ -65,6 +66,39 @@ type SleepInfoSpec struct {
 	// +optional
 	//+operator-sdk:csv:customresourcedefinitions:type=spec
 	SuspendDeployments *bool `json:"suspendDeployments,omitempty"`
+	// Patches is a list of json 6902 patches to apply to the target resources.
+	// +optional
+	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	Patches []Patch `json:"patches,omitempty"`
+}
+
+type Patch struct {
+	// Target is the target resource to patch.
+	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	Target PatchTarget `json:"target"`
+	// Patch is the json6902 patch to apply to the target resource.
+	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	Patch string `json:"patch"`
+}
+
+type PatchTarget struct {
+	// Group of the Kubernetes resources.
+	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	Group string `json:"group"`
+	// Kind of the Kubernetes resources.
+	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	Kind string `json:"kind"`
+}
+
+func (p PatchTarget) String() string {
+	return fmt.Sprintf("%s.%s", p.Kind, p.Group)
+}
+
+func (p PatchTarget) GroupKind() schema.GroupKind {
+	return schema.GroupKind{
+		Group: p.Group,
+		Kind:  p.Kind,
+	}
 }
 
 // SleepInfoStatus defines the observed state of SleepInfo
@@ -137,6 +171,10 @@ func (s SleepInfo) IsDeploymentsToSuspend() bool {
 		return true
 	}
 	return *s.Spec.SuspendDeployments
+}
+
+func (s SleepInfo) GetPatches() []Patch {
+	return s.Spec.Patches
 }
 
 //+kubebuilder:object:root=true
