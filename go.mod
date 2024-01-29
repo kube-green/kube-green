@@ -3,7 +3,7 @@ module github.com/kube-green/kube-green
 go 1.21
 
 require (
-	github.com/evanphx/json-patch/v5 v5.7.0
+	github.com/evanphx/json-patch/v5 v5.9.0
 	github.com/go-logr/logr v1.3.0
 	github.com/kube-green/kuttl v0.0.0-20240128181608-a4e9ae25a573
 	github.com/prometheus/client_golang v1.17.0
