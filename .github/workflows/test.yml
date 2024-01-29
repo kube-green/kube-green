@@ -17,6 +17,7 @@ jobs:
         go_version: ['1.21']
         os: [ubuntu-latest]
         k8s_version:
+          - 'v1.29.0'
           - 'v1.28.0'
           - 'v1.27.3'
           - 'v1.26.6'

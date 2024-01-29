@@ -10,7 +10,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -254,10 +253,6 @@ func TestSleep(t *testing.T) {
 		err = c.List(ctx, &list, listOptions)
 		require.NoError(t, err)
 		require.Equal(t, appsv1.DeploymentList{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "DeploymentList",
-				APIVersion: "apps/v1",
-			},
 			Items: []appsv1.Deployment{
 				GetMock(MockSpec{
 					Namespace:       namespace,
@@ -374,10 +369,6 @@ func TestWakeUp(t *testing.T) {
 		err = c.List(ctx, &list, listOptions)
 		require.NoError(t, err)
 		require.Equal(t, appsv1.DeploymentList{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "DeploymentList",
-				APIVersion: "apps/v1",
-			},
 			Items: []appsv1.Deployment{
 				dAfterSleep,
 				GetMock(MockSpec{
