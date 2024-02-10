@@ -112,9 +112,14 @@ spec:
                 description: "Weekdays are in cron notation. \n For example, to configure
                   a schedule from monday to friday, set it to \"1-5\""
                 type: string
-            required:
-            - sleepAt
-            - weekdays
+              weekdaysleep:
+                description: "WeekdaySleep are in cron notation. \n For example, to
+                  configure a schedule from monday to friday, set it to \"1-5\""
+                type: string
+              weekdaywakeup:
+                description: "WeekDayWakeUp are in cron notation. \n For example,
+                  to configure a schedule from monday to friday, set it to \"1-5\""
+                type: string
             type: object
           status:
             description: SleepInfoStatus defines the observed state of SleepInfo

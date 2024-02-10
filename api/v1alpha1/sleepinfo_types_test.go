@@ -143,6 +143,27 @@ func TestSleepInfo(t *testing.T) {
 		})
 	})
 
+	t.Run("missing Weekdays, WeekdaySleep, and WeekdayWakeUp", func(t *testing.T) {
+		sleepInfo := SleepInfo{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "SleepInfo",
+				APIVersion: "v1alpha1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "sleep-test-1",
+				Namespace: "namespace",
+			},
+			Spec: SleepInfoSpec{
+				SleepTime:  "20:00",
+				WakeUpTime: "8:00",
+			},
+		}
+		_, err := sleepInfo.GetSleepSchedule()
+		require.Error(t, err)
+		_, err = sleepInfo.GetWakeUpSchedule()
+		require.Error(t, err)
+	})
+
 	t.Run("cronjob to suspend", func(t *testing.T) {
 		sleepInfo := SleepInfo{
 			TypeMeta: metav1.TypeMeta{
