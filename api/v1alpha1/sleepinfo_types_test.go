@@ -398,6 +398,77 @@ func TestSleepInfo(t *testing.T) {
 			}, target.GroupKind())
 		})
 	})
+
+	t.Run("ScheduleException", func(t *testing.T) {
+		sleepinfo := SleepInfo{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "SleepInfo",
+				APIVersion: "v1alpha1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "sleep-test-1",
+				Namespace: "namespace",
+			},
+			Spec: SleepInfoSpec{
+				ScheduleException: []ScheduleException{
+					{
+						Date:    "25-12",
+						SleepAt: "08:00",
+					},
+				},
+			},
+		}
+		res, err := sleepinfo.GetScheduleException()
+		require.NoError(t, err)
+		require.Len(t, res, 1)
+		require.Equal(t, "00 08 25 12 *", res[0])
+	})
+
+	t.Run("ScheduleException - invalid date", func(t *testing.T) {
+		sleepinfo := SleepInfo{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "SleepInfo",
+				APIVersion: "v1alpha1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "sleep-test-1",
+				Namespace: "namespace",
+			},
+			Spec: SleepInfoSpec{
+				ScheduleException: []ScheduleException{
+					{
+						Date:    "25:12",
+						SleepAt: "08:00",
+					},
+				},
+			},
+		}
+		_, err := sleepinfo.GetScheduleException()
+		require.EqualError(t, err, "date should be of format MM-DD, actual: '25:12'")
+	})
+
+	t.Run("ScheduleException - invalid sleepAt", func(t *testing.T) {
+		sleepinfo := SleepInfo{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "SleepInfo",
+				APIVersion: "v1alpha1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "sleep-test-1",
+				Namespace: "namespace",
+			},
+			Spec: SleepInfoSpec{
+				ScheduleException: []ScheduleException{
+					{
+						Date:    "25-12",
+						SleepAt: "08-00",
+					},
+				},
+			},
+		}
+		_, err := sleepinfo.GetScheduleException()
+		require.EqualError(t, err, "time should be of format HH:mm, actual: '08-00'")
+	})
 }
 
 func getPtr[T any](item T) *T {

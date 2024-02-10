@@ -84,6 +84,25 @@ spec:
                   - target
                   type: object
                 type: array
+              scheduleException:
+                description: ScheduleException define the exceptions to the schedule.
+                items:
+                  properties:
+                    date:
+                      description: "Day-Month \n Accept cron schedule for both day
+                        and month. For example, *-*/2 is set to configure a run every
+                        even month."
+                      type: string
+                    sleepAt:
+                      description: "Hours:Minutes \n Accept cron schedule for both
+                        hour and minute. For example, *:*/2 is set to configure a
+                        run every even minute."
+                      type: string
+                  required:
+                  - date
+                  - sleepAt
+                  type: object
+                type: array
               sleepAt:
                 description: "Hours:Minutes \n Accept cron schedule for both hour
                   and minute. For example, *:*/2 is set to configure a run every even

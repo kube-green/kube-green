@@ -80,6 +80,25 @@ type SleepInfoSpec struct {
 	// +optional
 	//+operator-sdk:csv:customresourcedefinitions:type=spec
 	Patches []Patch `json:"patches,omitempty"`
+	// ScheduleException define the exceptions to the schedule.
+	// +optional
+	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	ScheduleException []ScheduleException `json:"scheduleException,omitempty"`
+}
+
+type ScheduleException struct {
+	// Day-Month
+	//
+	// Accept cron schedule for both day and month.
+	// For example, *-*/2 is set to configure a run every even month.
+	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	Date string `json:"date"`
+	// Hours:Minutes
+	//
+	// Accept cron schedule for both hour and minute.
+	// For example, *:*/2 is set to configure a run every even minute.
+	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	SleepAt string `json:"sleepAt"`
 }
 
 type Patch struct {
@@ -152,6 +171,27 @@ func (s SleepInfo) GetWakeUpSchedule() (string, error) {
 
 func (s SleepInfo) GetExcludeRef() []ExcludeRef {
 	return s.Spec.ExcludeRef
+}
+
+func (s SleepInfo) GetScheduleException() ([]string, error) {
+	scheduleExceptions := []string{}
+	for _, exception := range s.Spec.ScheduleException {
+		splittedDate := strings.Split(exception.Date, "-")
+		if len(splittedDate) != 2 {
+			return nil, fmt.Errorf("date should be of format MM-DD, actual: '%s'", exception.Date)
+		}
+		splittedTime := strings.Split(exception.SleepAt, ":")
+		if len(splittedTime) != 2 {
+			return nil, fmt.Errorf("time should be of format HH:mm, actual: '%s'", exception.SleepAt)
+		}
+		schedule := fmt.Sprintf("%s %s %s %s *", splittedTime[1], splittedTime[0], splittedDate[0], splittedDate[1])
+		if s.Spec.TimeZone != "" {
+			schedule = fmt.Sprintf("CRON_TZ=%s %s", s.Spec.TimeZone, schedule)
+		}
+
+		scheduleExceptions = append(scheduleExceptions, schedule)
+	}
+	return scheduleExceptions, nil
 }
 
 func (s SleepInfo) getScheduleFromWeekdayAndTime(weekday string, hourAndMinute string) (string, error) {
