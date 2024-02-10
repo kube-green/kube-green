@@ -108,17 +108,17 @@ spec:
                   and minute. For example, *:*/2 is set to configure a run every even
                   minute. It is not required."
                 type: string
-              weekdays:
-                description: "Weekdays are in cron notation. \n For example, to configure
-                  a schedule from monday to friday, set it to \"1-5\""
-                type: string
-              weekdaysleep:
+              weekdaySleep:
                 description: "WeekdaySleep are in cron notation. \n For example, to
                   configure a schedule from monday to friday, set it to \"1-5\""
                 type: string
-              weekdaywakeup:
+              weekdayWakeUp:
                 description: "WeekDayWakeUp are in cron notation. \n For example,
                   to configure a schedule from monday to friday, set it to \"1-5\""
+                type: string
+              weekdays:
+                description: "Weekdays are in cron notation. \n For example, to configure
+                  a schedule from monday to friday, set it to \"1-5\""
                 type: string
             type: object
           status:
