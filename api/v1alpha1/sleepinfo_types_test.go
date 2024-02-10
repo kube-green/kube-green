@@ -309,7 +309,7 @@ func TestSleepInfo(t *testing.T) {
 
 		t.Run("get sleep schedule", func(t *testing.T) {
 			schedule, err := sleepInfo.GetSleepSchedule()
-			require.EqualError(t, err, "empty weekdays from SleepInfo configuration")
+			require.EqualError(t, err, "empty weekdays and weekdaysleep or weekdaywakeup from SleepInfo configuration")
 			require.Empty(t, schedule)
 		})
 	})
