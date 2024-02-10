@@ -177,10 +177,12 @@ func (s SleepInfo) GetScheduleException() ([]string, error) {
 	scheduleExceptions := []string{}
 	for _, exception := range s.Spec.ScheduleException {
 		splittedDate := strings.Split(exception.Date, "-")
+		//nolint:gomnd
 		if len(splittedDate) != 2 {
 			return nil, fmt.Errorf("date should be of format MM-DD, actual: '%s'", exception.Date)
 		}
 		splittedTime := strings.Split(exception.SleepAt, ":")
+		//nolint:gomnd
 		if len(splittedTime) != 2 {
 			return nil, fmt.Errorf("time should be of format HH:mm, actual: '%s'", exception.SleepAt)
 		}
