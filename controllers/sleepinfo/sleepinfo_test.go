@@ -12,8 +12,8 @@ import (
 	"github.com/kube-green/kube-green/controllers/sleepinfo/cronjobs"
 	"github.com/kube-green/kube-green/controllers/sleepinfo/deployments"
 	"github.com/kube-green/kube-green/controllers/sleepinfo/internal/mocks"
-	"github.com/kube-green/kube-green/controllers/sleepinfo/jsonpatch"
 	"github.com/kube-green/kube-green/controllers/sleepinfo/metrics"
+	"github.com/kube-green/kube-green/internal/patcher"
 
 	"github.com/go-logr/logr"
 	promTestutil "github.com/prometheus/client_golang/prometheus/testutil"
@@ -605,7 +605,7 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 
 						patch := findPatchByTarget(assert.originalResources.sleepInfo.GetPatches(), res.GroupVersionKind())
 						require.NotNil(t, patch)
-						patcher, err := jsonpatch.CreatePatch(patch)
+						patcher, err := patcher.New(patch)
 						require.NoError(t, err)
 						new, err := json.Marshal(res.Object)
 						require.NoError(t, err)
@@ -683,7 +683,7 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 
 						patch := findPatchByTarget(assert.originalResources.sleepInfo.GetPatches(), res.GroupVersionKind())
 						require.NotNil(t, patch)
-						patcher, err := jsonpatch.CreatePatch(patch)
+						patcher, err := patcher.New(patch)
 						require.NoError(t, err)
 						new, err := json.Marshal(res.Object)
 						require.NoError(t, err)

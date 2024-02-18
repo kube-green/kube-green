@@ -5,11 +5,14 @@ Copyright 2021.
 package v1alpha1
 
 import (
+	"context"
 	"fmt"
 
+	"github.com/kube-green/kube-green/internal/patcher"
 	"github.com/robfig/cron/v3"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
@@ -18,59 +21,80 @@ import (
 // log is for logging in this package.
 var sleepinfolog = logf.Log.WithName("sleepinfo-resource")
 
-func (s *SleepInfo) SetupWebhookWithManager(mgr ctrl.Manager) error {
+func SetupWebhookWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewWebhookManagedBy(mgr).
-		For(s).
+		For(&SleepInfo{}).
+		WithValidator(&CustomValidator{
+			client: mgr.GetClient(),
+		}).
 		Complete()
 }
 
-//+kubebuilder:webhook:path=/validate-kube-green-com-v1alpha1-sleepinfo,mutating=false,failurePolicy=fail,sideEffects=None,groups=kube-green.com,resources=sleepinfos,verbs=create;update,versions=v1alpha1,name=vsleepinfo.kb.io,admissionReviewVersions=v1
+type CustomValidator struct {
+	client client.Client
+}
 
-var _ webhook.Validator = &SleepInfo{}
+// +kubebuilder:webhook:path=/validate-kube-green-com-v1alpha1-sleepinfo,mutating=false,failurePolicy=fail,sideEffects=None,groups=kube-green.com,resources=sleepinfos,verbs=create;update,versions=v1alpha1,name=vsleepinfo.kb.io,admissionReviewVersions=v1
+var _ webhook.CustomValidator = &CustomValidator{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (s *SleepInfo) ValidateCreate() (admission.Warnings, error) {
+func (v *CustomValidator) ValidateCreate(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
+	s, ok := obj.(*SleepInfo)
+	if !ok {
+		return nil, fmt.Errorf("fails to decode SleepInfo")
+	}
 	sleepinfolog.Info("validate create", "name", s.Name, "namespace", s.Namespace)
 
-	return nil, s.validateSleepInfo()
+	return s.validateSleepInfo(v.client)
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (s *SleepInfo) ValidateUpdate(_ runtime.Object) (admission.Warnings, error) {
+func (v *CustomValidator) ValidateUpdate(ctx context.Context, _, new runtime.Object) (admission.Warnings, error) {
+	s, ok := new.(*SleepInfo)
+	if !ok {
+		return nil, fmt.Errorf("fails to decode SleepInfo")
+	}
 	sleepinfolog.Info("validate update", "name", s.Name, "namespace", s.Namespace)
 
-	return nil, s.validateSleepInfo()
+	return s.validateSleepInfo(v.client)
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (s *SleepInfo) ValidateDelete() (admission.Warnings, error) {
+func (v *CustomValidator) ValidateDelete(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
+	s, ok := obj.(*SleepInfo)
+	if !ok {
+		return nil, fmt.Errorf("fails to decode SleepInfo")
+	}
 	sleepinfolog.Info("validate delete", "name", s.Name)
 	return nil, nil
 }
 
-func (s SleepInfo) validateSleepInfo() error {
+func (s SleepInfo) validateSleepInfo(cl client.Client) ([]string, error) {
 	schedule, err := s.GetSleepSchedule()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if _, err = cron.ParseStandard(schedule); err != nil {
-		return err
+		return nil, err
 	}
 
 	schedule, err = s.GetWakeUpSchedule()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if schedule != "" {
 		if _, err = cron.ParseStandard(schedule); err != nil {
-			return err
+			return nil, err
 		}
 	}
 
 	for _, excludeRef := range s.GetExcludeRef() {
-		return isExcludeRefValid(excludeRef)
+		if err := isExcludeRefValid(excludeRef); err != nil {
+			return nil, err
+		}
 	}
-	return nil
+
+	return s.validatePatches(cl)
 }
 
 func isExcludeRefValid(excludeRef ExcludeRef) error {
@@ -81,4 +105,19 @@ func isExcludeRefValid(excludeRef ExcludeRef) error {
 		return nil
 	}
 	return fmt.Errorf(`excludeRef is invalid. Must have set: matchLabels or name,apiVersion and kind fields`)
+}
+
+func (s *SleepInfo) validatePatches(cl client.Client) ([]string, error) {
+	warnings := []string{}
+	for _, patch := range s.GetPatches() {
+		if _, err := cl.RESTMapper().RESTMapping(patch.Target.GroupKind()); err != nil {
+			warnings = append(warnings, fmt.Sprintf("patch target %s is not supported by the cluster", patch.Target))
+		}
+
+		if _, err := patcher.New([]byte(patch.Patch)); err != nil {
+			return nil, fmt.Errorf("patch is invalid for target %s: %w", patch.Target, err)
+		}
+	}
+
+	return warnings, nil
 }

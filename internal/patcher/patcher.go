@@ -1,4 +1,4 @@
-package jsonpatch
+package patcher
 
 import (
 	jsonpatch "github.com/evanphx/json-patch/v5"
@@ -25,7 +25,7 @@ func (p Patcher) IsResourceChanged(original []byte) (bool, error) {
 	return !jsonpatch.Equal(original, modified), nil
 }
 
-func CreatePatch(patchToApply []byte) (*Patcher, error) {
+func New(patchToApply []byte) (*Patcher, error) {
 	jsonPatchToApply, err := yaml.YAMLToJSON(patchToApply)
 	if err != nil {
 		return nil, err

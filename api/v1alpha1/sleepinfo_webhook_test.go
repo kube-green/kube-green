@@ -5,10 +5,14 @@ Copyright 2021.
 package v1alpha1
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 func TestValidateSleepInfo(t *testing.T) {
@@ -26,6 +30,7 @@ func TestValidateSleepInfo(t *testing.T) {
 	var tests = []struct {
 		name          string
 		expectedError string
+		expectedWarns []string
 		sleepInfoSpec SleepInfoSpec
 	}{
 		{
@@ -164,7 +169,7 @@ func TestValidateSleepInfo(t *testing.T) {
 			},
 		},
 		{
-			name: "ok - only matchLabels",
+			name: "ok - excludeRef only matchLabels",
 			sleepInfoSpec: SleepInfoSpec{
 				Weekdays:  "1-5",
 				SleepTime: "13:15",
@@ -178,7 +183,7 @@ func TestValidateSleepInfo(t *testing.T) {
 			},
 		},
 		{
-			name: "ok - Name,ApiVersion,Kind",
+			name: "ok - excludeRef Name,ApiVersion,Kind",
 			sleepInfoSpec: SleepInfoSpec{
 				Weekdays:  "1-5",
 				SleepTime: "13:15",
@@ -191,7 +196,86 @@ func TestValidateSleepInfo(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "ok - patches with existent resources",
+			sleepInfoSpec: SleepInfoSpec{
+				Weekdays:  "1-5",
+				SleepTime: "13:15",
+				Patches: []Patch{
+					{
+						Target: PatchTarget{
+							Group: "apps",
+							Kind:  "StatefulSet",
+						},
+						Patch: `
+- op: add
+  path: /spec/replicas
+  value: 0`,
+					},
+				},
+			},
+		},
+		{
+			name: "warning - patches with unsupported resources",
+			sleepInfoSpec: SleepInfoSpec{
+				Weekdays:  "1-5",
+				SleepTime: "13:15",
+				Patches: []Patch{
+					{
+						Target: PatchTarget{
+							Group: "apps",
+							Kind:  "ReplicaSet",
+						},
+						Patch: `
+- op: add
+  path: /spec/replicas
+  value: 0`,
+					},
+					{
+						Target: PatchTarget{
+							Group: "apps",
+							Kind:  "Deployment",
+						},
+						Patch: `
+- op: add
+  path: /spec/replicas
+  value: 0`,
+					},
+				},
+			},
+			expectedWarns: []string{
+				"patch target ReplicaSet.apps is not supported by the cluster",
+				"patch target Deployment.apps is not supported by the cluster",
+			},
+		},
+		{
+			name: "ok - invalid patch",
+			sleepInfoSpec: SleepInfoSpec{
+				Weekdays:  "1-5",
+				SleepTime: "13:15",
+				Patches: []Patch{
+					{
+						Target: PatchTarget{
+							Group: "apps",
+							Kind:  "StatefulSet",
+						},
+						Patch: `- op: invalid`,
+					},
+				},
+			},
+			expectedError: "patch is invalid for target StatefulSet.apps: invalid operation {\"op\":\"invalid\"}: unsupported operation",
+		},
 	}
+
+	groupVersion := []schema.GroupVersion{
+		{Group: "apps", Version: "v1"},
+	}
+	restMapper := meta.NewDefaultRESTMapper(groupVersion)
+	restMapper.Add(schema.GroupVersionKind{
+		Group:   "apps",
+		Version: "v1",
+		Kind:    "StatefulSet",
+	}, meta.RESTScopeNamespace)
 
 	for _, test := range tests {
 		test := test // necessary to ensure the correct value is passed to the closure
@@ -199,17 +283,22 @@ func TestValidateSleepInfo(t *testing.T) {
 		s.Spec = test.sleepInfoSpec
 
 		t.Run(test.name, func(t *testing.T) {
-			err := s.validateSleepInfo()
+			client := fake.NewClientBuilder().WithRESTMapper(restMapper).Build()
+			warn, err := s.validateSleepInfo(client)
 			if test.expectedError != "" {
 				require.EqualError(t, err, test.expectedError)
 			} else {
 				require.NoError(t, err)
+			}
+			if len(warn) > 0 {
+				require.Equal(t, test.expectedWarns, warn)
 			}
 		})
 	}
 }
 
 func TestSleepInfoValidation(t *testing.T) {
+	client := fake.NewClientBuilder().Build()
 	sleepInfoOk := &SleepInfo{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "SleepInfo",
@@ -235,14 +324,17 @@ func TestSleepInfoValidation(t *testing.T) {
 		},
 		Spec: SleepInfoSpec{},
 	}
+	customValidator := &CustomValidator{
+		client: client,
+	}
 
 	t.Run("create - ok", func(t *testing.T) {
-		_, err := sleepInfoOk.ValidateCreate()
+		_, err := customValidator.ValidateCreate(context.Background(), sleepInfoOk)
 		require.NoError(t, err)
 	})
 
 	t.Run("create - ko", func(t *testing.T) {
-		_, err := sleepInfoKo.ValidateCreate()
+		_, err := customValidator.ValidateCreate(context.Background(), sleepInfoKo)
 		require.EqualError(t, err, "empty weekdays from SleepInfo configuration")
 	})
 
@@ -261,7 +353,7 @@ func TestSleepInfoValidation(t *testing.T) {
 				Weekdays:  "1-5",
 			},
 		}
-		_, err := sleepInfoOk.ValidateUpdate(oldSleepInfo)
+		_, err := customValidator.ValidateUpdate(context.Background(), oldSleepInfo, sleepInfoOk)
 		require.NoError(t, err)
 	})
 
@@ -280,12 +372,12 @@ func TestSleepInfoValidation(t *testing.T) {
 				Weekdays:  "1-5",
 			},
 		}
-		_, err := sleepInfoKo.ValidateUpdate(oldSleepInfo)
+		_, err := customValidator.ValidateUpdate(context.Background(), oldSleepInfo, sleepInfoKo)
 		require.EqualError(t, err, "empty weekdays from SleepInfo configuration")
 	})
 
 	t.Run("delete - ok", func(t *testing.T) {
-		_, err := (&SleepInfo{}).ValidateDelete()
+		_, err := customValidator.ValidateDelete(context.Background(), sleepInfoOk)
 		require.NoError(t, err)
 	})
 }
