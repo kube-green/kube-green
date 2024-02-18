@@ -324,8 +324,8 @@ func TestSleepInfoValidation(t *testing.T) {
 		},
 		Spec: SleepInfoSpec{},
 	}
-	customValidator := &CustomValidator{
-		client: client,
+	customValidator := &customValidator{
+		Client: client,
 	}
 
 	t.Run("create - ok", func(t *testing.T) {
