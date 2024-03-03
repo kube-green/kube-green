@@ -13,6 +13,9 @@ import (
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/net"
+	"k8s.io/client-go/dynamic"
+	restclient "k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/features"
@@ -47,23 +50,65 @@ func TestValidationWebhook(t *testing.T) {
 								Name:       "Frontend",
 							},
 							{
-								APIVersion: "apps/v1",
-								Kind:       "Deployment",
 								MatchLabels: map[string]string{
 									"app": "backend",
 								},
 							},
 						},
+						Patches: []kubegreenv1alpha1.Patch{
+							{
+								Target: kubegreenv1alpha1.PatchTarget{
+									Group: "apps",
+									Kind:  "StatefulSet",
+								},
+								Patch: `
+- op: add
+  path: /spec/replicas
+  value: 0`,
+							},
+							{
+								Target: kubegreenv1alpha1.PatchTarget{
+									Group: "not-existing-group.dev",
+									Kind:  "SomeCRD",
+								},
+								Patch: `
+- op: add
+  path: /spec/replicas
+  value: 0`,
+							},
+						},
 					},
 				}
-				k8sClient := c.Client().Resources(c.Namespace()).GetControllerRuntimeClient()
-				err := k8sClient.Create(ctx, sleepInfo)
+
+				config := c.Client().RESTConfig()
+				config.GroupVersion = &kubegreenv1alpha1.GroupVersion
+				config = dynamic.ConfigFor(config)
+				client, err := restclient.RESTClientFor(config)
 				require.NoError(t, err)
+
+				result := client.
+					Post().
+					AbsPath("/apis/kube-green.com/v1alpha1/namespaces/" + c.Namespace() + "/sleepinfos").
+					Body(sleepInfo.DeepCopyObject()).
+					Do(context.Background())
+				require.NoError(t, result.Error())
+
+				wasCreated := new(bool)
+				result.WasCreated(wasCreated)
+				require.True(t, *wasCreated)
+				require.Equal(t, []net.WarningHeader{
+					{
+						Code:  299,
+						Text:  "patch target 'SomeCRD.not-existing-group.dev' is not supported by the cluster",
+						Agent: "-",
+					},
+				}, result.Warnings())
+
 				return ctx
 			},
 		},
 		{
-			Name: "validate create - ko",
+			Name: "validate create ko - empty weekdays",
 			Assessment: func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 				k8sClient := c.Client().Resources(c.Namespace()).GetControllerRuntimeClient()
 				sleepInfo := &kubegreenv1alpha1.SleepInfo{

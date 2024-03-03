@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	"github.com/kube-green/kube-green/internal/patcher"
+
 	"github.com/robfig/cron/v3"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -111,7 +112,7 @@ func (s *SleepInfo) validatePatches(cl client.Client) ([]string, error) {
 	warnings := []string{}
 	for _, patch := range s.GetPatches() {
 		if _, err := cl.RESTMapper().RESTMapping(patch.Target.GroupKind()); err != nil {
-			warnings = append(warnings, fmt.Sprintf("patch target %s is not supported by the cluster", patch.Target))
+			warnings = append(warnings, fmt.Sprintf("patch target '%s' is not supported by the cluster", patch.Target))
 		}
 
 		if _, err := patcher.New([]byte(patch.Patch)); err != nil {
