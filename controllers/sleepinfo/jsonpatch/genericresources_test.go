@@ -42,7 +42,7 @@ func TestListResources(t *testing.T) {
 		},
 	})
 
-	t.Run("returns nil if target not supported by cluster", func(t *testing.T) {
+	t.Run("returns empty list if target not supported by cluster", func(t *testing.T) {
 		sleepInfo := &v1alpha1.SleepInfo{
 			Spec: v1alpha1.SleepInfoSpec{
 				Patches: []v1alpha1.Patch{
