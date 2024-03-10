@@ -112,7 +112,7 @@ func (s *SleepInfo) validatePatches(cl client.Client) ([]string, error) {
 	warnings := []string{}
 	for _, patch := range s.GetPatches() {
 		if _, err := cl.RESTMapper().RESTMapping(patch.Target.GroupKind()); err != nil {
-			warnings = append(warnings, fmt.Sprintf("patch target '%s' is not supported by the cluster", patch.Target))
+			warnings = append(warnings, fmt.Sprintf("SleepInfo patch target is invalid: %s", err))
 		}
 
 		if _, err := patcher.New([]byte(patch.Patch)); err != nil {

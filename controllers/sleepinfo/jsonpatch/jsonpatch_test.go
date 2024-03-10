@@ -58,6 +58,16 @@ var (
   value: 0
 `,
 	}
+	unsupportedResourcePatchData = v1alpha1.Patch{
+		Target: v1alpha1.PatchTarget{
+			Group: "unsupported",
+			Kind:  "ResourceKind",
+		},
+		Patch: `
+- op: add
+  path: /suspend
+  value: true`,
+	}
 )
 
 func TestNewResources(t *testing.T) {
@@ -77,9 +87,41 @@ func TestNewResources(t *testing.T) {
 func TestUpdateResourcesJSONPatch(t *testing.T) {
 	namespace := "test"
 
+	deployWithReplicas := mocks.Deployment(mocks.DeploymentOptions{
+		Name:      "deploy-with-replicas",
+		Namespace: namespace,
+		Replicas:  getPtr(int32(3)),
+	}).Resource()
+	deployWithoutReplicas := mocks.Deployment(mocks.DeploymentOptions{
+		Name:      "d2",
+		Namespace: namespace,
+	}).Resource()
+	cronjob := cronjobs.GetMock(cronjobs.MockSpec{
+		Name:      "cron-suspend-false",
+		Namespace: namespace,
+		Suspend:   getPtr(false),
+	})
+	suspendedCj := cronjobs.GetMock(cronjobs.MockSpec{
+		Name:      "cron-suspend-true",
+		Namespace: namespace,
+		Suspend:   getPtr(true),
+	})
+	cjWithoutSuspendData := cronjobs.GetMock(cronjobs.MockSpec{
+		Name:      "cron-no-suspend",
+		Namespace: namespace,
+	})
+
 	t.Run("full lifecycle - deployment and cronjob", func(t *testing.T) {
 		labelsKeyToExclude := "kube-green.dev/exclude"
 		labelsValueToExclude := "true"
+		deployToExclude := mocks.Deployment(mocks.DeploymentOptions{
+			Name:      "deploy-to-exclude",
+			Namespace: namespace,
+			Replicas:  getPtr(int32(1)),
+			Labels: map[string]string{
+				labelsKeyToExclude: labelsValueToExclude,
+			},
+		}).Resource()
 
 		sleepInfo := &v1alpha1.SleepInfo{
 			TypeMeta: v1.TypeMeta{
@@ -104,47 +146,15 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 			},
 		}
 
-		deployWithReplicas := mocks.Deployment(mocks.DeploymentOptions{
-			Name:      "deploy-with-replicas",
-			Namespace: namespace,
-			Replicas:  getPtr(int32(3)),
-		}).Resource()
-		deployWithoutReplicas := mocks.Deployment(mocks.DeploymentOptions{
-			Name:      "d2",
-			Namespace: namespace,
-		}).Resource()
-		deployToExclude := mocks.Deployment(mocks.DeploymentOptions{
-			Name:      "deploy-to-exclude",
-			Namespace: namespace,
-			Replicas:  getPtr(int32(1)),
-			Labels: map[string]string{
-				labelsKeyToExclude: labelsValueToExclude,
-			},
-		}).Resource()
-		cronjob := cronjobs.GetMock(cronjobs.MockSpec{
-			Name:      "cron-suspend-false",
-			Namespace: namespace,
-			Suspend:   getPtr(false),
-		})
-		suspendedCj := cronjobs.GetMock(cronjobs.MockSpec{
-			Name:      "cron-suspend-true",
-			Namespace: namespace,
-			Suspend:   getPtr(true),
-		})
-		cjWithoutSuspendData := cronjobs.GetMock(cronjobs.MockSpec{
-			Name:      "cron-no-suspend",
-			Namespace: namespace,
-		})
-
 		fakeClient := testutil.PossiblyErroringFakeCtrlRuntimeClient{
 			Client: getFakeClient().
 				WithRuntimeObjects(
-					deployWithReplicas,
-					deployWithoutReplicas,
-					deployToExclude,
-					&cronjob,
-					&suspendedCj,
-					&cjWithoutSuspendData,
+					deployWithReplicas.DeepCopy(),
+					deployWithoutReplicas.DeepCopy(),
+					deployToExclude.DeepCopy(),
+					cronjob.DeepCopy(),
+					suspendedCj.DeepCopy(),
+					cjWithoutSuspendData.DeepCopy(),
 				).
 				Build(),
 		}
@@ -273,7 +283,7 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 		})
 	})
 
-	t.Run("full lifecycle - deployment and replicaset managed by it", func(t *testing.T) {
+	t.Run("full lifecycle - deployment and replicaset controlled by deployment", func(t *testing.T) {
 		sleepInfo := &v1alpha1.SleepInfo{
 			TypeMeta: v1.TypeMeta{
 				Kind: "SleepInfo",
@@ -537,6 +547,102 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 		})
 	})
 
+	t.Run("full lifecycle - with patch target to resource not supported by the cluster", func(t *testing.T) {
+		sleepInfo := &v1alpha1.SleepInfo{
+			TypeMeta: v1.TypeMeta{
+				Kind: "SleepInfo",
+			},
+			ObjectMeta: v1.ObjectMeta{
+				Namespace: namespace,
+				Name:      "test-sleepinfo",
+			},
+			Spec: v1alpha1.SleepInfoSpec{
+				Patches: []v1alpha1.Patch{
+					deployPatchData,
+					unsupportedResourcePatchData,
+				},
+			},
+		}
+
+		fakeClient := testutil.PossiblyErroringFakeCtrlRuntimeClient{
+			Client: getFakeClient().
+				WithRuntimeObjects(
+					deployWithReplicas.DeepCopy(),
+					deployWithoutReplicas.DeepCopy(),
+				).
+				Build(),
+		}
+
+		ctx := context.Background()
+		res := getNewResource(t, fakeClient, sleepInfo, namespace)
+
+		t.Run("check that there are resources", func(t *testing.T) {
+			require.True(t, res.HasResource())
+		})
+
+		deployRes := res.resMapping[deployPatchData.Target]
+
+		originalDeployments, err := deployRes.getListByNamespace(ctx, namespace, deployPatchData.Target)
+		require.NoError(t, err)
+
+		t.Run("sleep", func(t *testing.T) {
+			require.NoError(t, res.Sleep(ctx))
+
+			t.Run("Deployment", func(t *testing.T) {
+				resList, err := deployRes.getListByNamespace(ctx, namespace, deployPatchData.Target)
+				require.NoError(t, err)
+
+				require.Len(t, resList, 2)
+				require.Equal(t, int64(0), findResByName(resList, "deploy-with-replicas").Object["spec"].(map[string]interface{})["replicas"].(int64))
+				require.Equal(t, int64(0), findResByName(resList, "d2").Object["spec"].(map[string]interface{})["replicas"].(int64))
+			})
+
+			t.Run("GetOriginalInfoToSave", func(t *testing.T) {
+				originalInfo, err := res.GetOriginalInfoToSave()
+				require.NoError(t, err)
+				require.JSONEq(t, `{
+					"Deployment.apps": {"d2":"{\"spec\":{\"replicas\":null}}","deploy-with-replicas":"{\"spec\":{\"replicas\":3}}"}
+				}`, string(originalInfo))
+
+				t.Run("GetOriginalInfoToRestore", func(t *testing.T) {
+					patches, err := GetOriginalInfoToRestore(originalInfo)
+					require.NoError(t, err)
+					require.Equal(t, map[string]RestorePatches{
+						"Deployment.apps": map[string]string{
+							"d2":                   "{\"spec\":{\"replicas\":null}}",
+							"deploy-with-replicas": "{\"spec\":{\"replicas\":3}}",
+						},
+					}, patches)
+				})
+			})
+
+			t.Run("wake up", func(t *testing.T) {
+				require.NoError(t, res.WakeUp(ctx))
+
+				t.Run("Deployment", func(t *testing.T) {
+					resList, err := res.resMapping[deployPatchData.Target].getListByNamespace(ctx, namespace, deployPatchData.Target)
+					require.NoError(t, err)
+
+					require.Len(t, resList, 2)
+					requireEqualResources(t, originalDeployments, resList)
+				})
+
+				t.Run("sleep", func(t *testing.T) {
+					require.NoError(t, res.Sleep(ctx))
+
+					t.Run("Deployment", func(t *testing.T) {
+						resList, err := deployRes.getListByNamespace(ctx, namespace, deployPatchData.Target)
+						require.NoError(t, err)
+
+						require.Len(t, resList, 2)
+						require.Equal(t, int64(0), findResByName(resList, "deploy-with-replicas").Object["spec"].(map[string]interface{})["replicas"].(int64))
+						require.Equal(t, int64(0), findResByName(resList, "d2").Object["spec"].(map[string]interface{})["replicas"].(int64))
+					})
+				})
+			})
+		})
+	})
+
 	t.Run("resources changed between sleep and wake up", func(t *testing.T) {
 		sleepInfo := &v1alpha1.SleepInfo{
 			TypeMeta: v1.TypeMeta{
@@ -553,21 +659,11 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 			},
 		}
 
-		deployWithReplicas := deployments.GetMock(deployments.MockSpec{
-			Name:      "deploy-with-replicas",
-			Namespace: namespace,
-			Replicas:  getPtr(int32(3)),
-		})
-		deployWithoutReplicas := deployments.GetMock(deployments.MockSpec{
-			Name:      "d2",
-			Namespace: namespace,
-		})
-
 		fakeClient := testutil.PossiblyErroringFakeCtrlRuntimeClient{
 			Client: getFakeClient().
 				WithRuntimeObjects(
-					&deployWithReplicas,
-					&deployWithoutReplicas,
+					deployWithReplicas.DeepCopy(),
+					deployWithoutReplicas.DeepCopy(),
 				).
 				Build(),
 		}
@@ -641,21 +737,11 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 			},
 		}
 
-		deployWithReplicas := deployments.GetMock(deployments.MockSpec{
-			Name:      "deploy-with-replicas",
-			Namespace: namespace,
-			Replicas:  getPtr(int32(3)),
-		})
-		deployWithoutReplicas := deployments.GetMock(deployments.MockSpec{
-			Name:      "d2",
-			Namespace: namespace,
-		})
-
 		fakeClient := testutil.PossiblyErroringFakeCtrlRuntimeClient{
 			Client: getFakeClient().
 				WithRuntimeObjects(
-					&deployWithReplicas,
-					&deployWithoutReplicas,
+					deployWithReplicas.DeepCopy(),
+					deployWithoutReplicas.DeepCopy(),
 				).
 				Build(),
 		}
@@ -782,11 +868,12 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 			},
 		}
 
-		m := getNewResource(t, getFakeClient().Build(), sleepInfo, namespace)
+		fakeClient := getFakeClient().WithRuntimeObjects(deployWithReplicas.DeepCopy()).Build()
+		m := getNewResource(t, fakeClient, sleepInfo, namespace)
 		require.EqualError(t, m.Sleep(context.Background()), `jsonpatch error: invalid operation {"op":"wrong","path":"/spec/replicas","value":0}: unsupported operation`)
 	})
 
-	t.Run("throws if resource group not in cluster", func(t *testing.T) {
+	t.Run("not throws if resource group not in cluster", func(t *testing.T) {
 		nullogger := &bytes.Buffer{}
 		testLogger := zap.New(zap.WriteTo(nullogger))
 		sleepInfo := &v1alpha1.SleepInfo{
@@ -814,8 +901,8 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 			Log:       testLogger,
 			SleepInfo: sleepInfo,
 		}, namespace, nil)
-		require.Nil(t, res)
-		require.EqualError(t, err, fmt.Sprintf(`%s: no matches for kind "something" in group "not-existing-group"`, ErrListResources))
+		require.NoError(t, err)
+		require.False(t, res.HasResource())
 	})
 
 	t.Run("throws if patch not exists", func(t *testing.T) {
@@ -838,7 +925,8 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 				},
 			},
 		}
-		res := getNewResource(t, getFakeClient().Build(), sleepInfo, namespace)
+		fakeClient := getFakeClient().WithRuntimeObjects(deployWithReplicas.DeepCopy()).Build()
+		res := getNewResource(t, fakeClient, sleepInfo, namespace)
 		err := res.Sleep(context.Background())
 		require.EqualError(t, err, fmt.Sprintf(`%s: invalid empty patch`, ErrJSONPatch))
 	})

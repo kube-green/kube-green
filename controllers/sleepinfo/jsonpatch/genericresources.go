@@ -8,6 +8,7 @@ import (
 	"github.com/kube-green/kube-green/api/v1alpha1"
 	"github.com/kube-green/kube-green/controllers/sleepinfo/resource"
 
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
@@ -40,6 +41,9 @@ func (c genericResource) getListByNamespace(ctx context.Context, namespace strin
 	// TODO: manage optional version. So it will be possible to manage also multiple
 	// version of the same resource
 	restMapping, err := c.Client.RESTMapper().RESTMapping(target.GroupKind())
+	if meta.IsNoMatchError(err) {
+		return nil, nil
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -54,7 +58,7 @@ func (c genericResource) getListByNamespace(ctx context.Context, namespace strin
 	}
 
 	if err := c.Client.List(ctx, &resourceList, listOptions); err != nil {
-		return nil, client.IgnoreNotFound(err)
+		return resourceList.Items, client.IgnoreNotFound(err)
 	}
 
 	c.Log.V(8).Info("resources list", "gvk", restMapping.GroupVersionKind.String(), "length", len(resourceList.Items))

@@ -244,8 +244,8 @@ func TestValidateSleepInfo(t *testing.T) {
 				},
 			},
 			expectedWarns: []string{
-				"patch target 'ReplicaSet.apps' is not supported by the cluster",
-				"patch target 'Deployment.apps' is not supported by the cluster",
+				"SleepInfo patch target is invalid: no matches for apps/, Resource=ReplicaSet",
+				"SleepInfo patch target is invalid: no matches for apps/, Resource=Deployment",
 			},
 		},
 		{

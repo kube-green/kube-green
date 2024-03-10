@@ -55,6 +55,9 @@ func NewResources(ctx context.Context, res resource.ResourceClient, namespace st
 		if err != nil {
 			return nil, fmt.Errorf("%w: %s", ErrListResources, err)
 		}
+		if len(generic.data) == 0 {
+			continue
+		}
 
 		resources.resMapping[patchData.Target] = generic
 	}

@@ -42,6 +42,29 @@ func TestListResources(t *testing.T) {
 		},
 	})
 
+	t.Run("returns nil if target not supported by cluster", func(t *testing.T) {
+		sleepInfo := &v1alpha1.SleepInfo{
+			Spec: v1alpha1.SleepInfoSpec{
+				Patches: []v1alpha1.Patch{
+					unsupportedResourcePatchData,
+				},
+			},
+		}
+
+		fakeClient := testutil.PossiblyErroringFakeCtrlRuntimeClient{
+			Client: getFakeClient().WithObjects(d1.Resource(), d2.Resource(), d3.Resource()).Build(),
+		}
+
+		generic := newGenericResource(resource.ResourceClient{
+			Client:    fakeClient,
+			Log:       testLogger,
+			SleepInfo: sleepInfo,
+		}, deployPatchData, RestorePatches{})
+		list, err := generic.getListByNamespace(context.Background(), namespace, unsupportedResourcePatchData.Target)
+		require.NoError(t, err)
+		require.Len(t, list, 0)
+	})
+
 	t.Run("exclude configured resources by name", func(t *testing.T) {
 		sleepInfo := &v1alpha1.SleepInfo{
 			Spec: v1alpha1.SleepInfoSpec{

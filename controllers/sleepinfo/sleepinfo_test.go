@@ -546,6 +546,16 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
   value: 0
 `,
 				},
+				{
+					Target: kubegreenv1alpha1.PatchTarget{
+						Group: "unsupported",
+						Kind:  "MyResource",
+					},
+					Patch: `
+- op: add
+  path: /sleep
+  value: true`,
+				},
 			}
 			sleepInfo.Spec.ExcludeRef = []kubegreenv1alpha1.ExcludeRef{
 				{
