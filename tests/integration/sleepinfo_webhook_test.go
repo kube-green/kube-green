@@ -99,7 +99,7 @@ func TestValidationWebhook(t *testing.T) {
 				require.Equal(t, []net.WarningHeader{
 					{
 						Code:  299,
-						Text:  "patch target 'SomeCRD.not-existing-group.dev' is not supported by the cluster",
+						Text:  "SleepInfo patch target is invalid: no matches for kind \"SomeCRD\" in group \"not-existing-group.dev\"",
 						Agent: "-",
 					},
 				}, result.Warnings())
