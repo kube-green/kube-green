@@ -3,7 +3,7 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     cert-manager.io/inject-ca-from: kube-green/kube-green-serving-cert
-    controller-gen.kubebuilder.io/version: v0.10.0
+    controller-gen.kubebuilder.io/version: v0.13.0
   creationTimestamp: null
   labels:
     app: kube-green
@@ -58,6 +58,33 @@ spec:
                     name:
                       description: Name which identify the kubernetes resource.
                       type: string
+                  type: object
+                type: array
+              patches:
+                description: Patches is a list of json 6902 patches to apply to the
+                  target resources.
+                items:
+                  properties:
+                    patch:
+                      description: Patch is the json6902 patch to apply to the target
+                        resource.
+                      type: string
+                    target:
+                      description: Target is the target resource to patch.
+                      properties:
+                        group:
+                          description: Group of the Kubernetes resources.
+                          type: string
+                        kind:
+                          description: Kind of the Kubernetes resources.
+                          type: string
+                      required:
+                      - group
+                      - kind
+                      type: object
+                  required:
+                  - patch
+                  - target
                   type: object
                 type: array
               sleepAt:
