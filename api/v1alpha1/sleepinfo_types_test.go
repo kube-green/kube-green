@@ -346,7 +346,7 @@ func TestSleepInfo(t *testing.T) {
 						},
 						Patch: `
 - op: add
-  path: /spec/suspent
+  path: /spec/suspend
   value: true
 `,
 					},

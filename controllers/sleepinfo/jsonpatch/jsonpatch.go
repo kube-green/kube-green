@@ -7,6 +7,7 @@ import (
 
 	"github.com/kube-green/kube-green/api/v1alpha1"
 	"github.com/kube-green/kube-green/controllers/sleepinfo/resource"
+	"github.com/kube-green/kube-green/internal/patcher"
 
 	jsonpatch "github.com/evanphx/json-patch/v5"
 	"github.com/go-logr/logr"
@@ -54,6 +55,9 @@ func NewResources(ctx context.Context, res resource.ResourceClient, namespace st
 		if err != nil {
 			return nil, fmt.Errorf("%w: %s", ErrListResources, err)
 		}
+		if len(generic.data) == 0 {
+			continue
+		}
 
 		resources.resMapping[patchData.Target] = generic
 	}
@@ -76,7 +80,7 @@ func (g managedResources) Sleep(ctx context.Context) error {
 			return fmt.Errorf(`%w: invalid empty patch`, ErrJSONPatch)
 		}
 
-		patcherFn, err := CreatePatch([]byte(resourceWrapper.patchData.Patch))
+		patcherFn, err := patcher.New([]byte(resourceWrapper.patchData.Patch))
 		if err != nil {
 			return fmt.Errorf("%w: %s", ErrJSONPatch, err)
 		}
@@ -160,7 +164,7 @@ func (g managedResources) WakeUp(ctx context.Context) error {
 			}
 		}
 
-		patcherFn, err := CreatePatch([]byte(resourceWrapper.patchData.Patch))
+		patcherFn, err := patcher.New([]byte(resourceWrapper.patchData.Patch))
 		if err != nil {
 			return fmt.Errorf("%w: %s", ErrJSONPatch, err)
 		}

@@ -343,6 +343,9 @@ func getGenericResourcesMap(t *testing.T, ctx context.Context, c *envconf.Config
 			Group: patch.Target.Group,
 			Kind:  patch.Target.Kind,
 		})
+		if meta.IsNoMatchError(err) {
+			continue
+		}
 		require.NoError(t, err)
 
 		u := unstructured.UnstructuredList{}
