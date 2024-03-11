@@ -973,7 +973,7 @@ func TestInvalidResource(t *testing.T) {
 				sleepInfoReconciler := getSleepInfoReconciler(t, c, testLogger, mockNow)
 
 				result, err := sleepInfoReconciler.Reconcile(ctx, req)
-				require.EqualError(t, err, "empty weekdays from SleepInfo configuration")
+				require.EqualError(t, err, "empty weekdays and weekdaysleep or weekdaywakeup from SleepInfo configuration")
 				require.Empty(t, result)
 
 				return ctx

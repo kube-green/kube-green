@@ -30,7 +30,7 @@ func TestValidateSleepInfo(t *testing.T) {
 	}{
 		{
 			name:          "fails - without weekdays",
-			expectedError: "empty weekdays from SleepInfo configuration",
+			expectedError: "empty weekdays and weekdaysleep or weekdaywakeup from SleepInfo configuration",
 		},
 		{
 			name:          "fails - without sleep",
@@ -224,6 +224,20 @@ func TestSleepInfoValidation(t *testing.T) {
 			Weekdays:  "1-5",
 		},
 	}
+	sleepInfoWeekdaySleepOk := &SleepInfo{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "SleepInfo",
+			APIVersion: "kube-green.com/v1alpha1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "name",
+			Namespace: "namespace",
+		},
+		Spec: SleepInfoSpec{
+			SleepTime:    "20:00",
+			WeekDaySleep: "1-5",
+		},
+	}
 	sleepInfoKo := &SleepInfo{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "SleepInfo",
@@ -241,9 +255,14 @@ func TestSleepInfoValidation(t *testing.T) {
 		require.NoError(t, err)
 	})
 
+	t.Run("create weekday sleep - ok", func(t *testing.T) {
+		_, err := sleepInfoWeekdaySleepOk.ValidateCreate()
+		require.NoError(t, err)
+	})
+
 	t.Run("create - ko", func(t *testing.T) {
 		_, err := sleepInfoKo.ValidateCreate()
-		require.EqualError(t, err, "empty weekdays from SleepInfo configuration")
+		require.EqualError(t, err, "empty weekdays and weekdaysleep or weekdaywakeup from SleepInfo configuration")
 	})
 
 	t.Run("update - ok", func(t *testing.T) {
@@ -281,7 +300,7 @@ func TestSleepInfoValidation(t *testing.T) {
 			},
 		}
 		_, err := sleepInfoKo.ValidateUpdate(oldSleepInfo)
-		require.EqualError(t, err, "empty weekdays from SleepInfo configuration")
+		require.EqualError(t, err, "empty weekdays and weekdaysleep or weekdaywakeup from SleepInfo configuration")
 	})
 
 	t.Run("delete - ok", func(t *testing.T) {
