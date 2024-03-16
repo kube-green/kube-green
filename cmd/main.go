@@ -12,8 +12,8 @@ import (
 	// to ensure that exec-entrypoint and run can make use of them.
 	"github.com/kube-green/kube-green/api/v1alpha1"
 	kubegreencomv1alpha1 "github.com/kube-green/kube-green/api/v1alpha1"
-	sleepinfocontroller "github.com/kube-green/kube-green/controllers/sleepinfo"
-	"github.com/kube-green/kube-green/controllers/sleepinfo/metrics"
+	sleepinfocontroller "github.com/kube-green/kube-green/internal/controller/sleepinfo"
+	"github.com/kube-green/kube-green/internal/controller/sleepinfo/metrics"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"

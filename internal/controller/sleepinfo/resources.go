@@ -3,10 +3,10 @@ package sleepinfo
 import (
 	"context"
 
-	"github.com/kube-green/kube-green/controllers/sleepinfo/cronjobs"
-	"github.com/kube-green/kube-green/controllers/sleepinfo/deployments"
-	"github.com/kube-green/kube-green/controllers/sleepinfo/jsonpatch"
-	"github.com/kube-green/kube-green/controllers/sleepinfo/resource"
+	"github.com/kube-green/kube-green/internal/controller/sleepinfo/cronjobs"
+	"github.com/kube-green/kube-green/internal/controller/sleepinfo/deployments"
+	"github.com/kube-green/kube-green/internal/controller/sleepinfo/jsonpatch"
+	"github.com/kube-green/kube-green/internal/controller/sleepinfo/resource"
 )
 
 type Resources struct {

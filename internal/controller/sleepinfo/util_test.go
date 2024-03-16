@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/kube-green/kube-green/api/v1alpha1"
-	"github.com/kube-green/kube-green/controllers/sleepinfo/cronjobs"
-	"github.com/kube-green/kube-green/controllers/sleepinfo/deployments"
+	"github.com/kube-green/kube-green/internal/controller/sleepinfo/cronjobs"
+	"github.com/kube-green/kube-green/internal/controller/sleepinfo/deployments"
 
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"

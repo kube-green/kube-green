@@ -10,9 +10,9 @@ import (
 	"time"
 
 	kubegreenv1alpha1 "github.com/kube-green/kube-green/api/v1alpha1"
-	"github.com/kube-green/kube-green/controllers/sleepinfo/jsonpatch"
-	"github.com/kube-green/kube-green/controllers/sleepinfo/metrics"
-	"github.com/kube-green/kube-green/controllers/sleepinfo/resource"
+	"github.com/kube-green/kube-green/internal/controller/sleepinfo/jsonpatch"
+	"github.com/kube-green/kube-green/internal/controller/sleepinfo/metrics"
+	"github.com/kube-green/kube-green/internal/controller/sleepinfo/resource"
 
 	"github.com/go-logr/logr"
 	"github.com/prometheus/client_golang/prometheus"
