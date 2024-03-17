@@ -119,9 +119,9 @@ lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes
 	$(GOLANGCI_LINT) run --fix --config=.golangci.yaml
 
 .PHONY: test
-test: manifests generate fmt vet gotestsum ## Run tests.
+test: manifests generate fmt vet gotestsum envtest ## Run tests.
 	@echo "Running tests with kubernetes version $(KIND_K8S_VERSION)..."
-	KIND_K8S_VERSION=$(KIND_K8S_VERSION) $(GOTESTSUM) -- $(GO_TEST_ARGS) -race -p=1 ./...
+	KIND_K8S_VERSION=$(KIND_K8S_VERSION) $(GOTESTSUM) -- $(GO_TEST_ARGS) -race ./...
 
 .PHONY: coverage
 coverage:
@@ -221,7 +221,8 @@ CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen-$(CONTROLLER_TOOLS_VERSION)
 ENVTEST ?= $(LOCALBIN)/setup-envtest-$(ENVTEST_VERSION)
 GOTESTSUM ?= $(LOCALBIN)/gotestsum-$(GOTESTSUM_VERSION)
 GOLANGCI_LINT = $(LOCALBIN)/golangci-lint-$(GOLANGCI_LINT_VERSION)
-OPERATOR_SDK ?= $(LOCALBIN)/operator-sdk
+OPERATOR_SDK ?= $(LOCALBIN)/operator-sdk-$(OPERATOR_SDK_VERSION)
+ENVTEST ?= $(LOCALBIN)/setup-envtest
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v5.3.0
@@ -230,6 +231,7 @@ ENVTEST_VERSION ?= latest
 GOTESTSUM_VERSION ?= v1.11.0
 GOLANGCI_LINT_VERSION ?= v1.55.1
 OPERATOR_SDK_VERSION ?= v1.34.1
+ENVTEST_VERSION ?= latest
 
 .PHONY: kustomize
 kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
@@ -250,6 +252,11 @@ $(GOTESTSUM): $(LOCALBIN)
 golangci-lint: $(GOLANGCI_LINT) ## Download golangci-lint locally if necessary.
 $(GOLANGCI_LINT): $(LOCALBIN)
 	$(call go-install-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/cmd/golangci-lint,${GOLANGCI_LINT_VERSION})
+
+.PHONY: envtest
+envtest: $(ENVTEST) ## Download setup-envtest locally if necessary.
+$(ENVTEST): $(LOCALBIN)
+	$(call go-install-tool,$(ENVTEST),sigs.k8s.io/controller-runtime/tools/setup-envtest,$(ENVTEST_VERSION))
 
 # go-install-tool will 'go install' any package with custom target and name of binary, if it doesn't exist
 # $1 - target path with name of binary (ideally with version)
