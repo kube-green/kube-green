@@ -81,9 +81,10 @@ func findOrInstallTestEnv(e *gexe.Echo, k8sVersion string) (string, error) {
 		}
 	}
 
-	p := e.RunProc(fmt.Sprintf("%s use -p path --bin-dir %s %s", setupEnvCommand, getLocalBin(), k8sVersion))
+	cmd := fmt.Sprintf("%s use -p path --bin-dir %s %s", setupEnvCommand, getLocalBin(), k8sVersion)
+	p := e.RunProc(cmd)
 	if p.Err() != nil {
-		return "", fmt.Errorf("failed to use envtest at version %s: %s", k8sVersion, p.Err())
+		return "", fmt.Errorf("failed to use envtest at version %s: %s. Command: %s", k8sVersion, p.Err(), cmd)
 	}
 	return p.Result(), nil
 }
