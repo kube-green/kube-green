@@ -121,11 +121,11 @@ lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes
 .PHONY: test
 test: manifests generate fmt vet gotestsum ## Run tests.
 	@echo "Running tests with kubernetes version $(KIND_K8S_VERSION)..."
-	KIND_K8S_VERSION=$(KIND_K8S_VERSION) $(GOTESTSUM) -- $(GO_TEST_ARGS)
+	KIND_K8S_VERSION=$(KIND_K8S_VERSION) $(GOTESTSUM) -- $(GO_TEST_ARGS) -race -p=1 ./...
 
 .PHONY: coverage
 coverage:
-	GO_TEST_ARGS='-cover -coverprofile cover.out ./...' $(MAKE) test
+	GO_TEST_ARGS='-cover -coverprofile cover.out' $(MAKE) test
 
 .PHONY: e2e-test
 e2e-test: manifests generate kustomize
