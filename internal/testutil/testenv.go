@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/vladimirvivien/gexe"
@@ -18,6 +19,11 @@ import (
 const (
 	localBinRelativePath = "../../bin"
 	envtestBin           = "setup-envtest"
+)
+
+var (
+	_, b, _, _ = runtime.Caller(0)
+	basepath   = filepath.Dir(b)
 )
 
 type testEnvKey struct{}
@@ -75,12 +81,7 @@ func findOrInstallTestEnv(e *gexe.Echo, k8sVersion string) (string, error) {
 		}
 	}
 
-	localBin, err := getLocalBin()
-	if err != nil {
-		return "", err
-	}
-
-	p := e.RunProc(fmt.Sprintf("%s use -p path --bin-dir %s %s", setupEnvCommand, localBin, k8sVersion))
+	p := e.RunProc(fmt.Sprintf("%s use -p path --bin-dir %s %s", setupEnvCommand, getLocalBin(), k8sVersion))
 	if p.Err() != nil {
 		return "", fmt.Errorf("failed to use envtest at version %s: %s", k8sVersion, p.Err())
 	}
@@ -88,13 +89,8 @@ func findOrInstallTestEnv(e *gexe.Echo, k8sVersion string) (string, error) {
 }
 
 func installTestEnv(e *gexe.Echo) (string, error) {
-	localBin, err := getLocalBin()
-	if err != nil {
-		return "", err
-	}
-
 	p := e.
-		SetEnv("GOBIN", localBin).
+		SetEnv("GOBIN", getLocalBin()).
 		RunProc("go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest")
 	if p.Err() != nil {
 		return "", fmt.Errorf("failed to install setup-envtest: %s", p.Err())
@@ -108,19 +104,13 @@ func installTestEnv(e *gexe.Echo) (string, error) {
 	return "", fmt.Errorf("setup-envtest not available even after installation")
 }
 
-func getLocalBin() (string, error) {
-	localPath, err := filepath.Abs(localBinRelativePath)
-	if err != nil {
-		return "", err
-	}
-	return localPath, nil
+func getLocalBin() string {
+	localPath := filepath.Join(basepath, localBinRelativePath)
+	return localPath
 }
 
 func getSetupEnvPath() string {
-	localBin, err := getLocalBin()
-	if err != nil {
-		return ""
-	}
+	localBin := getLocalBin()
 	envtestBinPath := path.Join(localBin, envtestBin)
 	if _, err := os.Stat(envtestBinPath); err == nil {
 		return envtestBinPath

@@ -112,7 +112,7 @@ vet: ## Run go vet against code.
 
 .PHONY: lint
 lint: golangci-lint ## Run linter.
-	$(GOLANCCI_LINT) run --config=.golangci.yaml
+	$(GOLANGCI_LINT) run --config=.golangci.yaml
 
 .PHONY: lint-fix
 lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes
@@ -227,7 +227,7 @@ OPERATOR_SDK ?= $(LOCALBIN)/operator-sdk
 KUSTOMIZE_VERSION ?= v5.3.0
 CONTROLLER_TOOLS_VERSION ?= v0.14.0
 ENVTEST_VERSION ?= latest
-GOTESTSUM_VERSION ?= 1.11.0
+GOTESTSUM_VERSION ?= v1.11.0
 GOLANGCI_LINT_VERSION ?= v1.55.1
 OPERATOR_SDK_VERSION ?= v1.34.1
 
@@ -344,7 +344,7 @@ catalog-push: ## Push a catalog image.
 ##@ Release
 
 .PHONY: release
-release:
+release: ## Release a new version of the operator, passing vesion as argument (e.g make release version=v0.0.2).
 	./hack/update-version.sh $(version)
 	$(MAKE)
 	$(MAKE) bundle
@@ -355,7 +355,7 @@ release:
 ##@ Local Development
 
 .PHONY: local-run
-local-run:
+local-run: ## Run the operator locally in kind using ko.
 	kubectl config use-context kind-$(clusterName)
 	kubectl apply -f https://github.com/jetstack/cert-manager/releases/latest/download/cert-manager.yaml
 	@kubectl wait --timeout=120s --for=condition=ready pod -l app=cert-manager -n cert-manager
@@ -364,5 +364,5 @@ local-run:
 	@kubectl kustomize ./config/local-development/ -o ./kube-green-local-run.yaml
 	KO_DOCKER_REPO=kind.local KIND_CLUSTER_NAME="$(clusterName)" ko apply -f ./kube-green-local-run.yaml --platform=linux/$(ARCH)
 	@sleep 5
-	kubectl wait --for=condition=ready --timeout=120s pod -l app=kube-green -n kube-green
+	kubectl wait --for=condition=ready --timeout=160s pod -l app=kube-green -n kube-green
 	@rm ./kube-green-local-run.yaml

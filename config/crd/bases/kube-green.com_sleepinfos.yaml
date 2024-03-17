@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.13.0
+    controller-gen.kubebuilder.io/version: v0.14.0
   name: sleepinfos.kube-green.com
 spec:
   group: kube-green.com
@@ -44,12 +44,14 @@ spec:
                 items:
                   properties:
                     apiVersion:
-                      description: ApiVersion of the kubernetes resources. Supported
-                        api version is "apps/v1".
+                      description: |-
+                        ApiVersion of the kubernetes resources.
+                        Supported api version is "apps/v1".
                       type: string
                     kind:
-                      description: Kind of the kubernetes resources of the specific
-                        version. Supported kind are "Deployment" and "CronJob".
+                      description: |-
+                        Kind of the kubernetes resources of the specific version.
+                        Supported kind are "Deployment" and "CronJob".
                       type: string
                     matchLabels:
                       additionalProperties:
@@ -90,9 +92,12 @@ spec:
                   type: object
                 type: array
               sleepAt:
-                description: "Hours:Minutes \n Accept cron schedule for both hour
-                  and minute. For example, *:*/2 is set to configure a run every even
-                  minute."
+                description: |-
+                  Hours:Minutes
+
+
+                  Accept cron schedule for both hour and minute.
+                  For example, *:*/2 is set to configure a run every even minute.
                 type: string
               suspendCronJobs:
                 description: If SuspendCronjobs is set to true, on sleep the cronjobs
@@ -104,18 +109,26 @@ spec:
                   be suspended.
                 type: boolean
               timeZone:
-                description: Time zone to set the schedule, in IANA time zone identifier.
-                  It is not required, default to UTC. For example, for the Italy time
-                  zone set Europe/Rome.
+                description: |-
+                  Time zone to set the schedule, in IANA time zone identifier.
+                  It is not required, default to UTC.
+                  For example, for the Italy time zone set Europe/Rome.
                 type: string
               wakeUpAt:
-                description: "Hours:Minutes \n Accept cron schedule for both hour
-                  and minute. For example, *:*/2 is set to configure a run every even
-                  minute. It is not required."
+                description: |-
+                  Hours:Minutes
+
+
+                  Accept cron schedule for both hour and minute.
+                  For example, *:*/2 is set to configure a run every even minute.
+                  It is not required.
                 type: string
               weekdays:
-                description: "Weekdays are in cron notation. \n For example, to configure
-                  a schedule from monday to friday, set it to \"1-5\""
+                description: |-
+                  Weekdays are in cron notation.
+
+
+                  For example, to configure a schedule from monday to friday, set it to "1-5"
                 type: string
             required:
             - sleepAt
@@ -130,8 +143,9 @@ spec:
                 format: date-time
                 type: string
               operation:
-                description: The operation type handled in last schedule. SLEEP or
-                  WAKE_UP are the possibilities
+                description: |-
+                  The operation type handled in last schedule. SLEEP or WAKE_UP are the
+                  possibilities
                 type: string
             type: object
         type: object

@@ -8,6 +8,6 @@ spec:
     spec:
       containers:
       - name: manager
-        image: ko://github.com/kube-green/kube-green
+        image: ko://github.com/kube-green/kube-green/cmd
         command:
-          - "/ko-app/kube-green"
+          - "/ko-app/cmd"

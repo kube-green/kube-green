@@ -17,6 +17,7 @@ metadata:
   name: controller-manager
   namespace: system
   labels:
+    app: kube-green
     control-plane: controller-manager
     app.kubernetes.io/name: deployment
     app.kubernetes.io/instance: controller-manager
@@ -34,6 +35,7 @@ spec:
       annotations:
         kubectl.kubernetes.io/default-container: manager
       labels:
+        app: kube-green
         control-plane: controller-manager
     spec:
       # TODO(user): Uncomment the following code to configure the nodeAffinity expression

@@ -46,8 +46,8 @@ jobs:
         run: make lint
       - name: Run tests with coverage
         run: make coverage
-      - name: Build
-        run: make build
+      - name: Vet and Build
+        run: make
       - name: Send the coverage output
         uses: shogo82148/actions-goveralls@v1
         with:
