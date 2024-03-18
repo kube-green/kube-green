@@ -40,7 +40,7 @@ func TestMain(m *testing.M) {
 	testenv.Setup(
 		testutil.SetupEnvTest(),
 		testutil.GetClusterVersion(),
-		testutil.SetupCRDs("../../config/crd/bases", "*"),
+		testutil.SetupCRDs("../../../config/crd/bases", "*"),
 	)
 
 	testenv.Finish(

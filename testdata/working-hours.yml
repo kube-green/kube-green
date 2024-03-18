@@ -8,7 +8,7 @@ spec:
   wakeUpAt: "08:00"
   timeZone: "Europe/Rome"
   suspendCronJobs: true
-  patchesJson6902:
+  patches:
     - target:
         group: apps
         kind: Deployment

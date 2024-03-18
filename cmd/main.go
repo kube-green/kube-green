@@ -5,6 +5,7 @@ Copyright 2021.
 package main
 
 import (
+	"crypto/tls"
 	"flag"
 	"os"
 
@@ -12,8 +13,8 @@ import (
 	// to ensure that exec-entrypoint and run can make use of them.
 	"github.com/kube-green/kube-green/api/v1alpha1"
 	kubegreencomv1alpha1 "github.com/kube-green/kube-green/api/v1alpha1"
-	sleepinfocontroller "github.com/kube-green/kube-green/controllers/sleepinfo"
-	"github.com/kube-green/kube-green/controllers/sleepinfo/metrics"
+	sleepinfocontroller "github.com/kube-green/kube-green/internal/controller/sleepinfo"
+	"github.com/kube-green/kube-green/internal/controller/sleepinfo/metrics"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -46,6 +47,8 @@ func main() {
 	var enableLeaderElection bool
 	var probeAddr string
 	var sleepDelta int64
+	var secureMetrics bool
+	var enableHTTP2 bool
 	flag.IntVar(&webhookPort, "webhook-server-port", 9443, "The port where the server will listen.")
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
@@ -53,20 +56,46 @@ func main() {
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
+	flag.BoolVar(&secureMetrics, "metrics-secure", false,
+		"If set the metrics endpoint is served securely")
+	flag.BoolVar(&enableHTTP2, "enable-http2", false,
+		"If set, HTTP/2 will be enabled for the metrics and webhook servers")
+
 	opts := zap.Options{}
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
+	// if the enable-http2 flag is false (the default), http/2 should be disabled
+	// due to its vulnerabilities. More specifically, disabling http/2 will
+	// prevent from being vulnerable to the HTTP/2 Stream Cancelation and
+	// Rapid Reset CVEs. For more information see:
+	// - https://github.com/advisories/GHSA-qppj-fm5r-hxr3
+	// - https://github.com/advisories/GHSA-4374-p667-p6c8
+	disableHTTP2 := func(c *tls.Config) {
+		setupLog.Info("disabling http/2")
+		c.NextProtos = []string{"http/1.1"}
+	}
+
+	tlsOpts := []func(*tls.Config){}
+	if !enableHTTP2 {
+		tlsOpts = append(tlsOpts, disableHTTP2)
+	}
+
+	webhookServer := webhook.NewServer(webhook.Options{
+		TLSOpts: tlsOpts,
+		Port:    webhookPort,
+	})
+
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme: scheme,
 		Metrics: metricsserver.Options{
-			BindAddress: metricsAddr,
+			BindAddress:   metricsAddr,
+			SecureServing: secureMetrics,
+			TLSOpts:       tlsOpts,
 		},
-		WebhookServer: webhook.NewServer(webhook.Options{
-			Port: webhookPort,
-		}),
+		WebhookServer:          webhookServer,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "2bd226ed.kube-green.com",

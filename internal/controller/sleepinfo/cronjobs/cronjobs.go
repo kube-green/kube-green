@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	kubegreenv1alpha1 "github.com/kube-green/kube-green/api/v1alpha1"
-	"github.com/kube-green/kube-green/controllers/sleepinfo/resource"
+	"github.com/kube-green/kube-green/internal/controller/sleepinfo/resource"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/fields"

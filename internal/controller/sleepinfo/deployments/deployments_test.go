@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/kube-green/kube-green/api/v1alpha1"
-	"github.com/kube-green/kube-green/controllers/sleepinfo/resource"
+	"github.com/kube-green/kube-green/internal/controller/sleepinfo/resource"
 	"github.com/kube-green/kube-green/internal/testutil"
 
 	"github.com/stretchr/testify/require"

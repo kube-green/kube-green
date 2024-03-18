@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/kube-green/kube-green/api/v1alpha1"
-	"github.com/kube-green/kube-green/controllers/sleepinfo/resource"
+	"github.com/kube-green/kube-green/internal/controller/sleepinfo/resource"
 	"github.com/kube-green/kube-green/internal/patcher"
 
 	jsonpatch "github.com/evanphx/json-patch/v5"

@@ -42,6 +42,8 @@ jobs:
         run: go version
       - name: Go get dependencies
         run: go get -v -t -d ./...
+      - name: Run lint
+        run: make lint
       - name: Run tests with coverage
         run: make coverage
       - name: Vet and Build
