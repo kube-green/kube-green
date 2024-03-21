@@ -1,0 +1,60 @@
+# Default values for kube-green.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+manager:
+  image:
+    repository: kubegreen/kube-green
+    pullPolicy: IfNotPresent
+    tag: "0.5.1"
+
+  logtostderr: true
+  verbosity: 0
+
+kubeRbacProxy:
+  image:
+    repository: gcr.io/kubebuilder/kube-rbac-proxy
+    pullPolicy: IfNotPresent
+    tag: "v0.14.1"
+
+
+imagePullSecrets: []
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: "kube-green-controller-manager"
+
+podAnnotations: {}
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+service:
+  type: ClusterIP
+  port: 80
+
+resources:
+  limits:
+    cpu: 400m
+    memory: 400Mi
+  requests:
+    cpu: 100m
+    memory: 50Mi
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+    - ALL
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+labels: {}
