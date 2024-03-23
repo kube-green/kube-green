@@ -9,7 +9,6 @@ import (
 	"time"
 
 	kubegreenv1alpha1 "github.com/kube-green/kube-green/api/v1alpha1"
-	"github.com/kube-green/kube-green/internal/controller/sleepinfo/deployments"
 	"github.com/kube-green/kube-green/internal/controller/sleepinfo/internal/mocks"
 	"github.com/kube-green/kube-green/internal/controller/sleepinfo/metrics"
 	"github.com/kube-green/kube-green/internal/patcher"
@@ -218,8 +217,8 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 			deployments := getDeploymentList(t, ctx, c)
 			assert := getAssertOperation(t, ctx)
 			for _, deployment := range deployments {
-				originalDeployment := findDeployByName(assert.originalResources.deploymentList, deployment.Name)
-				require.Equal(t, originalDeployment.Spec.Replicas, deployment.Spec.Replicas)
+				originalDeployment := findDeployByName(assert.originalResources.deploymentList, deployment.GetName())
+				require.Equal(t, deploymentReplicas(t, originalDeployment), deploymentReplicas(t, &deployment))
 			}
 
 			return ctx
@@ -249,12 +248,13 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 
 			deploymentToUpdate := deployments[0].DeepCopy()
 			patch := client.MergeFrom(deploymentToUpdate)
-			*deploymentToUpdate.Spec.Replicas = 0
-			err := k8sClient.Patch(ctx, deploymentToUpdate, patch)
+			err := unstructured.SetNestedField(deploymentToUpdate.Object, int64(0), "spec", "replicas")
+			require.NoError(t, err)
+			err = k8sClient.Patch(ctx, deploymentToUpdate, patch)
 			require.NoError(t, err)
 
 			updatedDeployment := appsv1.Deployment{}
-			require.NoError(t, k8sClient.Get(ctx, types.NamespacedName{Name: deploymentToUpdate.Name, Namespace: c.Namespace()}, &updatedDeployment))
+			require.NoError(t, k8sClient.Get(ctx, types.NamespacedName{Name: deploymentToUpdate.GetName(), Namespace: c.Namespace()}, &updatedDeployment))
 			require.Equal(t, int32(0), *updatedDeployment.Spec.Replicas)
 
 			return ctx
@@ -313,8 +313,8 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 			deployments := getDeploymentList(t, ctx, c)
 			assert := getAssertOperation(t, ctx)
 			for _, deployment := range deployments {
-				originalDeployment := findDeployByName(assert.originalResources.deploymentList, deployment.Name)
-				require.Equal(t, originalDeployment.Spec.Replicas, deployment.Spec.Replicas)
+				originalDeployment := findDeployByName(assert.originalResources.deploymentList, deployment.GetName())
+				require.Equal(t, deploymentReplicas(t, originalDeployment), deploymentReplicas(t, &deployment))
 			}
 
 			return ctx
@@ -392,7 +392,7 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 		}).
 		Assess("create new deployment", func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 			serviceNameToCreate := "new-service"
-			deployToCreate := deployments.GetMock(deployments.MockSpec{
+			deployToCreate := mocks.Deployment(mocks.DeploymentOptions{
 				Namespace: c.Namespace(),
 				Name:      serviceNameToCreate,
 				Replicas:  getPtr[int32](5),
@@ -401,19 +401,19 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 				},
 			})
 			k8sClient := c.Client().Resources(c.Namespace()).GetControllerRuntimeClient()
-			err := k8sClient.Create(ctx, deployToCreate.DeepCopy())
+			err := k8sClient.Create(ctx, deployToCreate.Resource())
 			require.NoError(t, err)
 
 			assert := getAssertOperation(t, ctx)
-			assert.originalResources.deploymentList = append(assert.originalResources.deploymentList, deployToCreate)
+			assert.originalResources.deploymentList = append(assert.originalResources.deploymentList, deployToCreate.Unstructured())
 			ctx = withAssertOperation(ctx, assert)
 			deployments := getDeploymentList(t, ctx, c)
 			for _, deployment := range deployments {
-				if deployment.Name == serviceNameToCreate {
-					require.Equal(t, int32(5), *deployment.Spec.Replicas)
+				if deployment.GetName() == serviceNameToCreate {
+					require.Equal(t, int32(5), deploymentReplicas(t, &deployment))
 					continue
 				}
-				require.Equal(t, int32(0), *deployment.Spec.Replicas, deployment.GetName())
+				require.Equal(t, int32(0), deploymentReplicas(t, &deployment), deployment.GetName())
 			}
 
 			return ctx
@@ -450,8 +450,8 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 
 			deployments := getDeploymentList(t, ctx, c)
 			for _, deployment := range deployments {
-				originalDeployment := findDeployByName(assert.originalResources.deploymentList, deployment.Name)
-				require.Equal(t, originalDeployment.Spec.Replicas, deployment.Spec.Replicas)
+				originalDeployment := findDeployByName(assert.originalResources.deploymentList, deployment.GetName())
+				require.Equal(t, deploymentReplicas(t, originalDeployment), deploymentReplicas(t, &deployment))
 			}
 
 			cronJobs := getCronJobList(t, ctx, c)
@@ -653,9 +653,8 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 						if gvk.Group == "apps" && gvk.Kind == "Deployment" {
 							originalRes := findDeployByName(assert.originalResources.deploymentList, res.GetName())
 							require.NotNil(t, originalRes, "resource not found: %s and type %s", res.GetName(), res.GroupVersionKind().String())
-							originalSpec := originalRes.Spec
 							spec := res.Object["spec"].(map[string]interface{})
-							require.Equal(t, *originalSpec.Replicas, int32(spec["replicas"].(int64)))
+							require.Equal(t, deploymentReplicas(t, originalRes), int32(spec["replicas"].(int64)))
 							continue
 						}
 						originalRes := findResourceByName(assert.originalResources.genericResourcesMap.getResourceList(gvk), res.GetName())
@@ -1059,18 +1058,18 @@ func assertCorrectSleepOperation(t *testing.T, ctx context.Context, cfg *envconf
 				assertAllReplicasSetToZero(t, deployments)
 			} else {
 				for _, deployment := range deployments {
-					if contains(assert.excludedDeployment, deployment.Name) {
+					if contains(assert.excludedDeployment, deployment.GetName()) {
 						originalDeployment := findDeployByName(assert.originalResources.deploymentList, deployment.GetName())
-						require.Equal(t, originalDeployment.Spec.Replicas, deployment.Spec.Replicas)
+						require.Equal(t, deploymentReplicas(t, originalDeployment), deploymentReplicas(t, &deployment))
 						continue
 					}
-					require.Equal(t, int32(0), *deployment.Spec.Replicas)
+					require.Equal(t, int32(0), deploymentReplicas(t, &deployment))
 				}
 			}
 		} else {
 			for _, deployment := range deployments {
 				originalDeployment := findDeployByName(assert.originalResources.deploymentList, deployment.GetName())
-				require.Equal(t, originalDeployment.Spec.Replicas, deployment.Spec.Replicas)
+				require.Equal(t, deploymentReplicas(t, originalDeployment), deploymentReplicas(t, &deployment))
 			}
 		}
 	})
@@ -1128,10 +1127,11 @@ func assertCorrectSleepOperation(t *testing.T, ctx context.Context, cfg *envconf
 		if assert.originalResources.sleepInfo.IsDeploymentsToSuspend() {
 			originalDeployMap := map[string]string{}
 			for _, deployment := range assert.originalResources.deploymentList {
-				if *deployment.Spec.Replicas == 0 || contains(assert.excludedDeployment, deployment.Name) {
+				replicas := deploymentReplicas(t, &deployment)
+				if replicas == 0 || contains(assert.excludedDeployment, deployment.GetName()) {
 					continue
 				}
-				originalDeployMap[deployment.GetName()] = fmt.Sprintf(`{"spec":{"replicas":%d}}`, *deployment.Spec.Replicas)
+				originalDeployMap[deployment.GetName()] = fmt.Sprintf(`{"spec":{"replicas":%d}}`, replicas)
 			}
 			if len(originalDeployMap) > 0 {
 				key := kubegreenv1alpha1.PatchTarget{
@@ -1205,8 +1205,8 @@ func assertCorrectWakeUpOperation(t *testing.T, ctx context.Context, cfg *envcon
 	t.Run("deployment replicas correctly waked up", func(t *testing.T) {
 		deployments := getDeploymentList(t, ctx, cfg)
 		for _, deployment := range deployments {
-			originalDeployment := findDeployByName(assert.originalResources.deploymentList, deployment.Name)
-			require.Equal(t, originalDeployment.Spec.Replicas, deployment.Spec.Replicas)
+			originalDeployment := findDeployByName(assert.originalResources.deploymentList, deployment.GetName())
+			require.Equal(t, deploymentReplicas(t, originalDeployment), deploymentReplicas(t, &deployment))
 		}
 	})
 
