@@ -159,10 +159,8 @@ func (d deployments) GetOriginalInfoToSave() ([]byte, error) {
 	originalDeploymentsReplicas := []OriginalReplicas{}
 	for _, deployment := range d.data {
 		originalReplicas := *deployment.Spec.Replicas
-		if replica, ok := d.OriginalReplicas[deployment.Name]; ok {
-			if ok && replica != 0 {
-				originalReplicas = replica
-			}
+		if replica, ok := d.OriginalReplicas[deployment.Name]; ok && replica != 0 {
+			originalReplicas = replica
 		}
 		if originalReplicas == 0 {
 			continue

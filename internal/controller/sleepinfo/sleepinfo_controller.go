@@ -123,12 +123,12 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 	scheduleLog.WithValues("last schedule", now, "status", sleepInfo.Status).Info("last schedule value")
 
-	resources, err := NewResources(ctx, resource.ResourceClient{
+	resources, err := jsonpatch.NewResources(ctx, resource.ResourceClient{
 		Client:           r.Client,
 		SleepInfo:        sleepInfo,
 		Log:              log,
 		FieldManagerName: fieldManagerName,
-	}, req.Namespace, sleepInfoData)
+	}, req.Namespace, sleepInfoData.OriginalGenericResourceInfo)
 	if err != nil {
 		log.Error(err, "fails to get resources")
 		return ctrl.Result{}, err
@@ -141,7 +141,7 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	log.V(8).Info("update status info")
 
 	logSecret := log.WithValues("secret", secretName)
-	if !resources.hasResources() {
+	if !resources.HasResource() {
 		if err = r.upsertSecret(ctx, log, now, secretName, req.Namespace, sleepInfo, secret, sleepInfoData, resources); err != nil {
 			logSecret.Error(err, "fails to update secret")
 			return ctrl.Result{
@@ -170,14 +170,14 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	switch {
 	case sleepInfoData.IsSleepOperation():
-		if err := resources.sleep(ctx); err != nil {
+		if err := resources.Sleep(ctx); err != nil {
 			log.Error(err, "fails to handle sleep")
 			return ctrl.Result{
 				Requeue: true,
 			}, err
 		}
 	case sleepInfoData.IsWakeUpOperation():
-		if err := resources.wakeUp(ctx); err != nil {
+		if err := resources.WakeUp(ctx); err != nil {
 			log.Error(err, "fails to handle wake up")
 			return ctrl.Result{
 				Requeue: true,
@@ -239,12 +239,12 @@ func (r SleepInfoReconciler) handleSleepInfoStatus(
 	now time.Time,
 	currentSleepInfo *kubegreenv1alpha1.SleepInfo,
 	currentOperationType string,
-	resources Resources,
+	resources resource.Resource,
 ) error {
 	sleepInfo := currentSleepInfo.DeepCopy()
 	sleepInfo.Status.LastScheduleTime = metav1.NewTime(now)
 	sleepInfo.Status.OperationType = currentOperationType
-	if !resources.hasResources() {
+	if !resources.HasResource() {
 		sleepInfo.Status.OperationType = ""
 	}
 	return r.Status().Update(ctx, sleepInfo)
@@ -292,8 +292,7 @@ func getSleepInfoData(secret *v1.Secret, sleepInfo *kubegreenv1alpha1.SleepInfo)
 	}
 	data := secret.Data
 
-	err = setOriginalResourceInfoToRestoreInSleepInfo(data, &sleepInfoData)
-	if err != nil {
+	if sleepInfoData.OriginalGenericResourceInfo, err = jsonpatch.GetOriginalInfoToRestore(data[originalJSONPatchDataKey]); err != nil {
 		return SleepInfoData{}, fmt.Errorf("fails to set original resource info to restore in SleepInfo %s: %s", sleepInfo.Name, err)
 	}
 

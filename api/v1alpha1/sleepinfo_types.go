@@ -174,7 +174,14 @@ func (s SleepInfo) IsDeploymentsToSuspend() bool {
 }
 
 func (s SleepInfo) GetPatches() []Patch {
-	return s.Spec.Patches
+	patches := []Patch{}
+	if s.IsDeploymentsToSuspend() {
+		patches = append(patches, deploymentPatch)
+	}
+	if s.IsCronjobsToSuspend() {
+		patches = append(patches, cronjobPatch)
+	}
+	return append(patches, s.Spec.Patches...)
 }
 
 //+kubebuilder:object:root=true
