@@ -10,6 +10,20 @@ manager:
   logtostderr: true
   verbosity: 0
 
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+      - ALL
+
+  resources:
+    limits:
+      cpu: 400m
+      memory: 400Mi
+    requests:
+      cpu: 100m
+      memory: 50Mi
+
 kubeRbacProxy:
   image:
     repository: gcr.io/kubebuilder/kube-rbac-proxy
@@ -44,12 +58,6 @@ resources:
   requests:
     cpu: 100m
     memory: 50Mi
-
-securityContext:
-  allowPrivilegeEscalation: false
-  capabilities:
-    drop:
-    - ALL
 
 nodeSelector: {}
 

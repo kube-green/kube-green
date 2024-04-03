@@ -52,15 +52,15 @@ spec:
             port: 8081
           initialDelaySeconds: 5
           periodSeconds: 10
-        {{- if .Values.resources }}
+        {{- if .Values.manager.resources }}
         resources:
-        {{ toYaml .Values.resources | nindent 10 }}
+        {{ toYaml .Values.manager.resources | nindent 10 }}
         {{- else }}
         resources: {}
         {{- end }}
-        {{- if .Values.securityContext }}
+        {{- if .Values.manager.securityContext }}
         securityContext:
-        {{ toYaml .Values.securityContext | nindent 10 }}
+        {{ toYaml .Values.manager.securityContext | nindent 10 }}
         {{- else }}
         securityContext: {}
         {{- end }}
@@ -87,9 +87,9 @@ spec:
           requests:
             cpu: 5m
             memory: 64Mi
-        {{- if .Values.securityContext }}
+        {{- if .Values.manager.securityContext }}
         securityContext:
-        {{ toYaml .Values.securityContext | nindent 10 }}
+        {{ toYaml .Values.manager.securityContext | nindent 10 }}
         {{- else }}
         securityContext: {}
         {{- end }}
