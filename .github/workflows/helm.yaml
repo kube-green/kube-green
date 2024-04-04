@@ -16,7 +16,7 @@ jobs:
         with:
           version: 3.3.4
       - name: Linting Chart
-        run: helm lint ./charts/kubegreen
+        run: helm lint ./charts/kube-green
   release:
     runs-on: ubuntu-latest
     steps:
