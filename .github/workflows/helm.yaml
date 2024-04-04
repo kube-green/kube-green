@@ -16,7 +16,7 @@ jobs:
         with:
           version: 3.3.4
       - name: Linting Chart
-        run: helm lint ./charts/nauticus
+        run: helm lint ./charts/kube-green
       - name: Setup Chart Linting
         id: lint
         uses: helm/chart-testing-action@v2.3.0
