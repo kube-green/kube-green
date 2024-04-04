@@ -5,7 +5,7 @@ manager:
   image:
     repository: kubegreen/kube-green
     pullPolicy: IfNotPresent
-    tag: "0.5.1"
+    tag: "0.5.2"
 
   logtostderr: true
   verbosity: 0
@@ -28,8 +28,7 @@ kubeRbacProxy:
   image:
     repository: gcr.io/kubebuilder/kube-rbac-proxy
     pullPolicy: IfNotPresent
-    tag: "v0.14.1"
-
+    tag: "v0.15.0"
 
 imagePullSecrets: []
 
@@ -45,7 +44,6 @@ serviceAccount:
 podAnnotations: {}
 
 podSecurityContext: {}
-  # fsGroup: 2000
 
 service:
   type: ClusterIP
