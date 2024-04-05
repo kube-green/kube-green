@@ -1,54 +1,74 @@
 # Default values for kube-green.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
+
 manager:
   image:
+    # -- The Docker image repository for the kube-green manager application.
     repository: kubegreen/kube-green
+    # -- Defines the image pull policy. Avoids pulling the image if it's already present.
     pullPolicy: IfNotPresent
+    # -- The specific image tag of the kube-green manager to use.
     tag: "0.5.2"
 
+  # -- When true, directs logs to the standard error stream.
   logtostderr: true
+  # -- Sets the logging verbosity level. A value of 0 means minimal logging.
   verbosity: 0
 
   securityContext:
+    # -- Prevents the pod from gaining additional privileges. Set to false for security.
     allowPrivilegeEscalation: false
     capabilities:
       drop:
-      - ALL
+        # -- Drops all Linux capabilities for the pod, enhancing security.
+        - ALL
 
   resources:
     limits:
+      # -- Maximum CPU allowed.
       cpu: 400m
+      # -- Maximum memory allowed.
       memory: 400Mi
     requests:
+      # -- Requested CPU to guarantee for the pod.
       cpu: 100m
+      # -- Requested memory to guarantee for the pod.
       memory: 50Mi
 
 kubeRbacProxy:
   image:
+    # -- Docker image repository for the kube-rbac-proxy.
     repository: gcr.io/kubebuilder/kube-rbac-proxy
+    # -- Image pull policy.
     pullPolicy: IfNotPresent
+    # -- Specific image tag to use for the kube-rbac-proxy.
     tag: "v0.15.0"
 
+# -- List of secrets used to access private image repositories.
 imagePullSecrets: []
 
 serviceAccount:
-  # Specifies whether a service account should be created
+  # -- Specifies whether a service account should be created for the application.
   create: true
-  # Annotations to add to the service account
+  # -- Annotations to add to the service account if created.
   annotations: {}
-  # The name of the service account to use.
-  # If not set and create is true, a name is generated using the fullname template
-  name: "kube-green-controller-manager"
+  # -- The name of the service account to use. A name is generated if not set and create is true.
+  name: ""
 
+# -- Annotations to add to each pod.
 podAnnotations: {}
 
+# -- Security settings that apply to all containers in the pod.
 podSecurityContext: {}
 
 service:
+  # -- Type of service to expose.
   type: ClusterIP
+  # -- Port for the service.
   port: 80
 
+# -- Global CPU/memory resource requests and limits.
 resources:
   limits:
     cpu: 400m
@@ -57,14 +77,20 @@ resources:
     cpu: 100m
     memory: 50Mi
 
+# -- Node labels for pod assignment.
 nodeSelector: {}
 
+# -- Tolerations for pod scheduling.
 tolerations: []
 
+# -- Affinity rules for pod assignment.
 affinity: {}
 
+# -- Custom labels to apply to all resources.
 labels: {}
 
+# -- Priority class name for the pods.
 priorityClassName: ""
 
+# -- Topology spread constraints for pod placement.
 topologySpreadConstraints: []

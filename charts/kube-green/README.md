@@ -8,36 +8,33 @@ kube-green helm chart
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| affinity | object | `{}` |  |
-| imagePullSecrets | list | `[]` |  |
-| kubeRbacProxy.image.pullPolicy | string | `"IfNotPresent"` |  |
-| kubeRbacProxy.image.repository | string | `"gcr.io/kubebuilder/kube-rbac-proxy"` |  |
-| kubeRbacProxy.image.tag | string | `"v0.15.0"` |  |
-| labels | object | `{}` |  |
-| manager.image.pullPolicy | string | `"IfNotPresent"` |  |
-| manager.image.repository | string | `"kubegreen/kube-green"` |  |
-| manager.image.tag | string | `"0.5.2"` |  |
-| manager.logtostderr | bool | `true` |  |
-| manager.resources.limits.cpu | string | `"400m"` |  |
-| manager.resources.limits.memory | string | `"400Mi"` |  |
-| manager.resources.requests.cpu | string | `"100m"` |  |
-| manager.resources.requests.memory | string | `"50Mi"` |  |
-| manager.securityContext.allowPrivilegeEscalation | bool | `false` |  |
-| manager.securityContext.capabilities.drop[0] | string | `"ALL"` |  |
-| manager.verbosity | int | `0` |  |
-| nodeSelector | object | `{}` |  |
-| podAnnotations | object | `{}` |  |
-| podSecurityContext | object | `{}` |  |
-| priorityClassName | string | `""` |  |
-| resources.limits.cpu | string | `"400m"` |  |
-| resources.limits.memory | string | `"400Mi"` |  |
-| resources.requests.cpu | string | `"100m"` |  |
-| resources.requests.memory | string | `"50Mi"` |  |
-| service.port | int | `80` |  |
-| service.type | string | `"ClusterIP"` |  |
-| serviceAccount.annotations | object | `{}` |  |
-| serviceAccount.create | bool | `true` |  |
-| serviceAccount.name | string | `"kube-green-controller-manager"` |  |
-| tolerations | list | `[]` |  |
-| topologySpreadConstraints | list | `[]` |  |
+| affinity | object | `{}` | Affinity rules for pod assignment. |
+| imagePullSecrets | list | `[]` | List of secrets used to access private image repositories. |
+| kubeRbacProxy.image.pullPolicy | string | `"IfNotPresent"` | Image pull policy. |
+| kubeRbacProxy.image.repository | string | `"gcr.io/kubebuilder/kube-rbac-proxy"` | Docker image repository for the kube-rbac-proxy. |
+| kubeRbacProxy.image.tag | string | `"v0.15.0"` | Specific image tag to use for the kube-rbac-proxy. |
+| labels | object | `{}` | Custom labels to apply to all resources. |
+| manager.image.pullPolicy | string | `"IfNotPresent"` | Defines the image pull policy. Avoids pulling the image if it's already present. |
+| manager.image.repository | string | `"kubegreen/kube-green"` | The Docker image repository for the kube-green manager application. |
+| manager.image.tag | string | `"0.5.2"` | The specific image tag of the kube-green manager to use. |
+| manager.logtostderr | bool | `true` | When true, directs logs to the standard error stream. |
+| manager.resources.limits.cpu | string | `"400m"` | Maximum CPU allowed. |
+| manager.resources.limits.memory | string | `"400Mi"` | Maximum memory allowed. |
+| manager.resources.requests.cpu | string | `"100m"` | Requested CPU to guarantee for the pod. |
+| manager.resources.requests.memory | string | `"50Mi"` | Requested memory to guarantee for the pod. |
+| manager.securityContext.allowPrivilegeEscalation | bool | `false` | Prevents the pod from gaining additional privileges. Set to false for security. |
+| manager.securityContext.capabilities.drop[0] | string | `"ALL"` | Drops all Linux capabilities for the pod, enhancing security. |
+| manager.verbosity | int | `0` | Sets the logging verbosity level. A value of 0 means minimal logging. |
+| nodeSelector | object | `{}` | Node labels for pod assignment. |
+| podAnnotations | object | `{}` | Annotations to add to each pod. |
+| podSecurityContext | object | `{}` | Security settings that apply to all containers in the pod. |
+| priorityClassName | string | `""` | Priority class name for the pods. |
+| resources | object | `{"limits":{"cpu":"400m","memory":"400Mi"},"requests":{"cpu":"100m","memory":"50Mi"}}` | Global CPU/memory resource requests and limits. |
+| service.port | int | `80` | Port for the service. |
+| service.type | string | `"ClusterIP"` | Type of service to expose. |
+| serviceAccount.annotations | object | `{}` | Annotations to add to the service account if created. |
+| serviceAccount.create | bool | `true` | Specifies whether a service account should be created for the application. |
+| serviceAccount.name | string | `""` | The name of the service account to use. A name is generated if not set and create is true. |
+| tolerations | list | `[]` | Tolerations for pod scheduling. |
+| topologySpreadConstraints | list | `[]` | Topology spread constraints for pod placement. |
 
