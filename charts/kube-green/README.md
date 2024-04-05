@@ -34,7 +34,7 @@ kube-green helm chart
 | service.type | string | `"ClusterIP"` | Type of service to expose. |
 | serviceAccount.annotations | object | `{}` | Annotations to add to the service account if created. |
 | serviceAccount.create | bool | `true` | Specifies whether a service account should be created for the application. |
-| serviceAccount.name | string | `""` | The name of the service account to use. A name is generated if not set and create is true. |
+| serviceAccount.name | string | `"kube-green-controller-manager"` | The name of the service account to use. If not set and create is true, a name is generated using the fullname template. |
 | tolerations | list | `[]` | Tolerations for pod scheduling. |
 | topologySpreadConstraints | list | `[]` | Topology spread constraints for pod placement. |
 
