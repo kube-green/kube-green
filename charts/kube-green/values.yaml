@@ -53,8 +53,8 @@ serviceAccount:
   create: true
   # -- Annotations to add to the service account if created.
   annotations: {}
-  # -- The name of the service account to use. A name is generated if not set and create is true.
-  name: ""
+  # -- The name of the service account to use. If not set and create is true, a name is generated using the fullname template.
+  name: "kube-green-controller-manager"
 
 # -- Annotations to add to each pod.
 podAnnotations: {}
