@@ -27,13 +27,17 @@ jobs:
           if [[ -n "$changed" ]]; then
             echo "::set-output name=changed::true"
           fi
+
       - name: Run chart-testing (lint)
         run: ct lint --debug --charts charts/kube-green --config ./.github/configs/ct.yaml --lint-conf ./.github/configs/lintconf.yaml
-      - name: Run docs-testing (helm-docs)
+
+      - name: Set up helm-docs
+        uses: gabe565/setup-helm-docs-action@v1
+
+      - name: Generate docs and check for changes
         id: helm-docs
         run: |
-          make helm-docs-ensure
-          bin/helm-docs -d | diff charts/kube-green/README.md -
+          helm-docs -d | diff charts/kube-green/README.md -
           if [ $? -ne 0 ]; then
             echo -e '\033[0;31mDocumentation outdated! (Run make helm-docs locally and commit)\033[0m ❌'
             diff charts/kube-green/README.md -
