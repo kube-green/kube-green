@@ -33,9 +33,9 @@ jobs:
         id: helm-docs
         run: |
           bin/helm-docs -d | diff charts/kube-green/README.md -
-          if [[ $(git diff --stat) != '' ]]; then
+          if [ $? -ne 0 ]; then
             echo -e '\033[0;31mDocumentation outdated! (Run make helm-docs locally and commit)\033[0m ❌'
-            git diff --color
+            diff charts/kube-green/README.md -
             exit 1
           else
             echo -e '\033[0;32mDocumentation up to date\033[0m ✔'
