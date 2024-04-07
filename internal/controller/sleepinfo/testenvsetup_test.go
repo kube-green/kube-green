@@ -42,7 +42,8 @@ func testenvSetup(t *testing.T) env.Environment {
 	testenv.BeforeEachFeature(testBeforeEach(runID))
 	testenv.AfterEachFeature(testAfterEach(runID))
 
-	testutil.SetupCRDs("../../../config/crd/bases", "*")(context.TODO(), config)
+	_, err = testutil.SetupCRDs("../../../config/crd/bases", "*")(context.TODO(), config)
+	require.NoError(t, err)
 
 	t.Cleanup(func() {
 		err := envTest.Stop()

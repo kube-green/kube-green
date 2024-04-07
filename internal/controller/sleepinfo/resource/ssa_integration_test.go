@@ -226,7 +226,8 @@ func testenvSetup(t *testing.T) env.Environment {
 		return testutil.DeleteNamespace(ctx, c, t, runID)
 	})
 
-	testutil.SetupCRDs("../../../config/crd/bases", "*")(context.TODO(), config)
+	_, err = testutil.SetupCRDs("../../../config/crd/bases", "*")(context.TODO(), config)
+	require.NoError(t, err)
 
 	t.Cleanup(func() {
 		err := envTest.Stop()

@@ -720,7 +720,7 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 		}).
 		Feature()
 
-	testenv.TestInParallel(t,
+	testenv.Test(t,
 		zeroDeployments,
 		notExistentResource,
 		notExistentNamespace,
@@ -903,7 +903,7 @@ func TestDifferentSleepInfoConfiguration(t *testing.T) {
 			return ctx
 		}).Feature())
 
-	testenv.TestInParallel(t, featureList...)
+	testenv.Test(t, featureList...)
 }
 
 func TestInvalidResource(t *testing.T) {
@@ -994,7 +994,7 @@ func TestInvalidResource(t *testing.T) {
 		},
 	}.Build("invalid resources").Feature()
 
-	testenv.TestInParallel(t, invalid)
+	testenv.Test(t, invalid)
 }
 
 func reconciliationSetup(t *testing.T, ctx context.Context, c *envconf.Config, mockNow string, sleepInfo *kubegreenv1alpha1.SleepInfo) context.Context {

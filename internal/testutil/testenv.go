@@ -50,7 +50,10 @@ func StartEnvTest(config *envconf.Config) (*envtest.Environment, error) {
 	}
 	config.WithClient(client)
 
-	GetClusterVersion()(context.TODO(), config)
+	_, err = GetClusterVersion()(context.TODO(), config)
+	if err != nil {
+		return nil, err
+	}
 
 	return testEnv, nil
 }
