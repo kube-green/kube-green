@@ -7,8 +7,10 @@ import (
 
 	kubegreenv1alpha1 "github.com/kube-green/kube-green/api/v1alpha1"
 	"github.com/kube-green/kube-green/internal/testutil"
+	"k8s.io/client-go/rest"
 
 	"github.com/stretchr/testify/require"
+	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	"sigs.k8s.io/e2e-framework/klient/k8s/resources"
 	"sigs.k8s.io/e2e-framework/pkg/env"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
@@ -17,7 +19,14 @@ import (
 
 var (
 	testenv env.Environment
+	envTest *envtest.Environment
 )
+
+func TestStartCleanupEnvTest(t *testing.T) {
+	t.Cleanup(func() {
+		envTest.Stop()
+	})
+}
 
 func TestMain(m *testing.M) {
 	testenv = env.New()
@@ -37,14 +46,17 @@ func TestMain(m *testing.M) {
 		return testutil.DeleteNamespace(ctx, c, t, runID)
 	})
 
+	var cfg *rest.Config
+	var err error
+	envTest, cfg, err = testutil.StartEnvTest()
+	if err != nil {
+		panic(err)
+	}
+
 	testenv.Setup(
-		testutil.SetupEnvTest(),
+		testutil.SetupEnvTest(envTest, cfg),
 		testutil.GetClusterVersion(),
 		testutil.SetupCRDs("../../../config/crd/bases", "*"),
-	)
-
-	testenv.Finish(
-		testutil.StopEnvTest(),
 	)
 
 	// launch package tests

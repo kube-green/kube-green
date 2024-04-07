@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/vladimirvivien/gexe"
+	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	"sigs.k8s.io/e2e-framework/klient"
 	"sigs.k8s.io/e2e-framework/pkg/env"
@@ -28,25 +29,29 @@ var (
 
 type testEnvKey struct{}
 
-func SetupEnvTest() env.Func {
+func StartEnvTest() (*envtest.Environment, *rest.Config, error) {
+	testEnv := &envtest.Environment{}
+
+	e := gexe.New()
+	version := getK8sVersionForEnvtest()
+	assetsPath, err := findOrInstallTestEnv(e, version)
+	if err != nil {
+		return testEnv, nil, err
+	}
+
+	if err := os.Setenv("KUBEBUILDER_ASSETS", assetsPath); err != nil {
+		return testEnv, nil, err
+	}
+
+	cfg, err := testEnv.Start()
+	if err != nil {
+		return testEnv, nil, err
+	}
+	return testEnv, cfg, nil
+}
+
+func SetupEnvTest(testEnv *envtest.Environment, cfg *rest.Config) env.Func {
 	return func(ctx context.Context, c *envconf.Config) (context.Context, error) {
-		testEnv := &envtest.Environment{}
-
-		e := gexe.New()
-		version := getK8sVersionForEnvtest()
-		assetsPath, err := findOrInstallTestEnv(e, version)
-		if err != nil {
-			return ctx, err
-		}
-
-		if err := os.Setenv("KUBEBUILDER_ASSETS", assetsPath); err != nil {
-			return ctx, err
-		}
-
-		cfg, err := testEnv.Start()
-		if err != nil {
-			return ctx, err
-		}
 		client, err := klient.New(cfg)
 		if err != nil {
 			return ctx, err
@@ -59,17 +64,11 @@ func SetupEnvTest() env.Func {
 	}
 }
 
-func StopEnvTest() env.Func {
-	return func(ctx context.Context, c *envconf.Config) (context.Context, error) {
-		if err := os.Unsetenv("KUBEBUILDER_ASSETS"); err != nil {
-			return ctx, err
-		}
-		testEnv, ok := ctx.Value(testEnvKey{}).(*envtest.Environment)
-		if !ok {
-			return ctx, fmt.Errorf("invalid environment in context")
-		}
-		return ctx, testEnv.Stop()
+func StopEnvTest(testEnv *envtest.Environment) error {
+	if err := os.Unsetenv("KUBEBUILDER_ASSETS"); err != nil {
+		return err
 	}
+	return testEnv.Stop()
 }
 
 func findOrInstallTestEnv(e *gexe.Echo, k8sVersion string) (string, error) {

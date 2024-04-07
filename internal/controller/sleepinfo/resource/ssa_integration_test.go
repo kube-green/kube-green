@@ -30,6 +30,13 @@ func TestServerSideApply(t *testing.T) {
 	testenv := env.New()
 	runID := envconf.RandomName("kube-green-resource", 24)
 
+	envTest, cfg, err := testutil.StartEnvTest()
+	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		testutil.StopEnvTest(envTest)
+	})
+
 	ssaPatch := features.Table{
 		{
 			Name: "correctly patch resource",
@@ -132,7 +139,7 @@ func TestServerSideApply(t *testing.T) {
 	}.
 		Build("Server Side Apply").
 		Setup(func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
-			ctx, err := testutil.SetupEnvTest()(ctx, c)
+			ctx, err := testutil.SetupEnvTest(envTest, cfg)(ctx, c)
 			require.NoError(t, err)
 
 			ctx, err = testutil.GetClusterVersion()(ctx, c)
@@ -145,9 +152,6 @@ func TestServerSideApply(t *testing.T) {
 		}).
 		Teardown(func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 			cleanupNamespaceDeployments(t, c)
-
-			ctx, err := testutil.StopEnvTest()(ctx, c)
-			require.NoError(t, err)
 
 			return ctx
 		}).
