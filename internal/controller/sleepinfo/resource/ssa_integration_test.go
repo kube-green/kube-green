@@ -27,15 +27,7 @@ import (
 )
 
 func TestServerSideApply(t *testing.T) {
-	testenv := env.New()
-	runID := envconf.RandomName("kube-green-resource", 24)
-
-	envTest, cfg, err := testutil.StartEnvTest()
-	require.NoError(t, err)
-
-	t.Cleanup(func() {
-		testutil.StopEnvTest(envTest)
-	})
+	testenv := testenvSetup(t)
 
 	ssaPatch := features.Table{
 		{
@@ -138,18 +130,6 @@ func TestServerSideApply(t *testing.T) {
 		},
 	}.
 		Build("Server Side Apply").
-		Setup(func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
-			ctx, err := testutil.SetupEnvTest(envTest, cfg)(ctx, c)
-			require.NoError(t, err)
-
-			ctx, err = testutil.GetClusterVersion()(ctx, c)
-			require.NoError(t, err)
-
-			ctx, err = testutil.CreateNamespace(ctx, c, t, runID)
-			require.NoError(t, err)
-
-			return ctx
-		}).
 		Teardown(func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 			cleanupNamespaceDeployments(t, c)
 
@@ -229,4 +209,29 @@ func getDeployment(name string, c *envconf.Config) *appsv1.Deployment {
 			},
 		},
 	}
+}
+
+func testenvSetup(t *testing.T) env.Environment {
+	config := envconf.New()
+	envTest, err := testutil.StartEnvTest(config)
+	require.NoError(t, err)
+
+	testenv := env.NewWithConfig(config)
+	runID := envconf.RandomName("kube-green-resource", 24)
+
+	testenv.BeforeEachFeature(func(ctx context.Context, c *envconf.Config, t *testing.T, f features.Feature) (context.Context, error) {
+		return testutil.CreateNamespace(ctx, c, t, runID)
+	})
+	testenv.AfterEachFeature(func(ctx context.Context, c *envconf.Config, t *testing.T, f features.Feature) (context.Context, error) {
+		return testutil.DeleteNamespace(ctx, c, t, runID)
+	})
+
+	testutil.SetupCRDs("../../../config/crd/bases", "*")(context.TODO(), config)
+
+	t.Cleanup(func() {
+		err := envTest.Stop()
+		t.Log("fail to cleanup envTest:", err)
+	})
+
+	return testenv
 }

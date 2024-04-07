@@ -45,6 +45,7 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 		excludeLabelsValue = "true"
 	)
 	testLogger := zap.New(zap.UseDevMode(true))
+	testenv := testenvSetup(t)
 
 	zeroDeployments := features.New("with zero deployments").
 		WithSetup("create SleepInfo", func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
@@ -745,6 +746,7 @@ func TestDifferentSleepInfoConfiguration(t *testing.T) {
 		wakeUpTime    = "2021-03-23T20:19:50.100Z"
 		sleepTime2    = "2021-03-23T21:05:00.000Z"
 	)
+	testenv := testenvSetup(t)
 
 	table := []struct {
 		name         string
@@ -909,6 +911,7 @@ func TestInvalidResource(t *testing.T) {
 		mockNow = "2021-03-23T20:01:20.555Z"
 	)
 	testLogger := zap.New(zap.UseDevMode(true))
+	testenv := testenvSetup(t)
 
 	invalid := features.Table{
 		{

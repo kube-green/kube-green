@@ -10,10 +10,8 @@ import (
 	"strings"
 
 	"github.com/vladimirvivien/gexe"
-	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	"sigs.k8s.io/e2e-framework/klient"
-	"sigs.k8s.io/e2e-framework/pkg/env"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 )
 
@@ -27,41 +25,34 @@ var (
 	basepath   = filepath.Dir(b)
 )
 
-type testEnvKey struct{}
-
-func StartEnvTest() (*envtest.Environment, *rest.Config, error) {
+func StartEnvTest(config *envconf.Config) (*envtest.Environment, error) {
 	testEnv := &envtest.Environment{}
 
 	e := gexe.New()
 	version := getK8sVersionForEnvtest()
 	assetsPath, err := findOrInstallTestEnv(e, version)
 	if err != nil {
-		return testEnv, nil, err
+		return testEnv, err
 	}
 
 	if err := os.Setenv("KUBEBUILDER_ASSETS", assetsPath); err != nil {
-		return testEnv, nil, err
+		return testEnv, err
 	}
 
 	cfg, err := testEnv.Start()
 	if err != nil {
-		return testEnv, nil, err
+		return testEnv, err
 	}
-	return testEnv, cfg, nil
-}
 
-func SetupEnvTest(testEnv *envtest.Environment, cfg *rest.Config) env.Func {
-	return func(ctx context.Context, c *envconf.Config) (context.Context, error) {
-		client, err := klient.New(cfg)
-		if err != nil {
-			return ctx, err
-		}
-		c.WithClient(client)
-
-		ctx = context.WithValue(ctx, testEnvKey{}, testEnv)
-
-		return ctx, nil
+	client, err := klient.New(cfg)
+	if err != nil {
+		return testEnv, err
 	}
+	config.WithClient(client)
+
+	GetClusterVersion()(context.TODO(), config)
+
+	return testEnv, nil
 }
 
 func StopEnvTest(testEnv *envtest.Environment) error {
