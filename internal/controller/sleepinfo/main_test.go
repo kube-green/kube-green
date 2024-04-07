@@ -22,6 +22,8 @@ var (
 	envTest *envtest.Environment
 )
 
+// This will cleanup envTest also if some test panics.
+// It is a workaround for this issue: https://github.com/kubernetes-sigs/e2e-framework/issues/219
 func TestStartCleanupEnvTest(t *testing.T) {
 	t.Cleanup(func() {
 		envTest.Stop()
