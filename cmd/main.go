@@ -42,6 +42,7 @@ func init() {
 }
 
 func main() {
+	var webhookHost string
 	var webhookPort int
 	var metricsAddr string
 	var enableLeaderElection bool
@@ -49,6 +50,7 @@ func main() {
 	var sleepDelta int64
 	var secureMetrics bool
 	var enableHTTP2 bool
+	flag.StringVar(&webhookHost, "webhook-host", "", "The host where the server binds to. Default means all interfaces.")
 	flag.IntVar(&webhookPort, "webhook-server-port", 9443, "The port where the server will listen.")
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
@@ -84,6 +86,7 @@ func main() {
 	}
 
 	webhookServer := webhook.NewServer(webhook.Options{
+		Host:    webhookHost,
 		TLSOpts: tlsOpts,
 		Port:    webhookPort,
 	})
