@@ -32,7 +32,7 @@ func testAfterEach(runID string) env.FeatureFunc {
 }
 
 func testenvSetup(t *testing.T) env.Environment {
-	config := envconf.New()
+	config := envconf.New().WithParallelTestEnabled()
 	envTest, err := testutil.StartEnvTest(config)
 	require.NoError(t, err)
 
