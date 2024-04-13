@@ -12,7 +12,6 @@ import (
 	"github.com/vladimirvivien/gexe"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	"sigs.k8s.io/e2e-framework/klient"
-	"sigs.k8s.io/e2e-framework/pkg/env"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 )
 
@@ -26,50 +25,44 @@ var (
 	basepath   = filepath.Dir(b)
 )
 
-type testEnvKey struct{}
+func StartEnvTest(config *envconf.Config) (*envtest.Environment, error) {
+	testEnv := &envtest.Environment{}
 
-func SetupEnvTest() env.Func {
-	return func(ctx context.Context, c *envconf.Config) (context.Context, error) {
-		testEnv := &envtest.Environment{}
-
-		e := gexe.New()
-		version := getK8sVersionForEnvtest()
-		assetsPath, err := findOrInstallTestEnv(e, version)
-		if err != nil {
-			return ctx, err
-		}
-
-		if err := os.Setenv("KUBEBUILDER_ASSETS", assetsPath); err != nil {
-			return ctx, err
-		}
-
-		cfg, err := testEnv.Start()
-		if err != nil {
-			return ctx, err
-		}
-		client, err := klient.New(cfg)
-		if err != nil {
-			return ctx, err
-		}
-		c.WithClient(client)
-
-		ctx = context.WithValue(ctx, testEnvKey{}, testEnv)
-
-		return ctx, nil
+	e := gexe.New()
+	version := getK8sVersionForEnvtest()
+	assetsPath, err := findOrInstallTestEnv(e, version)
+	if err != nil {
+		return testEnv, err
 	}
+
+	if err := os.Setenv("KUBEBUILDER_ASSETS", assetsPath); err != nil {
+		return testEnv, err
+	}
+
+	cfg, err := testEnv.Start()
+	if err != nil {
+		return testEnv, err
+	}
+
+	client, err := klient.New(cfg)
+	if err != nil {
+		return testEnv, err
+	}
+	config.WithClient(client)
+
+	_, err = GetClusterVersion()(context.TODO(), config)
+	if err != nil {
+		return nil, err
+	}
+
+	return testEnv, nil
 }
 
-func StopEnvTest() env.Func {
-	return func(ctx context.Context, c *envconf.Config) (context.Context, error) {
-		if err := os.Unsetenv("KUBEBUILDER_ASSETS"); err != nil {
-			return ctx, err
-		}
-		testEnv, ok := ctx.Value(testEnvKey{}).(*envtest.Environment)
-		if !ok {
-			return ctx, fmt.Errorf("invalid environment in context")
-		}
-		return ctx, testEnv.Stop()
+func StopEnvTest(testEnv *envtest.Environment) error {
+	if err := os.Unsetenv("KUBEBUILDER_ASSETS"); err != nil {
+		return err
 	}
+	return testEnv.Stop()
 }
 
 func findOrInstallTestEnv(e *gexe.Echo, k8sVersion string) (string, error) {
