@@ -7,7 +7,7 @@ import (
 	"time"
 
 	kubegreenv1alpha1 "github.com/kube-green/kube-green/api/v1alpha1"
-	"github.com/kube-green/kube-green/internal/controller/sleepinfo/deployments"
+	"github.com/kube-green/kube-green/internal/controller/sleepinfo/internal/mocks"
 	"github.com/kube-green/kube-green/internal/controller/sleepinfo/jsonpatch"
 	"github.com/kube-green/kube-green/internal/controller/sleepinfo/resource"
 	"github.com/kube-green/kube-green/internal/testutil"
@@ -93,21 +93,21 @@ func TestUpsertSecrets(t *testing.T) {
 	var replicas4 int32 = 4
 	var replicas0 int32 = 0
 
-	d1 := deployments.GetMock(deployments.MockSpec{
+	d1 := mocks.Deployment(mocks.DeploymentOptions{
 		Name:      "deployment1",
 		Namespace: namespace,
 		Replicas:  &replicas1,
-	})
-	d2 := deployments.GetMock(deployments.MockSpec{
+	}).Unstructured()
+	d2 := mocks.Deployment(mocks.DeploymentOptions{
 		Name:      "deployment2",
 		Namespace: namespace,
 		Replicas:  &replicas4,
-	})
-	d3 := deployments.GetMock(deployments.MockSpec{
+	}).Unstructured()
+	d3 := mocks.Deployment(mocks.DeploymentOptions{
 		Name:      "deployment3",
 		Namespace: namespace,
 		Replicas:  &replicas0,
-	})
+	}).Unstructured()
 	sleepInfo := &kubegreenv1alpha1.SleepInfo{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "sleepinfo-name",
@@ -253,11 +253,11 @@ func TestUpsertSecrets(t *testing.T) {
 					"deployment2": 4,
 				},
 			}
-			d4 := deployments.GetMock(deployments.MockSpec{
+			d4 := mocks.Deployment(mocks.DeploymentOptions{
 				Namespace: namespace,
 				Name:      "new-deployment",
 				Replicas:  &replicas1,
-			})
+			}).Unstructured()
 			client := fakeDeploymentClient(&d1, &d2, &d3, &d4)
 
 			resources, err := jsonpatch.NewResources(context.Background(), resource.ResourceClient{

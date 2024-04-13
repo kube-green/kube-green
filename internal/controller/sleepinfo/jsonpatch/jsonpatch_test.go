@@ -8,7 +8,6 @@ import (
 
 	"github.com/kube-green/kube-green/api/v1alpha1"
 	"github.com/kube-green/kube-green/internal/controller/sleepinfo/cronjobs"
-	"github.com/kube-green/kube-green/internal/controller/sleepinfo/deployments"
 	"github.com/kube-green/kube-green/internal/controller/sleepinfo/internal/mocks"
 	"github.com/kube-green/kube-green/internal/controller/sleepinfo/resource"
 	"github.com/kube-green/kube-green/internal/testutil"
@@ -768,12 +767,12 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 			// add a new deployment
 			deployClient := deployRes.Client
 
-			deployToAdd := deployments.GetMock(deployments.MockSpec{
+			deployToAdd := mocks.Deployment(mocks.DeploymentOptions{
 				Name:      "new-deploy",
 				Namespace: namespace,
 				Replicas:  getPtr(int32(2)),
-			})
-			require.NoError(t, deployClient.Create(ctx, &deployToAdd))
+			}).Resource()
+			require.NoError(t, deployClient.Create(ctx, deployToAdd))
 
 			t.Run("wake up", func(t *testing.T) {
 				require.NoError(t, res.WakeUp(ctx))

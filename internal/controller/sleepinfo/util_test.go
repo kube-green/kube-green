@@ -534,14 +534,6 @@ func getPtr[T any](item T) *T {
 	return &item
 }
 
-func getValueFromPtr[T any](item *T) T {
-	if item == nil {
-		var r T
-		return r
-	}
-	return *item
-}
-
 func isCronJobSuspended(t *testing.T, cronJob unstructured.Unstructured) bool {
 	suspend, found, err := unstructured.NestedBool(cronJob.Object, "spec", "suspend")
 	require.NoError(t, err)

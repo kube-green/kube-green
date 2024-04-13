@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/kube-green/kube-green/api/v1alpha1"
+	"github.com/kube-green/kube-green/internal/controller/sleepinfo/internal/mocks"
 	"github.com/kube-green/kube-green/internal/controller/sleepinfo/resource"
 	"github.com/kube-green/kube-green/internal/testutil"
 
@@ -20,23 +21,23 @@ func TestNewResource(t *testing.T) {
 	testLogger := zap.New(zap.UseDevMode(true))
 
 	namespace := "my-namespace"
-	deployment1 := GetMock(MockSpec{
+	deployment1 := mocks.Deployment(mocks.DeploymentOptions{
 		Name:      "deployment1",
 		Namespace: namespace,
-	})
-	deployment2 := GetMock(MockSpec{
+	}).Resource()
+	deployment2 := mocks.Deployment(mocks.DeploymentOptions{
 		Name:      "deployment2",
 		Namespace: namespace,
-	})
-	deploymentOtherNamespace := GetMock(MockSpec{
+	}).Resource()
+	deploymentOtherNamespace := mocks.Deployment(mocks.DeploymentOptions{
 		Name:      "deploymentOtherNamespace",
 		Namespace: "other-namespace",
-	})
-	deploymentWithLabels := GetMock(MockSpec{
+	}).Resource()
+	deploymentWithLabels := mocks.Deployment(mocks.DeploymentOptions{
 		Name:      "deploymentWithLabels",
 		Namespace: namespace,
 		Labels:    map[string]string{"foo-key": "foo-value", "bar-key": "bar-value"},
-	})
+	}).Resource()
 	emptySleepInfo := &v1alpha1.SleepInfo{}
 
 	listDeploymentsTests := []struct {
@@ -50,9 +51,9 @@ func TestNewResource(t *testing.T) {
 			name: "get list of deployments",
 			client: fake.
 				NewClientBuilder().
-				WithRuntimeObjects([]runtime.Object{&deployment1, &deployment2, &deploymentOtherNamespace}...).
+				WithRuntimeObjects([]runtime.Object{deployment1, deployment2, deploymentOtherNamespace}...).
 				Build(),
-			expected: []appsv1.Deployment{deployment1, deployment2},
+			expected: []appsv1.Deployment{*deployment1, *deployment2},
 		},
 		{
 			name: "fails to list deployments",
@@ -68,7 +69,7 @@ func TestNewResource(t *testing.T) {
 			name: "empty list deployments",
 			client: fake.
 				NewClientBuilder().
-				WithRuntimeObjects([]runtime.Object{&deploymentOtherNamespace}...).
+				WithRuntimeObjects([]runtime.Object{deploymentOtherNamespace}...).
 				Build(),
 			expected: []appsv1.Deployment{},
 		},
@@ -76,7 +77,7 @@ func TestNewResource(t *testing.T) {
 			name: "disabled deployment suspend",
 			client: fake.
 				NewClientBuilder().
-				WithRuntimeObjects([]runtime.Object{&deployment1, &deployment2, &deploymentOtherNamespace}...).
+				WithRuntimeObjects([]runtime.Object{deployment1, deployment2, deploymentOtherNamespace}...).
 				Build(),
 			sleepInfo: &v1alpha1.SleepInfo{
 				Spec: v1alpha1.SleepInfoSpec{
@@ -89,7 +90,7 @@ func TestNewResource(t *testing.T) {
 			name: "with deployment to exclude",
 			client: fake.
 				NewClientBuilder().
-				WithRuntimeObjects([]runtime.Object{&deployment1, &deployment2, &deploymentOtherNamespace}...).
+				WithRuntimeObjects([]runtime.Object{deployment1, deployment2, deploymentOtherNamespace}...).
 				Build(),
 			sleepInfo: &v1alpha1.SleepInfo{
 				Spec: v1alpha1.SleepInfoSpec{
@@ -112,13 +113,13 @@ func TestNewResource(t *testing.T) {
 					},
 				},
 			},
-			expected: []appsv1.Deployment{deployment1},
+			expected: []appsv1.Deployment{*deployment1},
 		},
 		{
 			name: "with deployment to exclude with matchLabels",
 			client: fake.
 				NewClientBuilder().
-				WithRuntimeObjects([]runtime.Object{&deployment1, &deployment2, &deploymentOtherNamespace, &deploymentWithLabels}...).
+				WithRuntimeObjects([]runtime.Object{deployment1, deployment2, deploymentOtherNamespace, deploymentWithLabels}...).
 				Build(),
 			sleepInfo: &v1alpha1.SleepInfo{
 				Spec: v1alpha1.SleepInfoSpec{
@@ -141,7 +142,7 @@ func TestNewResource(t *testing.T) {
 					},
 				},
 			},
-			expected: []appsv1.Deployment{deployment1},
+			expected: []appsv1.Deployment{*deployment1},
 		},
 	}
 
@@ -172,10 +173,10 @@ func TestHasResource(t *testing.T) {
 	testLogger := zap.New(zap.UseDevMode(true))
 
 	namespace := "my-namespace"
-	deployment1 := GetMock(MockSpec{
+	deployment1 := mocks.Deployment(mocks.DeploymentOptions{
 		Name:      "deployment1",
 		Namespace: namespace,
-	})
+	}).Resource()
 
 	t.Run("without resource", func(t *testing.T) {
 		d, err := NewResource(context.Background(), resource.ResourceClient{
@@ -190,7 +191,7 @@ func TestHasResource(t *testing.T) {
 
 	t.Run("with resource", func(t *testing.T) {
 		d, err := NewResource(context.Background(), resource.ResourceClient{
-			Client:    fake.NewClientBuilder().WithRuntimeObjects(&deployment1).Build(),
+			Client:    fake.NewClientBuilder().WithRuntimeObjects(deployment1).Build(),
 			Log:       testLogger,
 			SleepInfo: &v1alpha1.SleepInfo{},
 		}, namespace, map[string]int32{})
@@ -208,24 +209,24 @@ func TestSleep(t *testing.T) {
 	var replica5 int32 = 5
 	namespace := "my-namespace"
 
-	d1 := GetMock(MockSpec{
+	d1 := mocks.Deployment(mocks.DeploymentOptions{
 		Namespace:       namespace,
 		Name:            "d1",
 		Replicas:        &replica1,
 		ResourceVersion: "2",
-	})
-	d2 := GetMock(MockSpec{
+	}).Resource()
+	d2 := mocks.Deployment(mocks.DeploymentOptions{
 		Namespace:       namespace,
 		Name:            "d2",
 		Replicas:        &replica5,
 		ResourceVersion: "1",
-	})
-	dZeroReplicas := GetMock(MockSpec{
+	}).Resource()
+	dZeroReplicas := mocks.Deployment(mocks.DeploymentOptions{
 		Namespace:       namespace,
 		Name:            "dZeroReplicas",
 		Replicas:        &replica0,
 		ResourceVersion: "1",
-	})
+	}).Resource()
 
 	ctx := context.Background()
 	emptySleepInfo := &v1alpha1.SleepInfo{}
@@ -235,7 +236,7 @@ func TestSleep(t *testing.T) {
 	}
 
 	t.Run("update deploy to have zero replicas", func(t *testing.T) {
-		c := fake.NewClientBuilder().WithRuntimeObjects(&d1, &d2, &dZeroReplicas).Build()
+		c := fake.NewClientBuilder().WithRuntimeObjects(d1, d2, dZeroReplicas).Build()
 		fakeClient := &testutil.PossiblyErroringFakeCtrlRuntimeClient{
 			Client: c,
 		}
@@ -254,25 +255,25 @@ func TestSleep(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, appsv1.DeploymentList{
 			Items: []appsv1.Deployment{
-				GetMock(MockSpec{
+				*mocks.Deployment(mocks.DeploymentOptions{
 					Namespace:       namespace,
 					Name:            "d1",
 					Replicas:        &replica0,
 					ResourceVersion: "3",
-				}),
-				GetMock(MockSpec{
+				}).Resource(),
+				*mocks.Deployment(mocks.DeploymentOptions{
 					Namespace:       namespace,
 					Name:            "d2",
 					Replicas:        &replica0,
 					ResourceVersion: "2",
-				}),
-				dZeroReplicas,
+				}).Resource(),
+				*dZeroReplicas,
 			},
 		}, list)
 	})
 
 	t.Run("fails to patch deployment", func(t *testing.T) {
-		c := fake.NewClientBuilder().WithRuntimeObjects(&d1, &d2, &dZeroReplicas).Build()
+		c := fake.NewClientBuilder().WithRuntimeObjects(d1, d2, dZeroReplicas).Build()
 		fakeClient := &testutil.PossiblyErroringFakeCtrlRuntimeClient{
 			Client: c,
 			ShouldError: func(method testutil.Method, obj runtime.Object) bool {
@@ -291,7 +292,7 @@ func TestSleep(t *testing.T) {
 	})
 
 	t.Run("not fails if deployments not found", func(t *testing.T) {
-		c := fake.NewClientBuilder().WithRuntimeObjects(&d1, &d2, &dZeroReplicas).Build()
+		c := fake.NewClientBuilder().WithRuntimeObjects(d1, d2, dZeroReplicas).Build()
 		fakeClient := &testutil.PossiblyErroringFakeCtrlRuntimeClient{
 			Client: c,
 		}
@@ -318,30 +319,30 @@ func TestWakeUp(t *testing.T) {
 	var replica5 int32 = 5
 	namespace := "my-namespace"
 
-	d1 := GetMock(MockSpec{
+	d1 := mocks.Deployment(mocks.DeploymentOptions{
 		Namespace:       namespace,
 		Name:            "d1",
 		Replicas:        &replica0,
 		ResourceVersion: "2",
-	})
-	d2 := GetMock(MockSpec{
+	}).Resource()
+	d2 := mocks.Deployment(mocks.DeploymentOptions{
 		Namespace:       namespace,
 		Name:            "d2",
 		Replicas:        &replica0,
 		ResourceVersion: "1",
-	})
-	dZeroReplicas := GetMock(MockSpec{
+	}).Resource()
+	dZeroReplicas := mocks.Deployment(mocks.DeploymentOptions{
 		Namespace:       namespace,
 		Name:            "dZeroReplicas",
 		Replicas:        &replica0,
 		ResourceVersion: "1",
-	})
-	dAfterSleep := GetMock(MockSpec{
+	}).Resource()
+	dAfterSleep := mocks.Deployment(mocks.DeploymentOptions{
 		Namespace:       namespace,
 		Name:            "aftersleep",
 		Replicas:        &replica1,
 		ResourceVersion: "1",
-	})
+	}).Resource()
 
 	ctx := context.Background()
 	emptySleepInfo := &v1alpha1.SleepInfo{}
@@ -351,7 +352,7 @@ func TestWakeUp(t *testing.T) {
 	}
 
 	t.Run("wake up deploy", func(t *testing.T) {
-		c := fake.NewClientBuilder().WithRuntimeObjects(&d1, &d2, &dZeroReplicas, &dAfterSleep).Build()
+		c := fake.NewClientBuilder().WithRuntimeObjects(d1, d2, dZeroReplicas, dAfterSleep).Build()
 		r, err := NewResource(ctx, resource.ResourceClient{
 			Client:    c,
 			Log:       testLogger,
@@ -370,27 +371,27 @@ func TestWakeUp(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, appsv1.DeploymentList{
 			Items: []appsv1.Deployment{
-				dAfterSleep,
-				GetMock(MockSpec{
+				*dAfterSleep,
+				*mocks.Deployment(mocks.DeploymentOptions{
 					Namespace:       namespace,
 					Name:            "d1",
 					Replicas:        &replica1,
 					ResourceVersion: "3",
-				}),
-				GetMock(MockSpec{
+				}).Resource(),
+				*mocks.Deployment(mocks.DeploymentOptions{
 					Namespace:       namespace,
 					Name:            "d2",
 					Replicas:        &replica5,
 					ResourceVersion: "2",
-				}),
-				dZeroReplicas,
+				}).Resource(),
+				*dZeroReplicas,
 			},
 		}, list)
 	})
 
 	t.Run("wake up fails", func(t *testing.T) {
 		c := testutil.PossiblyErroringFakeCtrlRuntimeClient{
-			Client: fake.NewClientBuilder().WithRuntimeObjects(&d1).Build(),
+			Client: fake.NewClientBuilder().WithRuntimeObjects(d1).Build(),
 			ShouldError: func(method testutil.Method, obj runtime.Object) bool {
 				return method == testutil.Patch
 			},
@@ -420,27 +421,27 @@ func TestDeploymentOriginalReplicas(t *testing.T) {
 	var replica1 int32 = 1
 	var replica5 int32 = 5
 
-	d1 := GetMock(MockSpec{
+	d1 := mocks.Deployment(mocks.DeploymentOptions{
 		Namespace:       namespace,
 		Name:            "d1",
 		Replicas:        &replica1,
 		ResourceVersion: "2",
-	})
-	d2 := GetMock(MockSpec{
+	}).Resource()
+	d2 := mocks.Deployment(mocks.DeploymentOptions{
 		Namespace:       namespace,
 		Name:            "d2",
 		Replicas:        &replica5,
 		ResourceVersion: "1",
-	})
-	dZeroReplicas := GetMock(MockSpec{
+	}).Resource()
+	dZeroReplicas := mocks.Deployment(mocks.DeploymentOptions{
 		Namespace:       namespace,
 		Name:            "dZeroReplica",
 		Replicas:        &replica0,
 		ResourceVersion: "1",
-	})
+	}).Resource()
 
 	t.Run("save and restore replicas info", func(t *testing.T) {
-		c := fake.NewClientBuilder().WithRuntimeObjects(&d1, &d2, &dZeroReplicas).Build()
+		c := fake.NewClientBuilder().WithRuntimeObjects(d1, d2, dZeroReplicas).Build()
 		r, err := NewResource(ctx, resource.ResourceClient{
 			Client:    c,
 			Log:       testLogger,
@@ -481,7 +482,7 @@ func TestDeploymentOriginalReplicas(t *testing.T) {
 	})
 
 	t.Run("do nothing if deployments are not to suspend", func(t *testing.T) {
-		c := fake.NewClientBuilder().WithRuntimeObjects(&d1, &d2, &dZeroReplicas).Build()
+		c := fake.NewClientBuilder().WithRuntimeObjects(d1, d2, dZeroReplicas).Build()
 		r, err := NewResource(ctx, resource.ResourceClient{
 			Client: c,
 			Log:    testLogger,
