@@ -99,7 +99,7 @@ func setupNamespaceWithResources(t *testing.T, ctx context.Context, cfg *envconf
 	t.Run("replicas not changed", func(t *testing.T) {
 		deploymentsNotChanged := getDeploymentList(t, ctx, cfg)
 		for i, deployment := range deploymentsNotChanged {
-			require.Equal(t, deploymentReplicas(t, &originalDeployments[i]), deploymentReplicas(t, &deployment))
+			require.Equal(t, deploymentReplicas(t, originalDeployments[i]), deploymentReplicas(t, deployment))
 		}
 	})
 
@@ -174,10 +174,10 @@ func upsertDeployments(t *testing.T, ctx context.Context, c *envconf.Config, upd
 		}
 
 		err := wait.For(conditions.New(c.Client().Resources()).ResourceMatch(deployment.DeepCopy(), func(object k8s.Object) bool {
-			originalReplicas := deploymentReplicas(t, &deploy)
+			originalReplicas := deploymentReplicas(t, deploy)
 			actualObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(object)
 			require.NoError(t, err)
-			return originalReplicas == deploymentReplicas(t, &unstructured.Unstructured{Object: actualObj})
+			return originalReplicas == deploymentReplicas(t, unstructured.Unstructured{Object: actualObj})
 		}), wait.WithTimeout(time.Second*10), wait.WithInterval(time.Millisecond*250))
 		require.NoError(t, err)
 	}
@@ -455,7 +455,7 @@ func assertAllReplicasSetToZero(t *testing.T, actualDeployments []unstructured.U
 
 	allReplicas := []int32{}
 	for _, deployment := range actualDeployments {
-		allReplicas = append(allReplicas, deploymentReplicas(t, &deployment))
+		allReplicas = append(allReplicas, deploymentReplicas(t, deployment))
 	}
 	for _, replicas := range allReplicas {
 		require.Equal(t, replicas, int32(0))
@@ -543,7 +543,7 @@ func isCronJobSuspended(t *testing.T, cronJob unstructured.Unstructured) bool {
 	return suspend
 }
 
-func deploymentReplicas(t *testing.T, d *unstructured.Unstructured) int32 {
+func deploymentReplicas(t *testing.T, d unstructured.Unstructured) int32 {
 	v, _, err := unstructured.NestedInt64(d.Object, "spec", "replicas")
 	require.NoError(t, err)
 	return int32(v)

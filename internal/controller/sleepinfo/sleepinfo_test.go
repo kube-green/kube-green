@@ -218,7 +218,7 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 			assert := getAssertOperation(t, ctx)
 			for _, deployment := range deployments {
 				originalDeployment := findDeployByName(assert.originalResources.deploymentList, deployment.GetName())
-				require.Equal(t, deploymentReplicas(t, originalDeployment), deploymentReplicas(t, &deployment))
+				require.Equal(t, deploymentReplicas(t, *originalDeployment), deploymentReplicas(t, deployment))
 			}
 
 			return ctx
@@ -314,7 +314,7 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 			assert := getAssertOperation(t, ctx)
 			for _, deployment := range deployments {
 				originalDeployment := findDeployByName(assert.originalResources.deploymentList, deployment.GetName())
-				require.Equal(t, deploymentReplicas(t, originalDeployment), deploymentReplicas(t, &deployment))
+				require.Equal(t, deploymentReplicas(t, *originalDeployment), deploymentReplicas(t, deployment))
 			}
 
 			return ctx
@@ -410,10 +410,10 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 			deployments := getDeploymentList(t, ctx, c)
 			for _, deployment := range deployments {
 				if deployment.GetName() == serviceNameToCreate {
-					require.Equal(t, int32(5), deploymentReplicas(t, &deployment))
+					require.Equal(t, int32(5), deploymentReplicas(t, deployment))
 					continue
 				}
-				require.Equal(t, int32(0), deploymentReplicas(t, &deployment), deployment.GetName())
+				require.Equal(t, int32(0), deploymentReplicas(t, deployment), deployment.GetName())
 			}
 
 			return ctx
@@ -451,7 +451,7 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 			deployments := getDeploymentList(t, ctx, c)
 			for _, deployment := range deployments {
 				originalDeployment := findDeployByName(assert.originalResources.deploymentList, deployment.GetName())
-				require.Equal(t, deploymentReplicas(t, originalDeployment), deploymentReplicas(t, &deployment))
+				require.Equal(t, deploymentReplicas(t, *originalDeployment), deploymentReplicas(t, deployment))
 			}
 
 			cronJobs := getCronJobList(t, ctx, c)
@@ -654,7 +654,7 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 							originalRes := findDeployByName(assert.originalResources.deploymentList, res.GetName())
 							require.NotNil(t, originalRes, "resource not found: %s and type %s", res.GetName(), res.GroupVersionKind().String())
 							spec := res.Object["spec"].(map[string]interface{})
-							require.Equal(t, deploymentReplicas(t, originalRes), int32(spec["replicas"].(int64)))
+							require.Equal(t, deploymentReplicas(t, *originalRes), int32(spec["replicas"].(int64)))
 							continue
 						}
 						originalRes := findResourceByName(assert.originalResources.genericResourcesMap.getResourceList(gvk), res.GetName())
@@ -1060,16 +1060,16 @@ func assertCorrectSleepOperation(t *testing.T, ctx context.Context, cfg *envconf
 				for _, deployment := range deployments {
 					if contains(assert.excludedDeployment, deployment.GetName()) {
 						originalDeployment := findDeployByName(assert.originalResources.deploymentList, deployment.GetName())
-						require.Equal(t, deploymentReplicas(t, originalDeployment), deploymentReplicas(t, &deployment))
+						require.Equal(t, deploymentReplicas(t, *originalDeployment), deploymentReplicas(t, deployment))
 						continue
 					}
-					require.Equal(t, int32(0), deploymentReplicas(t, &deployment))
+					require.Equal(t, int32(0), deploymentReplicas(t, deployment))
 				}
 			}
 		} else {
 			for _, deployment := range deployments {
 				originalDeployment := findDeployByName(assert.originalResources.deploymentList, deployment.GetName())
-				require.Equal(t, deploymentReplicas(t, originalDeployment), deploymentReplicas(t, &deployment))
+				require.Equal(t, deploymentReplicas(t, *originalDeployment), deploymentReplicas(t, deployment))
 			}
 		}
 	})
@@ -1127,7 +1127,7 @@ func assertCorrectSleepOperation(t *testing.T, ctx context.Context, cfg *envconf
 		if assert.originalResources.sleepInfo.IsDeploymentsToSuspend() {
 			originalDeployMap := map[string]string{}
 			for _, deployment := range assert.originalResources.deploymentList {
-				replicas := deploymentReplicas(t, &deployment)
+				replicas := deploymentReplicas(t, deployment)
 				if replicas == 0 || contains(assert.excludedDeployment, deployment.GetName()) {
 					continue
 				}
@@ -1150,7 +1150,7 @@ func assertCorrectSleepOperation(t *testing.T, ctx context.Context, cfg *envconf
 				if contains(assert.excludedCronJob, cronJob.GetName()) {
 					continue
 				}
-				originalCronJobMap[cronJob.GetName()] = fmt.Sprintf(`{"spec":{"suspend":false}}`)
+				originalCronJobMap[cronJob.GetName()] = `{"spec":{"suspend":false}}`
 			}
 			if len(originalCronJobMap) > 0 {
 				key := kubegreenv1alpha1.PatchTarget{
@@ -1206,7 +1206,7 @@ func assertCorrectWakeUpOperation(t *testing.T, ctx context.Context, cfg *envcon
 		deployments := getDeploymentList(t, ctx, cfg)
 		for _, deployment := range deployments {
 			originalDeployment := findDeployByName(assert.originalResources.deploymentList, deployment.GetName())
-			require.Equal(t, deploymentReplicas(t, originalDeployment), deploymentReplicas(t, &deployment))
+			require.Equal(t, deploymentReplicas(t, *originalDeployment), deploymentReplicas(t, deployment))
 		}
 	})
 
