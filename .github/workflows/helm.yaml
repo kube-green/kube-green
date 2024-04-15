@@ -50,3 +50,20 @@ jobs:
             echo -e '\033[0;32mDocumentation up to date\033[0m ✔'
           fi
 
+  release:
+    if: startsWith(github.ref, 'refs/tags/helm-v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Publish Helm chart
+        uses: stefanprodan/helm-gh-pages@master
+        with:
+          token: ${{ secrets.PAT_UPDATE_OPERATORS }}
+          charts_dir: charts
+          charts_url: https://kube-green.github.io/charts
+          owner: kube-green
+          repository: charts
+          branch: gh-pages
+          target_dir: .
+          commit_username: "$GITHUB_ACTOR"
+          commit_email: "$GITHUB_ACTOR@users.noreply.github.com"
