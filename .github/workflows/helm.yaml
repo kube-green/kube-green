@@ -1,7 +1,9 @@
 name: Helm Chart Releaser
 on:
   push:
-    branches: [ "*" ]
+    branches:
+      - main
+      - feat/helm-chart-ci
     tags: [ "helm-v*" ]
   pull_request:
     branches: [ "*" ]
@@ -47,21 +49,4 @@ jobs:
           else
             echo -e '\033[0;32mDocumentation up to date\033[0m ✔'
           fi
-  release:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: azure/setup-helm@v4
-        with:
-          version: 3.3.4
-      - name: Helm Chart Releaser
-        # You may pin to the exact commit or the version.
-        # uses: helm/chart-releaser-action@a917fd15b20e8b64b94d9158ad54cd6345335584
-        uses: helm/chart-releaser-action@v1.6.0
-        with:
-          # The relative path to the chart-releaser config file
-          charts_dir: charts
-          install_dir: .
 
