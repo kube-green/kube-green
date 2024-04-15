@@ -1,7 +1,7 @@
 name: Helm Chart Releaser
 on:
   push:
-    branches: [ "feature/post_helm_chart" ]
+    branches: [ "*" ]
     tags: [ "helm-v*" ]
   pull_request:
     branches: [ "*" ]
@@ -9,17 +9,17 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: azure/setup-helm@v1
+      - uses: azure/setup-helm@v4
         with:
           version: 3.3.4
       - name: Linting Chart
         run: helm lint ./charts/kube-green
       - name: Setup Chart Linting
         id: lint
-        uses: helm/chart-testing-action@v2.3.0
+        uses: helm/chart-testing-action@v2.6.1
       - name: Run chart-testing (list-changed)
         id: list-changed
         run: |
@@ -33,7 +33,7 @@ jobs:
 
       - name: Set up helm-docs
         with:
-          version: 'v1.11.0'
+          version: 'v1.13.1'
         uses: gabe565/setup-helm-docs-action@v1
 
       - name: Generate docs and check for changes
@@ -50,10 +50,10 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: azure/setup-helm@v1
+      - uses: azure/setup-helm@v4
         with:
           version: 3.3.4
       - name: Helm Chart Releaser
