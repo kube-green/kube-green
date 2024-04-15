@@ -1,9 +1,7 @@
 name: Helm Chart Releaser
 on:
   push:
-    branches:
-      - main
-      - feat/helm-chart-ci
+    branches: [ "*" ]
     tags: [ "helm-v*" ]
   pull_request:
     branches: [ "*" ]
