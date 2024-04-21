@@ -39,7 +39,7 @@ func TestDeploymentOriginalReplicas(t *testing.T) {
 
 	t.Run("restore info with data nil", func(t *testing.T) {
 		info, err := GetOriginalInfoToRestore(nil)
-		require.Equal(t, map[string]int32{}, info)
+		require.Equal(t, map[string]string{}, info)
 		require.NoError(t, err)
 	})
 
