@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/kube-green/kube-green/api/v1alpha1"
-	"github.com/kube-green/kube-green/internal/controller/sleepinfo/cronjobs"
 	"github.com/kube-green/kube-green/internal/controller/sleepinfo/internal/mocks"
 	"github.com/kube-green/kube-green/internal/controller/sleepinfo/resource"
 	"github.com/kube-green/kube-green/internal/testutil"
@@ -95,17 +94,17 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 		Name:      "d2",
 		Namespace: namespace,
 	}).Resource()
-	cronjob := cronjobs.GetMock(cronjobs.MockSpec{
+	cronjob := mocks.CronJob(mocks.CronJobOptions{
 		Name:      "cron-suspend-false",
 		Namespace: namespace,
 		Suspend:   getPtr(false),
 	})
-	suspendedCj := cronjobs.GetMock(cronjobs.MockSpec{
+	suspendedCj := mocks.CronJob(mocks.CronJobOptions{
 		Name:      "cron-suspend-true",
 		Namespace: namespace,
 		Suspend:   getPtr(true),
 	})
-	cjWithoutSuspendData := cronjobs.GetMock(cronjobs.MockSpec{
+	cjWithoutSuspendData := mocks.CronJob(mocks.CronJobOptions{
 		Name:      "cron-no-suspend",
 		Namespace: namespace,
 	})

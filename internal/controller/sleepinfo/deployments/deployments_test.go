@@ -31,9 +31,9 @@ func TestDeploymentOriginalReplicas(t *testing.T) {
 		infoToSave := []byte(expectedInfoToSave)
 		restoredInfo, err := GetOriginalInfoToRestore(infoToSave)
 		require.NoError(t, err)
-		require.Equal(t, map[string]int32{
-			d1.Name: replica1,
-			d2.Name: replica5,
+		require.Equal(t, map[string]string{
+			d1.Name: `{"spec":{"replicas":1}}`,
+			d2.Name: `{"spec":{"replicas":5}}`,
 		}, restoredInfo)
 	})
 

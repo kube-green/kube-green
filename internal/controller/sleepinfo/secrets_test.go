@@ -248,9 +248,11 @@ func TestUpsertSecrets(t *testing.T) {
 			sleepInfoData := SleepInfoData{
 				CurrentOperationType: sleepOperation,
 				LastSchedule:         now,
-				OriginalDeploymentsReplicas: map[string]int32{
-					"deployment1": 1,
-					"deployment2": 4,
+				OriginalGenericResourceInfo: map[string]jsonpatch.RestorePatches{
+					"Deployment.apps": {
+						"deployment1": "{\"spec\":{\"replicas\":1}}",
+						"deployment2": "{\"spec\":{\"replicas\":4}}",
+					},
 				},
 			}
 			d4 := mocks.Deployment(mocks.DeploymentOptions{

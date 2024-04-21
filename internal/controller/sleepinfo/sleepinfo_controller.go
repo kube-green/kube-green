@@ -16,7 +16,6 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/prometheus/client_golang/prometheus"
-	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -29,8 +28,6 @@ import (
 const (
 	lastScheduleKey               = "scheduled-at"
 	lastOperationKey              = "operation-type"
-	replicasBeforeSleepKey        = "deployment-replicas"
-	originalCronjobStatusKey      = "cronjobs-info"
 	originalJSONPatchDataKey      = "original-resource-info"
 	replicasBeforeSleepAnnotation = "sleepinfo.kube-green.com/replicas-before-sleep"
 
@@ -248,67 +245,4 @@ func (r SleepInfoReconciler) handleSleepInfoStatus(
 		sleepInfo.Status.OperationType = ""
 	}
 	return r.Status().Update(ctx, sleepInfo)
-}
-
-type SleepInfoData struct {
-	LastSchedule                time.Time
-	CurrentOperationType        string
-	OriginalDeploymentsReplicas map[string]int32
-	CurrentOperationSchedule    string
-	NextOperationSchedule       string
-	OriginalCronJobStatus       map[string]bool
-	OriginalGenericResourceInfo map[string]jsonpatch.RestorePatches
-}
-
-func (s SleepInfoData) IsWakeUpOperation() bool {
-	return s.CurrentOperationType == wakeUpOperation
-}
-
-func (s SleepInfoData) IsSleepOperation() bool {
-	return s.CurrentOperationType == sleepOperation
-}
-
-func getSleepInfoData(secret *v1.Secret, sleepInfo *kubegreenv1alpha1.SleepInfo) (SleepInfoData, error) {
-	sleepSchedule, err := sleepInfo.GetSleepSchedule()
-	if err != nil {
-		return SleepInfoData{}, err
-	}
-	wakeUpSchedule, err := sleepInfo.GetWakeUpSchedule()
-	if err != nil {
-		return SleepInfoData{}, err
-	}
-
-	sleepInfoData := SleepInfoData{
-		CurrentOperationType:     sleepOperation,
-		CurrentOperationSchedule: sleepSchedule,
-		NextOperationSchedule:    wakeUpSchedule,
-	}
-	if wakeUpSchedule == "" {
-		sleepInfoData.NextOperationSchedule = sleepSchedule
-	}
-
-	if secret == nil || secret.Data == nil {
-		return sleepInfoData, nil
-	}
-	data := secret.Data
-
-	if sleepInfoData.OriginalGenericResourceInfo, err = jsonpatch.GetOriginalInfoToRestore(data[originalJSONPatchDataKey]); err != nil {
-		return SleepInfoData{}, fmt.Errorf("fails to set original resource info to restore in SleepInfo %s: %s", sleepInfo.Name, err)
-	}
-
-	lastSchedule, err := time.Parse(time.RFC3339, string(data[lastScheduleKey]))
-	if err != nil {
-		return SleepInfoData{}, fmt.Errorf("fails to parse %s: %s", lastScheduleKey, err)
-	}
-	sleepInfoData.LastSchedule = lastSchedule
-
-	lastOperation := string(data[lastOperationKey])
-
-	if lastOperation == sleepOperation && wakeUpSchedule != "" {
-		sleepInfoData.CurrentOperationSchedule = wakeUpSchedule
-		sleepInfoData.NextOperationSchedule = sleepSchedule
-		sleepInfoData.CurrentOperationType = wakeUpOperation
-	}
-
-	return sleepInfoData, nil
 }

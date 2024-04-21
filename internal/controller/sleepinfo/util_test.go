@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/kube-green/kube-green/api/v1alpha1"
-	"github.com/kube-green/kube-green/internal/controller/sleepinfo/cronjobs"
 	"github.com/kube-green/kube-green/internal/controller/sleepinfo/internal/mocks"
 
 	"github.com/stretchr/testify/require"
@@ -200,18 +199,18 @@ func upsertCronJobs(t *testing.T, ctx context.Context, c *envconf.Config, update
 	version := getCronJobAPIVersion(restMapping)
 
 	cronJobs := []unstructured.Unstructured{
-		cronjobs.GetMock(cronjobs.MockSpec{
+		mocks.CronJob(mocks.CronJobOptions{
 			Name:      "cronjob-1",
 			Namespace: namespace,
 			Version:   version,
 		}),
-		cronjobs.GetMock(cronjobs.MockSpec{
+		mocks.CronJob(mocks.CronJobOptions{
 			Name:      "cronjob-2",
 			Namespace: namespace,
 			Suspend:   &suspendFalse,
 			Version:   version,
 		}),
-		cronjobs.GetMock(cronjobs.MockSpec{
+		mocks.CronJob(mocks.CronJobOptions{
 			Name:      "cronjob-suspended",
 			Namespace: namespace,
 			Suspend:   &suspendTrue,
