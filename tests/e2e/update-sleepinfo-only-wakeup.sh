@@ -15,7 +15,7 @@ command -v kubectl >/dev/null 2>&1 || { echo "kubectl must be installed for this
 
 filename=$1
 
-cp ./tests/e2e/$filename /tmp/$filename
+cp ../$filename /tmp/$filename
 
 unamestr=$(uname)
 
