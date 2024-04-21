@@ -19,25 +19,9 @@ metadata:
 status:
   readyReplicas: 1
 ---
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: do-not-sleep-with-label
-  labels:
-    app: do-not-sleep-with-label
-status:
-  readyReplicas: 1
----
 apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: cj-1
-spec:
-  suspend: false
----
-apiVersion: batch/v1
-kind: CronJob
-metadata:
-  name: do-not-sleep-cj-with-label
 spec:
   suspend: false
