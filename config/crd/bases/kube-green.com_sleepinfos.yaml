@@ -108,6 +108,11 @@ spec:
                   of the namespace will not be suspended. By default Deployment will
                   be suspended.
                 type: boolean
+              suspendStatefulsets:
+                description: If SuspendStatefulsets is set to false, on sleep the
+                  statefulset of the namespace will not be suspended. By default Statefulset
+                  will be suspended.
+                type: boolean
               timeZone:
                 description: |-
                   Time zone to set the schedule, in IANA time zone identifier.
