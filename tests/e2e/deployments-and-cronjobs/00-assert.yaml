@@ -2,15 +2,15 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: echo-service-replica-1
-spec:
-  replicas: 0
+status:
+  readyReplicas: 1
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: echo-service-replica-4
-spec:
-  replicas: 0
+status:
+  readyReplicas: 4
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -21,36 +21,6 @@ status:
 ---
 apiVersion: apps/v1
 kind: Deployment
-metadata:
-  name: do-not-sleep-with-label
-  labels:
-    app: do-not-sleep-with-label
-status:
-  readyReplicas: 1
----
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  name: echo-service-replica-1
-spec:
-  replicas: 0
----
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  name: echo-service-replica-4
-spec:
-  replicas: 0
----
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  name: do-not-sleep
-status:
-  readyReplicas: 1
----
-apiVersion: apps/v1
-kind: StatefulSet
 metadata:
   name: do-not-sleep-with-label
   labels:
@@ -63,7 +33,7 @@ kind: CronJob
 metadata:
   name: cj-1
 spec:
-  suspend: true
+  suspend: false
 ---
 apiVersion: batch/v1
 kind: CronJob

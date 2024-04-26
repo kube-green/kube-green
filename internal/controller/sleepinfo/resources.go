@@ -7,13 +7,11 @@ import (
 	"github.com/kube-green/kube-green/internal/controller/sleepinfo/deployments"
 	"github.com/kube-green/kube-green/internal/controller/sleepinfo/jsonpatch"
 	"github.com/kube-green/kube-green/internal/controller/sleepinfo/resource"
-	"github.com/kube-green/kube-green/internal/controller/sleepinfo/statefulsets"
 )
 
 type Resources struct {
 	deployments      resource.Resource
 	cronjobs         resource.Resource
-	statefulsets     resource.Resource
 	genericResources resource.Resource
 }
 
@@ -31,11 +29,6 @@ func NewResources(ctx context.Context, resourceClient resource.ResourceClient, n
 		resourceClient.Log.Error(err, "fails to init cronjobs")
 		return Resources{}, err
 	}
-	statefulsetResource, err := statefulsets.NewResource(ctx, resourceClient, namespace, sleepInfoData.OriginalStatefulsetsReplicas)
-	if err != nil {
-		resourceClient.Log.Error(err, "fails to init statefulsets")
-		return Resources{}, err
-	}
 	// TODO: what happen if Deploy and CronJob are managed also by jsonpatch?
 	genericResources, err := jsonpatch.NewResources(ctx, resourceClient, namespace, sleepInfoData.OriginalGenericResourceInfo)
 	if err != nil {
@@ -45,21 +38,17 @@ func NewResources(ctx context.Context, resourceClient resource.ResourceClient, n
 
 	return Resources{
 		deployments:      deployResource,
-		statefulsets:     statefulsetResource,
 		cronjobs:         cronJobResource,
 		genericResources: genericResources,
 	}, nil
 }
 
 func (r Resources) hasResources() bool {
-	return r.deployments.HasResource() || r.statefulsets.HasResource() || r.cronjobs.HasResource() || r.genericResources.HasResource()
+	return r.deployments.HasResource() || r.cronjobs.HasResource() || r.genericResources.HasResource()
 }
 
 func (r Resources) sleep(ctx context.Context) error {
 	if err := r.deployments.Sleep(ctx); err != nil {
-		return err
-	}
-	if err := r.statefulsets.Sleep(ctx); err != nil {
 		return err
 	}
 	if err := r.cronjobs.Sleep(ctx); err != nil {
@@ -70,9 +59,6 @@ func (r Resources) sleep(ctx context.Context) error {
 
 func (r Resources) wakeUp(ctx context.Context) error {
 	if err := r.deployments.WakeUp(ctx); err != nil {
-		return err
-	}
-	if err := r.statefulsets.WakeUp(ctx); err != nil {
 		return err
 	}
 	if err := r.cronjobs.WakeUp(ctx); err != nil {
@@ -90,14 +76,6 @@ func (r Resources) getOriginalResourceInfoToSave() (map[string][]byte, error) {
 	}
 	if originalDeploymentInfo != nil {
 		newData[replicasBeforeSleepKey] = originalDeploymentInfo
-	}
-
-	originalStatefulsetInfo, err := r.statefulsets.GetOriginalInfoToSave()
-	if err != nil {
-		return nil, err
-	}
-	if originalStatefulsetInfo != nil {
-		newData[replicasBeforeSleepKeyS] = originalStatefulsetInfo
 	}
 
 	originalCronJobStatus, err := r.cronjobs.GetOriginalInfoToSave()
@@ -122,10 +100,6 @@ func (r Resources) getOriginalResourceInfoToSave() (map[string][]byte, error) {
 func setOriginalResourceInfoToRestoreInSleepInfo(data map[string][]byte, sleepInfoData *SleepInfoData) error {
 	var err error
 	if sleepInfoData.OriginalDeploymentsReplicas, err = deployments.GetOriginalInfoToRestore(data[replicasBeforeSleepKey]); err != nil {
-		return err
-	}
-
-	if sleepInfoData.OriginalStatefulsetsReplicas, err = statefulsets.GetOriginalInfoToRestore(data[replicasBeforeSleepKeyS]); err != nil {
 		return err
 	}
 
