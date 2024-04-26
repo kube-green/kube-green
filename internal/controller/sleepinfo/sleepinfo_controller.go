@@ -30,7 +30,6 @@ const (
 	lastScheduleKey               = "scheduled-at"
 	lastOperationKey              = "operation-type"
 	replicasBeforeSleepKey        = "deployment-replicas"
-	replicasBeforeSleepKeyS       = "statefulset-replicas"
 	originalCronjobStatusKey      = "cronjobs-info"
 	originalJSONPatchDataKey      = "original-resource-info"
 	replicasBeforeSleepAnnotation = "sleepinfo.kube-green.com/replicas-before-sleep"
@@ -252,14 +251,13 @@ func (r SleepInfoReconciler) handleSleepInfoStatus(
 }
 
 type SleepInfoData struct {
-	LastSchedule                 time.Time
-	CurrentOperationType         string
-	OriginalDeploymentsReplicas  map[string]int32
-	OriginalStatefulsetsReplicas map[string]int32
-	CurrentOperationSchedule     string
-	NextOperationSchedule        string
-	OriginalCronJobStatus        map[string]bool
-	OriginalGenericResourceInfo  map[string]jsonpatch.RestorePatches
+	LastSchedule                time.Time
+	CurrentOperationType        string
+	OriginalDeploymentsReplicas map[string]int32
+	CurrentOperationSchedule    string
+	NextOperationSchedule       string
+	OriginalCronJobStatus       map[string]bool
+	OriginalGenericResourceInfo map[string]jsonpatch.RestorePatches
 }
 
 func (s SleepInfoData) IsWakeUpOperation() bool {

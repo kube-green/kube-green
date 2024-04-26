@@ -8,7 +8,6 @@ import (
 	"github.com/kube-green/kube-green/api/v1alpha1"
 	"github.com/kube-green/kube-green/internal/controller/sleepinfo/cronjobs"
 	"github.com/kube-green/kube-green/internal/controller/sleepinfo/deployments"
-	"github.com/kube-green/kube-green/internal/controller/sleepinfo/statefulsets"
 
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
@@ -35,7 +34,6 @@ type setupOptions struct {
 
 type originalResources struct {
 	deploymentList      []appsv1.Deployment
-	statefulsetList     []appsv1.StatefulSet
 	cronjobList         []unstructured.Unstructured
 	genericResourcesMap resourceMap
 
@@ -71,8 +69,6 @@ func setupNamespaceWithResources(t *testing.T, ctx context.Context, cfg *envconf
 
 	originalDeployments := upsertDeployments(t, ctx, cfg, false)
 
-	originalStatefulsets := upsertStatefulsets(t, ctx, cfg, false)
-
 	var originalCronJobs []unstructured.Unstructured
 	if opts.insertCronjobs {
 		originalCronJobs = upsertCronJobs(t, ctx, cfg, false)
@@ -99,13 +95,6 @@ func setupNamespaceWithResources(t *testing.T, ctx context.Context, cfg *envconf
 		deploymentsNotChanged := getDeploymentList(t, ctx, cfg)
 		for i, deployment := range deploymentsNotChanged {
 			require.Equal(t, *originalDeployments[i].Spec.Replicas, *deployment.Spec.Replicas)
-		}
-	})
-
-	t.Run("replicas not changed", func(t *testing.T) {
-		statefulsetsNotChanged := getStatefulsetList(t, ctx, cfg)
-		for i, statefulset := range statefulsetsNotChanged {
-			require.Equal(t, *originalStatefulsets[i].Spec.Replicas, *statefulset.Spec.Replicas)
 		}
 	})
 
@@ -186,69 +175,6 @@ func upsertDeployments(t *testing.T, ctx context.Context, c *envconf.Config, upd
 		require.NoError(t, err)
 	}
 	return deployments
-}
-
-func upsertStatefulsets(t *testing.T, ctx context.Context, c *envconf.Config, updateIfAlreadyCreated bool) []appsv1.StatefulSet {
-	t.Helper()
-
-	k8sClient := c.Client().Resources(c.Namespace()).GetControllerRuntimeClient()
-
-	namespace := c.Namespace()
-
-	statefulsets := []appsv1.StatefulSet{
-		statefulsets.GetMock(statefulsets.MockSpec{
-			Name:      "service-1",
-			Namespace: namespace,
-			Replicas:  getPtr[int32](3),
-		}),
-		statefulsets.GetMock(statefulsets.MockSpec{
-			Name:      "service-2",
-			Namespace: namespace,
-			Replicas:  getPtr[int32](1),
-		}),
-		statefulsets.GetMock(statefulsets.MockSpec{
-			Name:      "zero-replicas",
-			Namespace: namespace,
-			Replicas:  getPtr[int32](0),
-		}),
-		statefulsets.GetMock(statefulsets.MockSpec{
-			Name:      "zero-replicas-annotation",
-			Namespace: namespace,
-			Replicas:  getPtr[int32](0),
-			PodAnnotations: map[string]string{
-				lastScheduleKey: "2021-03-23T00:00:00.000Z",
-			},
-		}),
-	}
-
-	s := appsv1.StatefulSetList{}
-	if updateIfAlreadyCreated {
-		err := k8sClient.List(ctx, &s)
-		require.NoError(t, err)
-	}
-
-	for _, statefulset := range statefulsets {
-		var ss = statefulset
-		if findStatefulsetByName(s.Items, ss.GetName()) != nil {
-			ss.SetManagedFields(nil)
-			require.NoError(t, k8sClient.Patch(ctx, &ss, client.Apply, &client.PatchOptions{
-				FieldManager: "kube-green-test",
-				Force:        getPtr(true),
-			}))
-		} else {
-			err := k8sClient.Create(ctx, &ss)
-			require.NoError(t, err)
-		}
-
-		err := wait.For(conditions.New(c.Client().Resources()).ResourceMatch(statefulset.DeepCopy(), func(object k8s.Object) bool {
-			originalReplicas := getValueFromPtr(statefulset.Spec.Replicas)
-			actualSS, ok := object.(*appsv1.Deployment)
-			require.True(t, ok)
-			return originalReplicas == getValueFromPtr(actualSS.Spec.Replicas)
-		}), wait.WithTimeout(time.Second*10), wait.WithInterval(time.Millisecond*250))
-		require.NoError(t, err)
-	}
-	return statefulsets
 }
 
 func upsertCronJobs(t *testing.T, ctx context.Context, c *envconf.Config, updateIfAlreadyCreated bool) []unstructured.Unstructured {
@@ -381,13 +307,6 @@ func getDeploymentList(t *testing.T, ctx context.Context, c *envconf.Config) []a
 	deployments := appsv1.DeploymentList{}
 	require.NoError(t, c.Client().Resources(c.Namespace()).List(ctx, &deployments))
 	return deployments.Items
-}
-
-func getStatefulsetList(t *testing.T, ctx context.Context, c *envconf.Config) []appsv1.StatefulSet {
-	t.Helper()
-	statefulsets := appsv1.StatefulSetList{}
-	require.NoError(t, c.Client().Resources(c.Namespace()).List(ctx, &statefulsets))
-	return statefulsets.Items
 }
 
 func getCronJobList(t *testing.T, ctx context.Context, c *envconf.Config) []unstructured.Unstructured {
@@ -560,15 +479,6 @@ func findDeployByName(deployments []appsv1.Deployment, nameToFind string) *appsv
 	for _, deployment := range deployments {
 		if deployment.Name == nameToFind {
 			return deployment.DeepCopy()
-		}
-	}
-	return nil
-}
-
-func findStatefulsetByName(statefulsets []appsv1.StatefulSet, nameToFind string) *appsv1.StatefulSet {
-	for _, ss := range statefulsets {
-		if ss.Name == nameToFind {
-			return ss.DeepCopy()
 		}
 	}
 	return nil
