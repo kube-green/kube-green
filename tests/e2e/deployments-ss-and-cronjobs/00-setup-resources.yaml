@@ -78,6 +78,86 @@ spec:
       - name: echo-service
         image: davidebianchi/echo-service
 ---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: echo-service-replica-1
+  labels:
+    app: echo-service-replica-1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: echo-service-replica-1
+  template:
+    metadata:
+      labels:
+        app: echo-service-replica-1
+    spec:
+      containers:
+      - name: echo-service
+        image: davidebianchi/echo-service
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: echo-service-replica-4
+  labels:
+    app: echo-service-replica-4
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: echo-service-replica-4
+  template:
+    metadata:
+      labels:
+        app: echo-service-replica-4
+    spec:
+      containers:
+      - name: echo-service
+        image: davidebianchi/echo-service
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: do-not-sleep
+  labels:
+    app: do-not-sleep
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: do-not-sleep
+  template:
+    metadata:
+      labels:
+        app: do-not-sleep
+    spec:
+      containers:
+      - name: echo-service
+        image: davidebianchi/echo-service
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: do-not-sleep-with-label
+  labels:
+    app: do-not-sleep-with-label
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: do-not-sleep-with-label
+  template:
+    metadata:
+      labels:
+        app: do-not-sleep-with-label
+    spec:
+      containers:
+      - name: echo-service
+        image: davidebianchi/echo-service
+---
 apiVersion: batch/v1
 kind: CronJob
 metadata:

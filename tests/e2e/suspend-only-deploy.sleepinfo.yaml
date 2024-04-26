@@ -6,6 +6,7 @@ spec:
   weekdays: "*"
   sleepAt: "20:00"
   wakeUpAt: "08:00"
+  suspendStatefulsets: false
   excludeRef:
     - apiVersion: "apps/v1"
       kind:       Deployment
