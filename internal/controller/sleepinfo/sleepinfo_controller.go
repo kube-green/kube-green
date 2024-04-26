@@ -16,7 +16,6 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/prometheus/client_golang/prometheus"
-	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -29,8 +28,6 @@ import (
 const (
 	lastScheduleKey               = "scheduled-at"
 	lastOperationKey              = "operation-type"
-	replicasBeforeSleepKey        = "deployment-replicas"
-	originalCronjobStatusKey      = "cronjobs-info"
 	originalJSONPatchDataKey      = "original-resource-info"
 	replicasBeforeSleepAnnotation = "sleepinfo.kube-green.com/replicas-before-sleep"
 
@@ -123,12 +120,12 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 	scheduleLog.WithValues("last schedule", now, "status", sleepInfo.Status).Info("last schedule value")
 
-	resources, err := NewResources(ctx, resource.ResourceClient{
+	resources, err := jsonpatch.NewResources(ctx, resource.ResourceClient{
 		Client:           r.Client,
 		SleepInfo:        sleepInfo,
 		Log:              log,
 		FieldManagerName: fieldManagerName,
-	}, req.Namespace, sleepInfoData)
+	}, req.Namespace, sleepInfoData.OriginalGenericResourceInfo)
 	if err != nil {
 		log.Error(err, "fails to get resources")
 		return ctrl.Result{}, err
@@ -141,7 +138,7 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	log.V(8).Info("update status info")
 
 	logSecret := log.WithValues("secret", secretName)
-	if !resources.hasResources() {
+	if !resources.HasResource() {
 		if err = r.upsertSecret(ctx, log, now, secretName, req.Namespace, sleepInfo, secret, sleepInfoData, resources); err != nil {
 			logSecret.Error(err, "fails to update secret")
 			return ctrl.Result{
@@ -170,14 +167,14 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	switch {
 	case sleepInfoData.IsSleepOperation():
-		if err := resources.sleep(ctx); err != nil {
+		if err := resources.Sleep(ctx); err != nil {
 			log.Error(err, "fails to handle sleep")
 			return ctrl.Result{
 				Requeue: true,
 			}, err
 		}
 	case sleepInfoData.IsWakeUpOperation():
-		if err := resources.wakeUp(ctx); err != nil {
+		if err := resources.WakeUp(ctx); err != nil {
 			log.Error(err, "fails to handle wake up")
 			return ctrl.Result{
 				Requeue: true,
@@ -239,77 +236,13 @@ func (r SleepInfoReconciler) handleSleepInfoStatus(
 	now time.Time,
 	currentSleepInfo *kubegreenv1alpha1.SleepInfo,
 	currentOperationType string,
-	resources Resources,
+	resources resource.Resource,
 ) error {
 	sleepInfo := currentSleepInfo.DeepCopy()
 	sleepInfo.Status.LastScheduleTime = metav1.NewTime(now)
 	sleepInfo.Status.OperationType = currentOperationType
-	if !resources.hasResources() {
+	if !resources.HasResource() {
 		sleepInfo.Status.OperationType = ""
 	}
 	return r.Status().Update(ctx, sleepInfo)
-}
-
-type SleepInfoData struct {
-	LastSchedule                time.Time
-	CurrentOperationType        string
-	OriginalDeploymentsReplicas map[string]int32
-	CurrentOperationSchedule    string
-	NextOperationSchedule       string
-	OriginalCronJobStatus       map[string]bool
-	OriginalGenericResourceInfo map[string]jsonpatch.RestorePatches
-}
-
-func (s SleepInfoData) IsWakeUpOperation() bool {
-	return s.CurrentOperationType == wakeUpOperation
-}
-
-func (s SleepInfoData) IsSleepOperation() bool {
-	return s.CurrentOperationType == sleepOperation
-}
-
-func getSleepInfoData(secret *v1.Secret, sleepInfo *kubegreenv1alpha1.SleepInfo) (SleepInfoData, error) {
-	sleepSchedule, err := sleepInfo.GetSleepSchedule()
-	if err != nil {
-		return SleepInfoData{}, err
-	}
-	wakeUpSchedule, err := sleepInfo.GetWakeUpSchedule()
-	if err != nil {
-		return SleepInfoData{}, err
-	}
-
-	sleepInfoData := SleepInfoData{
-		CurrentOperationType:     sleepOperation,
-		CurrentOperationSchedule: sleepSchedule,
-		NextOperationSchedule:    wakeUpSchedule,
-	}
-	if wakeUpSchedule == "" {
-		sleepInfoData.NextOperationSchedule = sleepSchedule
-	}
-
-	if secret == nil || secret.Data == nil {
-		return sleepInfoData, nil
-	}
-	data := secret.Data
-
-	err = setOriginalResourceInfoToRestoreInSleepInfo(data, &sleepInfoData)
-	if err != nil {
-		return SleepInfoData{}, fmt.Errorf("fails to set original resource info to restore in SleepInfo %s: %s", sleepInfo.Name, err)
-	}
-
-	lastSchedule, err := time.Parse(time.RFC3339, string(data[lastScheduleKey]))
-	if err != nil {
-		return SleepInfoData{}, fmt.Errorf("fails to parse %s: %s", lastScheduleKey, err)
-	}
-	sleepInfoData.LastSchedule = lastSchedule
-
-	lastOperation := string(data[lastOperationKey])
-
-	if lastOperation == sleepOperation && wakeUpSchedule != "" {
-		sleepInfoData.CurrentOperationSchedule = wakeUpSchedule
-		sleepInfoData.NextOperationSchedule = sleepSchedule
-		sleepInfoData.CurrentOperationType = wakeUpOperation
-	}
-
-	return sleepInfoData, nil
 }

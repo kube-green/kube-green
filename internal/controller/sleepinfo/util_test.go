@@ -6,11 +6,9 @@ import (
 	"time"
 
 	"github.com/kube-green/kube-green/api/v1alpha1"
-	"github.com/kube-green/kube-green/internal/controller/sleepinfo/cronjobs"
-	"github.com/kube-green/kube-green/internal/controller/sleepinfo/deployments"
+	"github.com/kube-green/kube-green/internal/controller/sleepinfo/internal/mocks"
 
 	"github.com/stretchr/testify/require"
-	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -27,13 +25,19 @@ import (
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 )
 
+var deploymentGVK = schema.GroupVersionKind{
+	Group:   "apps",
+	Version: "v1",
+	Kind:    "Deployment",
+}
+
 type setupOptions struct {
 	insertCronjobs  bool
 	customResources []unstructured.Unstructured
 }
 
 type originalResources struct {
-	deploymentList      []appsv1.Deployment
+	deploymentList      []unstructured.Unstructured
 	cronjobList         []unstructured.Unstructured
 	genericResourcesMap resourceMap
 
@@ -94,7 +98,7 @@ func setupNamespaceWithResources(t *testing.T, ctx context.Context, cfg *envconf
 	t.Run("replicas not changed", func(t *testing.T) {
 		deploymentsNotChanged := getDeploymentList(t, ctx, cfg)
 		for i, deployment := range deploymentsNotChanged {
-			require.Equal(t, *originalDeployments[i].Spec.Replicas, *deployment.Spec.Replicas)
+			require.Equal(t, deploymentReplicas(t, originalDeployments[i]), deploymentReplicas(t, deployment))
 		}
 	})
 
@@ -114,40 +118,41 @@ func setupNamespaceWithResources(t *testing.T, ctx context.Context, cfg *envconf
 	}
 }
 
-func upsertDeployments(t *testing.T, ctx context.Context, c *envconf.Config, updateIfAlreadyCreated bool) []appsv1.Deployment {
+func upsertDeployments(t *testing.T, ctx context.Context, c *envconf.Config, updateIfAlreadyCreated bool) []unstructured.Unstructured {
 	t.Helper()
 
 	k8sClient := c.Client().Resources(c.Namespace()).GetControllerRuntimeClient()
 
 	namespace := c.Namespace()
 
-	deployments := []appsv1.Deployment{
-		deployments.GetMock(deployments.MockSpec{
+	deployments := []unstructured.Unstructured{
+		mocks.Deployment(mocks.DeploymentOptions{
 			Name:      "service-1",
 			Namespace: namespace,
 			Replicas:  getPtr[int32](3),
-		}),
-		deployments.GetMock(deployments.MockSpec{
+		}).Unstructured(),
+		mocks.Deployment(mocks.DeploymentOptions{
 			Name:      "service-2",
 			Namespace: namespace,
 			Replicas:  getPtr[int32](1),
-		}),
-		deployments.GetMock(deployments.MockSpec{
+		}).Unstructured(),
+		mocks.Deployment(mocks.DeploymentOptions{
 			Name:      "zero-replicas",
 			Namespace: namespace,
 			Replicas:  getPtr[int32](0),
-		}),
-		deployments.GetMock(deployments.MockSpec{
+		}).Unstructured(),
+		mocks.Deployment(mocks.DeploymentOptions{
 			Name:      "zero-replicas-annotation",
 			Namespace: namespace,
 			Replicas:  getPtr[int32](0),
 			PodAnnotations: map[string]string{
 				lastScheduleKey: "2021-03-23T00:00:00.000Z",
 			},
-		}),
+		}).Unstructured(),
 	}
 
-	d := appsv1.DeploymentList{}
+	d := unstructured.UnstructuredList{}
+	d.SetGroupVersionKind(deploymentGVK)
 	if updateIfAlreadyCreated {
 		err := k8sClient.List(ctx, &d)
 		require.NoError(t, err)
@@ -155,6 +160,7 @@ func upsertDeployments(t *testing.T, ctx context.Context, c *envconf.Config, upd
 
 	for _, deployment := range deployments {
 		var deploy = deployment
+
 		if findDeployByName(d.Items, deploy.GetName()) != nil {
 			deploy.SetManagedFields(nil)
 			require.NoError(t, k8sClient.Patch(ctx, &deploy, client.Apply, &client.PatchOptions{
@@ -167,10 +173,10 @@ func upsertDeployments(t *testing.T, ctx context.Context, c *envconf.Config, upd
 		}
 
 		err := wait.For(conditions.New(c.Client().Resources()).ResourceMatch(deployment.DeepCopy(), func(object k8s.Object) bool {
-			originalReplicas := getValueFromPtr(deployment.Spec.Replicas)
-			actualDeployment, ok := object.(*appsv1.Deployment)
-			require.True(t, ok)
-			return originalReplicas == getValueFromPtr(actualDeployment.Spec.Replicas)
+			originalReplicas := deploymentReplicas(t, deploy)
+			actualObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(object)
+			require.NoError(t, err)
+			return originalReplicas == deploymentReplicas(t, unstructured.Unstructured{Object: actualObj})
 		}), wait.WithTimeout(time.Second*10), wait.WithInterval(time.Millisecond*250))
 		require.NoError(t, err)
 	}
@@ -193,18 +199,18 @@ func upsertCronJobs(t *testing.T, ctx context.Context, c *envconf.Config, update
 	version := getCronJobAPIVersion(restMapping)
 
 	cronJobs := []unstructured.Unstructured{
-		cronjobs.GetMock(cronjobs.MockSpec{
+		mocks.CronJob(mocks.CronJobOptions{
 			Name:      "cronjob-1",
 			Namespace: namespace,
 			Version:   version,
 		}),
-		cronjobs.GetMock(cronjobs.MockSpec{
+		mocks.CronJob(mocks.CronJobOptions{
 			Name:      "cronjob-2",
 			Namespace: namespace,
 			Suspend:   &suspendFalse,
 			Version:   version,
 		}),
-		cronjobs.GetMock(cronjobs.MockSpec{
+		mocks.CronJob(mocks.CronJobOptions{
 			Name:      "cronjob-suspended",
 			Namespace: namespace,
 			Suspend:   &suspendTrue,
@@ -302,9 +308,10 @@ func (m mockClock) Now() time.Time {
 	return parsedTime
 }
 
-func getDeploymentList(t *testing.T, ctx context.Context, c *envconf.Config) []appsv1.Deployment {
+func getDeploymentList(t *testing.T, ctx context.Context, c *envconf.Config) []unstructured.Unstructured {
 	t.Helper()
-	deployments := appsv1.DeploymentList{}
+	deployments := unstructured.UnstructuredList{}
+	deployments.SetGroupVersionKind(deploymentGVK)
 	require.NoError(t, c.Client().Resources(c.Namespace()).List(ctx, &deployments))
 	return deployments.Items
 }
@@ -442,12 +449,12 @@ func isSuspendedCronJob(t *testing.T, cronJob unstructured.Unstructured) bool {
 	return suspend
 }
 
-func assertAllReplicasSetToZero(t *testing.T, actualDeployments []appsv1.Deployment) {
+func assertAllReplicasSetToZero(t *testing.T, actualDeployments []unstructured.Unstructured) {
 	t.Helper()
 
 	allReplicas := []int32{}
 	for _, deployment := range actualDeployments {
-		allReplicas = append(allReplicas, *deployment.Spec.Replicas)
+		allReplicas = append(allReplicas, deploymentReplicas(t, deployment))
 	}
 	for _, replicas := range allReplicas {
 		require.Equal(t, replicas, int32(0))
@@ -475,9 +482,9 @@ func assertAllCronJobsSuspended(t *testing.T, actualCronJobs []unstructured.Unst
 	}
 }
 
-func findDeployByName(deployments []appsv1.Deployment, nameToFind string) *appsv1.Deployment {
+func findDeployByName(deployments []unstructured.Unstructured, nameToFind string) *unstructured.Unstructured {
 	for _, deployment := range deployments {
-		if deployment.Name == nameToFind {
+		if deployment.GetName() == nameToFind {
 			return deployment.DeepCopy()
 		}
 	}
@@ -526,14 +533,6 @@ func getPtr[T any](item T) *T {
 	return &item
 }
 
-func getValueFromPtr[T any](item *T) T {
-	if item == nil {
-		var r T
-		return r
-	}
-	return *item
-}
-
 func isCronJobSuspended(t *testing.T, cronJob unstructured.Unstructured) bool {
 	suspend, found, err := unstructured.NestedBool(cronJob.Object, "spec", "suspend")
 	require.NoError(t, err)
@@ -541,4 +540,10 @@ func isCronJobSuspended(t *testing.T, cronJob unstructured.Unstructured) bool {
 		return false
 	}
 	return suspend
+}
+
+func deploymentReplicas(t *testing.T, d unstructured.Unstructured) int32 {
+	v, _, err := unstructured.NestedInt64(d.Object, "spec", "replicas")
+	require.NoError(t, err)
+	return int32(v)
 }

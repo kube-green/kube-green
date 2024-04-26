@@ -234,7 +234,7 @@ func TestValidateSleepInfo(t *testing.T) {
 					{
 						Target: PatchTarget{
 							Group: "apps",
-							Kind:  "Deployment",
+							Kind:  "UnknownResource",
 						},
 						Patch: `
 - op: add
@@ -245,7 +245,7 @@ func TestValidateSleepInfo(t *testing.T) {
 			},
 			expectedWarns: []string{
 				"SleepInfo patch target is invalid: no matches for apps/, Resource=ReplicaSet",
-				"SleepInfo patch target is invalid: no matches for apps/, Resource=Deployment",
+				"SleepInfo patch target is invalid: no matches for apps/, Resource=UnknownResource",
 			},
 		},
 		{
@@ -275,6 +275,16 @@ func TestValidateSleepInfo(t *testing.T) {
 		Group:   "apps",
 		Version: "v1",
 		Kind:    "StatefulSet",
+	}, meta.RESTScopeNamespace)
+	restMapper.Add(schema.GroupVersionKind{
+		Group:   "apps",
+		Version: "v1",
+		Kind:    "Deployment",
+	}, meta.RESTScopeNamespace)
+	restMapper.Add(schema.GroupVersionKind{
+		Group:   "apps",
+		Version: "v1",
+		Kind:    "CronJob",
 	}, meta.RESTScopeNamespace)
 
 	for _, test := range tests {

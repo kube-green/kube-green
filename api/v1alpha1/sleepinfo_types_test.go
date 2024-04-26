@@ -327,6 +327,7 @@ func TestSleepInfo(t *testing.T) {
 				Namespace: "namespace",
 			},
 			Spec: SleepInfoSpec{
+				SuspendDeployments: getPtr(false),
 				Patches: []Patch{
 					{
 						Target: PatchTarget{
@@ -354,7 +355,53 @@ func TestSleepInfo(t *testing.T) {
 			},
 		}
 
-		require.NotEmpty(t, sleepInfo.GetPatches())
+		require.Equal(t, sleepInfo.Spec.Patches, sleepInfo.GetPatches())
+	})
+
+	t.Run("with custom and default patches", func(t *testing.T) {
+		sleepInfo := SleepInfo{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "SleepInfo",
+				APIVersion: "v1alpha1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "sleep-test-1",
+				Namespace: "namespace",
+			},
+			Spec: SleepInfoSpec{
+				SuspendCronjobs: true,
+				Patches: []Patch{
+					{
+						Target: PatchTarget{
+							Group: "apps",
+							Kind:  "Deployment",
+						},
+						Patch: `
+- op: add
+  path: /spec/replicas
+  value: 0
+`,
+					},
+					{
+						Target: PatchTarget{
+							Group: "batch",
+							Kind:  "CronJob",
+						},
+						Patch: `
+- op: add
+  path: /spec/suspend
+  value: true
+`,
+					},
+				},
+			},
+		}
+
+		patches := append([]Patch{
+			deploymentPatch,
+			cronjobPatch,
+		}, sleepInfo.Spec.Patches...)
+		require.Equal(t, patches, sleepInfo.GetPatches())
 	})
 
 	t.Run("PatchTarget", func(t *testing.T) {
