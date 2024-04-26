@@ -5,6 +5,11 @@ var DeploymentTarget = PatchTarget{
 	Kind:  "Deployment",
 }
 
+var StatefulSetTarget = PatchTarget{
+	Group: "apps",
+	Kind:  "StatefulSet",
+}
+
 var CronJobTarget = PatchTarget{
 	Group: "batch",
 	Kind:  "CronJob",
@@ -12,6 +17,14 @@ var CronJobTarget = PatchTarget{
 
 var deploymentPatch = Patch{
 	Target: DeploymentTarget,
+	Patch: `
+- op: add
+  path: /spec/replicas
+  value: 0`,
+}
+
+var statefulSetPatch = Patch{
+	Target: StatefulSetTarget,
 	Patch: `
 - op: add
   path: /spec/replicas

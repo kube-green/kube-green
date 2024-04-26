@@ -30,6 +30,11 @@ func TestSleepInfo(t *testing.T) {
 						Kind:       "Deployment",
 						Name:       "deploy-1",
 					},
+					{
+						APIVersion: "apps/v1",
+						Kind:       "StatefulSet",
+						Name:       "ss-1",
+					},
 				},
 			},
 		}
@@ -52,6 +57,11 @@ func TestSleepInfo(t *testing.T) {
 					APIVersion: "apps/v1",
 					Kind:       "Deployment",
 					Name:       "deploy-1",
+				},
+				{
+					APIVersion: "apps/v1",
+					Kind:       "StatefulSet",
+					Name:       "ss-1",
 				},
 			}, excludeRef)
 		})
@@ -111,6 +121,11 @@ func TestSleepInfo(t *testing.T) {
 						Kind:       "Deployment",
 						Name:       "deploy-1",
 					},
+					{
+						APIVersion: "apps/v1",
+						Kind:       "StatefulSet",
+						Name:       "ss-1",
+					},
 				},
 			},
 		}
@@ -133,6 +148,11 @@ func TestSleepInfo(t *testing.T) {
 					APIVersion: "apps/v1",
 					Kind:       "Deployment",
 					Name:       "deploy-1",
+				},
+				{
+					APIVersion: "apps/v1",
+					Kind:       "StatefulSet",
+					Name:       "ss-1",
 				},
 			}, excludeRef)
 		})
@@ -164,6 +184,11 @@ func TestSleepInfo(t *testing.T) {
 						Kind:       "Deployment",
 						Name:       "deploy-1",
 					},
+					{
+						APIVersion: "apps/v1",
+						Kind:       "StatefulSet",
+						Name:       "ss-1",
+					},
 				},
 				SuspendCronjobs: true,
 			},
@@ -187,6 +212,11 @@ func TestSleepInfo(t *testing.T) {
 					APIVersion: "apps/v1",
 					Kind:       "Deployment",
 					Name:       "deploy-1",
+				},
+				{
+					APIVersion: "apps/v1",
+					Kind:       "StatefulSet",
+					Name:       "ss-1",
 				},
 			}, excludeRef)
 		})
@@ -273,6 +303,82 @@ func TestSleepInfo(t *testing.T) {
 		})
 	})
 
+	t.Run("suspend statefulsets options", func(t *testing.T) {
+		t.Run("true", func(t *testing.T) {
+			sleepInfo := SleepInfo{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "SleepInfo",
+					APIVersion: "v1alpha1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "sleep-test-1",
+					Namespace: "namespace",
+				},
+				Spec: SleepInfoSpec{
+					SuspendStatefulSets: getPtr(true),
+				},
+			}
+
+			isStatefulSetsToSuspend := sleepInfo.IsStatefulSetsToSuspend()
+			require.True(t, isStatefulSetsToSuspend)
+		})
+
+		t.Run("false", func(t *testing.T) {
+			sleepInfo := SleepInfo{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "SleepInfo",
+					APIVersion: "v1alpha1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "sleep-test-1",
+					Namespace: "namespace",
+				},
+				Spec: SleepInfoSpec{
+					SuspendStatefulSets: getPtr(false),
+				},
+			}
+
+			isStatefulSetToSuspend := sleepInfo.IsStatefulSetsToSuspend()
+			require.False(t, isStatefulSetToSuspend)
+		})
+
+		t.Run("empty - default to true", func(t *testing.T) {
+			sleepInfo := SleepInfo{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "SleepInfo",
+					APIVersion: "v1alpha1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "sleep-test-1",
+					Namespace: "namespace",
+				},
+				Spec: SleepInfoSpec{},
+			}
+
+			isStatefulSetToSuspend := sleepInfo.IsStatefulSetsToSuspend()
+			require.True(t, isStatefulSetToSuspend)
+		})
+
+		t.Run("nil - default to true", func(t *testing.T) {
+			sleepInfo := SleepInfo{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "SleepInfo",
+					APIVersion: "v1alpha1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "sleep-test-1",
+					Namespace: "namespace",
+				},
+				Spec: SleepInfoSpec{
+					SuspendStatefulSets: nil,
+				},
+			}
+
+			isStatefulSetToSuspend := sleepInfo.IsStatefulSetsToSuspend()
+			require.True(t, isStatefulSetToSuspend)
+		})
+	})
+
 	t.Run("fails if weekday is empty", func(t *testing.T) {
 		sleepInfo := SleepInfo{
 			TypeMeta: metav1.TypeMeta{
@@ -316,7 +422,7 @@ func TestSleepInfo(t *testing.T) {
 		})
 	})
 
-	t.Run("with custom patches", func(t *testing.T) {
+	t.Run("custom patches", func(t *testing.T) {
 		sleepInfo := SleepInfo{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       "SleepInfo",
@@ -327,12 +433,24 @@ func TestSleepInfo(t *testing.T) {
 				Namespace: "namespace",
 			},
 			Spec: SleepInfoSpec{
-				SuspendDeployments: getPtr(false),
+				SuspendDeployments:  getPtr(false),
+				SuspendStatefulSets: getPtr(false),
 				Patches: []Patch{
 					{
 						Target: PatchTarget{
 							Group: "apps",
 							Kind:  "Deployment",
+						},
+						Patch: `
+- op: add
+  path: /spec/replicas
+  value: 0
+`,
+					},
+					{
+						Target: PatchTarget{
+							Group: "apps",
+							Kind:  "Statefulset",
 						},
 						Patch: `
 - op: add
@@ -384,6 +502,17 @@ func TestSleepInfo(t *testing.T) {
 					},
 					{
 						Target: PatchTarget{
+							Group: "apps",
+							Kind:  "StatefulSet",
+						},
+						Patch: `
+- op: add
+  path: /spec/replicas
+  value: 0
+`,
+					},
+					{
+						Target: PatchTarget{
 							Group: "batch",
 							Kind:  "CronJob",
 						},
@@ -399,6 +528,7 @@ func TestSleepInfo(t *testing.T) {
 
 		patches := append([]Patch{
 			deploymentPatch,
+			statefulSetPatch,
 			cronjobPatch,
 		}, sleepInfo.Spec.Patches...)
 		require.Equal(t, patches, sleepInfo.GetPatches())
