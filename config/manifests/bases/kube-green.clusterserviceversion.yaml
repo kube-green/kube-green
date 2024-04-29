@@ -5,7 +5,7 @@ metadata:
     alm-examples: '[]'
     capabilities: Seamless Upgrades
     categories: Developer Tools
-    containerImage: docker.io/kubegreen/kube-green:0.6.0-rc.0
+    containerImage: docker.io/kubegreen/kube-green:0.6.0-rc.1
     createdAt: "2021-02-21T00:00:00Z"
     description: Suspend your pods when no-one's using them to save energy and restore
       when necessary
@@ -59,8 +59,8 @@ spec:
         path: suspendDeployments
       - description: If SuspendStatefulSets is set to false, on sleep the statefulset
           of the namespace will not be suspended. By default StatefulSet will be suspended.
-        displayName: Suspend StatefulSets
-        path: suspendStatefulSets
+        displayName: Suspend Stateful Sets
+        path: suspendStatefulsets
       - description: Time zone to set the schedule, in IANA time zone identifier.
           It is not required, default to UTC. For example, for the Italy time zone
           set Europe/Rome.
@@ -146,5 +146,5 @@ spec:
   provider:
     name: kube-green Community
     url: https://kube-green.dev
-  replaces: kube-green.v0.5.2
+  replaces: kube-green.v0.6.0-rc.0
   version: 0.0.0
