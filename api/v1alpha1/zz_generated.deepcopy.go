@@ -139,6 +139,11 @@ func (in *SleepInfoSpec) DeepCopyInto(out *SleepInfoSpec) {
 		*out = new(bool)
 		**out = **in
 	}
+	if in.SuspendStatefulSets != nil {
+		in, out := &in.SuspendStatefulSets, &out.SuspendStatefulSets
+		*out = new(bool)
+		**out = **in
+	}
 	if in.Patches != nil {
 		in, out := &in.Patches, &out.Patches
 		*out = make([]Patch, len(*in))

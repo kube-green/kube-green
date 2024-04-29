@@ -66,6 +66,10 @@ type SleepInfoSpec struct {
 	// +optional
 	//+operator-sdk:csv:customresourcedefinitions:type=spec
 	SuspendDeployments *bool `json:"suspendDeployments,omitempty"`
+	// If SuspendStatefulSets is set to false, on sleep the statefulset of the namespace will not be suspended. By default StatefulSet will be suspended.
+	// +optional
+	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	SuspendStatefulSets *bool `json:"suspendStatefulsets,omitempty"`
 	// Patches is a list of json 6902 patches to apply to the target resources.
 	// +optional
 	//+operator-sdk:csv:customresourcedefinitions:type=spec
@@ -173,10 +177,20 @@ func (s SleepInfo) IsDeploymentsToSuspend() bool {
 	return *s.Spec.SuspendDeployments
 }
 
+func (s SleepInfo) IsStatefulSetsToSuspend() bool {
+	if s.Spec.SuspendStatefulSets == nil {
+		return true
+	}
+	return *s.Spec.SuspendStatefulSets
+}
+
 func (s SleepInfo) GetPatches() []Patch {
 	patches := []Patch{}
 	if s.IsDeploymentsToSuspend() {
 		patches = append(patches, deploymentPatch)
+	}
+	if s.IsStatefulSetsToSuspend() {
+		patches = append(patches, statefulSetPatch)
 	}
 	if s.IsCronjobsToSuspend() {
 		patches = append(patches, cronjobPatch)
