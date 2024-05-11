@@ -33,7 +33,7 @@ func testAfterEach(runID string) env.FeatureFunc {
 
 func testenvSetup(t *testing.T) env.Environment {
 	config := envconf.New().WithParallelTestEnabled()
-	envTest, err := testutil.StartEnvTest(config)
+	envTest, err := testutil.StartEnvTest(config, []string{"../../../config/crd/bases"})
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		err := envTest.Stop()
@@ -45,9 +45,6 @@ func testenvSetup(t *testing.T) env.Environment {
 
 	testenv.BeforeEachFeature(testBeforeEach(runID))
 	testenv.AfterEachFeature(testAfterEach(runID))
-
-	_, err = testutil.SetupCRDs("../../../config/crd/bases", "*")(context.TODO(), config)
-	require.NoError(t, err)
 
 	return testenv
 }
