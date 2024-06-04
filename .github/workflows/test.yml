@@ -23,6 +23,7 @@ jobs:
           - 'v1.26.6'
           - 'v1.25.11'
           - 'v1.24.15'
+          - 'v1.23.17'
     env:
       KIND_K8S_VERSION: ${{matrix.k8s_version}}
     steps:
