@@ -35,3 +35,4 @@ kubeconfig
 # Local run
 kube-green-local-run.yaml
 tests-logs/
+template.output.yaml
