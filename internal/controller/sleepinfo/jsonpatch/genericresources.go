@@ -72,10 +72,28 @@ func (g genericResource) getListOptions(namespace string, target v1alpha1.PatchT
 		Limit:     500,
 	}
 
+	includeRef := g.ResourceClient.SleepInfo.GetIncludeRef()
 	excludeRef := g.ResourceClient.SleepInfo.GetExcludeRef()
+	fieldsToInclude := getFieldToInclude(includeRef, target)
+	labelsToInclude := getLabelsToInclude(includeRef)
 	fieldsToExclude := getFieldToExclude(excludeRef, target)
 	labelsToExclude := getLabelsToExclude(excludeRef)
-	if len(fieldsToExclude) > 0 {
+	if len(fieldsToInclude) > 0 {
+		fieldSelector, err := fields.ParseSelector(strings.Join(fieldsToInclude, ","))
+		if err != nil {
+			return nil, err
+		}
+		listOptions.FieldSelector = fieldSelector
+	}
+
+	if len(labelsToInclude) > 0 {
+		labelSelector, err := labels.Parse(strings.Join(labelsToInclude, ","))
+		if err != nil {
+			return nil, err
+		}
+		listOptions.LabelSelector = labelSelector
+	}
+	if len(fieldsToExclude) > 0 && len(fieldsToInclude) == 0 {
 		fieldSelector, err := fields.ParseSelector(strings.Join(fieldsToExclude, ","))
 		if err != nil {
 			return nil, err
@@ -83,7 +101,7 @@ func (g genericResource) getListOptions(namespace string, target v1alpha1.PatchT
 		listOptions.FieldSelector = fieldSelector
 	}
 
-	if len(labelsToExclude) > 0 {
+	if len(labelsToExclude) > 0 && len(fieldsToInclude) == 0 {
 		labelSelector, err := labels.Parse(strings.Join(labelsToExclude, ","))
 		if err != nil {
 			return nil, err
@@ -109,9 +127,29 @@ func getFieldToExclude(excludeRef []v1alpha1.ExcludeRef, target v1alpha1.PatchTa
 	return fieldsSelector
 }
 
+func getFieldToInclude(includeRef []v1alpha1.IncludeRef, target v1alpha1.PatchTarget) []string {
+	var names []string
+	for _, include := range includeRef {
+		if matchPatchTargetAndIncludeRef(target, include) && include.Name != "" {
+			names = append(names, include.Name)
+		}
+	}
+
+	fieldsSelector := []string{}
+	for _, name := range names {
+		fieldsSelector = append(fieldsSelector, fmt.Sprintf("metadata.name==%s", name))
+	}
+	return fieldsSelector
+}
+
 // TODO: check when add support to versions
 func matchPatchTargetAndExcludeRef(target v1alpha1.PatchTarget, excludeRef v1alpha1.ExcludeRef) bool {
 	return strings.HasPrefix(excludeRef.APIVersion, fmt.Sprintf("%s/", target.Group)) && excludeRef.Kind == target.Kind
+}
+
+// TODO: check when add support to versions
+func matchPatchTargetAndIncludeRef(target v1alpha1.PatchTarget, includeRef v1alpha1.IncludeRef) bool {
+	return strings.HasPrefix(includeRef.APIVersion, fmt.Sprintf("%s/", target.Group)) && includeRef.Kind == target.Kind
 }
 
 func getLabelsToExclude(excludeRef []v1alpha1.ExcludeRef) []string {
@@ -122,4 +160,14 @@ func getLabelsToExclude(excludeRef []v1alpha1.ExcludeRef) []string {
 		}
 	}
 	return labelsToExclude
+}
+
+func getLabelsToInclude(includeRef []v1alpha1.IncludeRef) []string {
+	labelsToInclude := []string{}
+	for _, include := range includeRef {
+		for k, v := range include.MatchLabels {
+			labelsToInclude = append(labelsToInclude, fmt.Sprintf("%s==%s", k, v))
+		}
+	}
+	return labelsToInclude
 }
