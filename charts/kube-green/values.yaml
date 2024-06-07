@@ -72,7 +72,7 @@ topologySpreadConstraints: []
 certManager:
   enabled: false
 
-jobs:
+jobsCert:
   enabled: true
   image:
     registry: registry.k8s.io

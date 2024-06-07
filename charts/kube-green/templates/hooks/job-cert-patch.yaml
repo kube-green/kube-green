@@ -1,4 +1,4 @@
-{{- if and (not .Values.certManager.enabled) .Values.jobs.enabled }}
+{{- if and (not .Values.certManager.enabled) .Values.jobsCert.enabled }}
 {{- $name := printf "%s-certpatch" (include "kube-green.fullname" .) }}
 apiVersion: batch/v1
 kind: Job
@@ -23,8 +23,8 @@ spec:
       serviceAccountName: {{ include "kube-green.webhook.serviceAccount.name" . }}
       containers:
         - name: kube-webhook-certpatch
-          image: {{ include "image" .Values.jobs.image }}
-          imagePullPolicy: {{ .Values.jobs.image.pullPolicy }}
+          image: {{ include "image" .Values.jobsCert.image }}
+          imagePullPolicy: {{ .Values.jobsCert.image.pullPolicy }}
           args:
           - patch
           - --namespace={{ .Release.Namespace }}

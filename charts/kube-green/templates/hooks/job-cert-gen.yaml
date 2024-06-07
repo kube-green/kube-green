@@ -1,4 +1,4 @@
-{{- if and (not .Values.certManager.enabled) .Values.jobs.enabled }}
+{{- if and (not .Values.certManager.enabled) .Values.jobsCert.enabled }}
 {{- $name := printf "%s-certgen" (include "kube-green.fullname" .) }}
 {{- $webhookServiceName := include "kube-green.webhook.service.name" . -}}
 apiVersion: batch/v1
@@ -24,8 +24,8 @@ spec:
       serviceAccountName: {{ include "kube-green.webhook.serviceAccount.name" . }}
       containers:
         - name: kube-webhook-certgen
-          image: {{ include "image" .Values.jobs.image }}
-          imagePullPolicy: {{ .Values.jobs.image.pullPolicy }}
+          image: {{ include "image" .Values.jobsCert.image }}
+          imagePullPolicy: {{ .Values.jobsCert.image.pullPolicy }}
           args:
           - create
           - --host={{ $webhookServiceName }},{{ $webhookServiceName }}.{{ .Release.Namespace }}.svc
