@@ -36,3 +36,4 @@ kubeconfig
 kube-green-local-run.yaml
 tests-logs/
 template.output.yaml
+.helm.template-output.yaml

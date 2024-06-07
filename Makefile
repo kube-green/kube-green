@@ -378,3 +378,6 @@ local-run: ## Run the operator locally in kind using ko.
 	@sleep 5
 	kubectl wait --for=condition=ready --timeout=160s pod -l app=kube-green -n kube-green
 	@rm ./kube-green-local-run.yaml
+
+## Includes
+include scripts/make/helm.mk
