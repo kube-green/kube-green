@@ -58,8 +58,8 @@ func TestMain(m *testing.M) {
 
 	testenv.Finish(
 		envfuncs.ExportClusterLogs(kindClusterName, fmt.Sprintf("./tests-logs/kube-green-e2e-%s", runID)),
-		envfuncs.TeardownCRDs("/tmp", "kube-green-e2e-test.yaml"),
-		testutil.DestroyKindCluster(kindClusterName),
+		// envfuncs.TeardownCRDs("/tmp", "kube-green-e2e-test.yaml"),
+		// testutil.DestroyKindCluster(kindClusterName),
 	)
 
 	// launch package tests
