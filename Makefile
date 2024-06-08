@@ -52,7 +52,7 @@ endif
 # Image URL to use all building/pushing image targets
 IMG ?= $(DOCKER_IMAGE_NAME):$(VERSION)
 # KIND_K8S_VERSION refers to the version of Kind to use.
-KIND_K8S_VERSION ?= v1.29.0
+KIND_K8S_VERSION ?= v1.30.0
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
