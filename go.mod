@@ -4,7 +4,7 @@ go 1.21
 
 require (
 	github.com/evanphx/json-patch/v5 v5.9.0
-	github.com/go-logr/logr v1.4.1
+	github.com/go-logr/logr v1.4.2
 	github.com/kube-green/kuttl v0.0.0-20240128181608-a4e9ae25a573
 	github.com/prometheus/client_golang v1.19.1
 	github.com/robfig/cron/v3 v3.0.1
