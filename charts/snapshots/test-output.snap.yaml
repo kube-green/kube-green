@@ -37,6 +37,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
+    cert-manager.io/inject-ca-from: kube-green/kube-green-serving-cert
     controller-gen.kubebuilder.io/version: v0.10.0
   creationTimestamp: null
   name: sleepinfos.kube-green.com
@@ -421,7 +422,7 @@ spec:
           initialDelaySeconds: 5
           periodSeconds: 10
         resources:
-
+        
           limits:
             cpu: 400m
             memory: 400Mi
@@ -429,7 +430,7 @@ spec:
             cpu: 100m
             memory: 50Mi
         securityContext:
-
+        
           allowPrivilegeEscalation: false
           capabilities:
             drop:
@@ -458,7 +459,7 @@ spec:
             cpu: 5m
             memory: 64Mi
         securityContext:
-
+        
           allowPrivilegeEscalation: false
           capabilities:
             drop:
@@ -475,10 +476,36 @@ spec:
           defaultMode: 420
           secretName: webhook-server-cert
 ---
+# Source: kube-green/templates/certificate.yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: kube-green-serving-cert
+  namespace: default
+spec:
+  dnsNames:
+  - kube-green-webhook-service.kube-green.svc
+  - kube-green-webhook-service.kube-green.svc.cluster.local
+  issuerRef:
+    kind: Issuer
+    name: kube-green-selfsigned-issuer
+  secretName: webhook-server-cert
+---
+# Source: kube-green/templates/certificate.yaml
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: kube-green-selfsigned-issuer
+  namespace: default
+spec:
+  selfSigned: {}
+---
 # Source: kube-green/templates/webhook.yaml
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
+  annotations:
+    cert-manager.io/inject-ca-from: kube-green/kube-green-serving-cert
   name: kube-green-validating-webhook-configuration
 webhooks:
 - admissionReviewVersions:
@@ -501,291 +528,3 @@ webhooks:
     resources:
     - sleepinfos
   sideEffects: None
----
-# Source: kube-green/templates/hooks/service-account.yaml
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: kube-green-webhook
-  namespace: default
-  annotations:
-    helm.sh/hook: pre-install,pre-upgrade,post-install,post-upgrade
-    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
-    kubernetes.io/enforce-mountable-secrets: "true"
-  labels:
-    app: kube-green-webhook
-    HELM_CHART_VERSION_REDACTED
-    app.kubernetes.io/name: kube-green
-    app.kubernetes.io/instance: release-test
-    app.kubernetes.io/version: "0.5.2"
-    app.kubernetes.io/managed-by: Helm
-automountServiceAccountToken: false
-secrets:
-- name: webhook-server-cert
-  kind: Secret
----
-# Source: kube-green/templates/hooks/clusterrole.yaml
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: kube-green-webhook
-  annotations:
-    helm.sh/hook: pre-install,pre-upgrade,post-install,post-upgrade
-    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
-  labels:
-    app: kube-green-webhook
-    HELM_CHART_VERSION_REDACTED
-    app.kubernetes.io/name: kube-green
-    app.kubernetes.io/instance: release-test
-    app.kubernetes.io/version: "0.5.2"
-    app.kubernetes.io/managed-by: Helm
-rules:
-  - apiGroups:
-      - admissionregistration.k8s.io
-    resources:
-      - validatingwebhookconfigurations
-    verbs:
-      - get
-      - update
-    resourceNames:
-      - kube-green-validating-webhook-configuration
----
-# Source: kube-green/templates/hooks/clusterrolebinding.yaml
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: kube-green-webhook
-  annotations:
-    helm.sh/hook: pre-install,pre-upgrade,post-install,post-upgrade
-    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
-  labels:
-    app: kube-green-webhook
-    HELM_CHART_VERSION_REDACTED
-    app.kubernetes.io/name: kube-green
-    app.kubernetes.io/instance: release-test
-    app.kubernetes.io/version: "0.5.2"
-    app.kubernetes.io/managed-by: Helm
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: kube-green-webhook
-subjects:
-- kind: ServiceAccount
-  namespace: default
-  name: kube-green-webhook
----
-# Source: kube-green/templates/hooks/role.yaml
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  name: kube-green-webhook
-  namespace: default
-  annotations:
-    helm.sh/hook: pre-install,pre-upgrade,post-install,post-upgrade
-    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
-  labels:
-    app: kube-green-webhook
-    HELM_CHART_VERSION_REDACTED
-    app.kubernetes.io/name: kube-green
-    app.kubernetes.io/instance: release-test
-    app.kubernetes.io/version: "0.5.2"
-    app.kubernetes.io/managed-by: Helm
-rules:
-  - apiGroups:
-      - ""
-    resources:
-      - secrets
-    verbs:
-      - get
-    resourceNames:
-      - webhook-server-cert
-  - apiGroups:
-      - ""
-    resources:
-      - secrets
-    verbs:
-      - create
----
-# Source: kube-green/templates/hooks/rolebinding.yaml
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: kube-green-webhook
-  annotations:
-    helm.sh/hook: pre-install,pre-upgrade,post-install,post-upgrade
-    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
-  labels:
-    app: kube-green-webhook
-    HELM_CHART_VERSION_REDACTED
-    app.kubernetes.io/name: kube-green
-    app.kubernetes.io/instance: release-test
-    app.kubernetes.io/version: "0.5.2"
-    app.kubernetes.io/managed-by: Helm
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: kube-green-webhook
-subjects:
-- kind: ServiceAccount
-  name: kube-green-webhook
----
-# Source: kube-green/templates/hooks/job-cert-gen.yaml
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: "release-test-kube-green-certgen"
-  namespace: default
-  annotations:
-    helm.sh/hook: pre-install,pre-upgrade
-    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
-    helm.sh/hook-weight: "1"
-  labels:
-    app: "release-test-kube-green-certgen"
-    HELM_CHART_VERSION_REDACTED
-    app.kubernetes.io/name: kube-green
-    app.kubernetes.io/instance: release-test
-    app.kubernetes.io/version: "0.5.2"
-    app.kubernetes.io/managed-by: Helm
-spec:
-  template:
-    metadata:
-      name: "release-test-kube-green-certgen"
-      labels:
-        app: "release-test-kube-green-certgen"
-        HELM_CHART_VERSION_REDACTED
-        app.kubernetes.io/name: kube-green
-        app.kubernetes.io/instance: release-test
-        app.kubernetes.io/version: "0.5.2"
-        app.kubernetes.io/managed-by: Helm
-    spec:
-      serviceAccountName: kube-green-webhook
-      containers:
-        - name: kube-webhook-certgen
-          image: registry.k8s.io/ingress-nginx/kube-webhook-certgen:v20221220-controller-v1.5.1-58-g787ea74b6
-          imagePullPolicy: Always
-          args:
-          - create
-          - --host=$(SERVICE_NAME),$(SERVICE_NAME).$(POD_NAMESPACE).svc
-          - --namespace=$(POD_NAMESPACE)
-          - --secret-name=$(SECRET_NAME)
-          - --cert-name=tls.crt
-          - --key-name=tls.key
-          env:
-          - name: SERVICE_NAME
-            value: "release-test-kube-green-certgen"
-          - name: POD_NAMESPACE
-            valueFrom:
-              fieldRef:
-                fieldPath: metadata.namespace
-          - name: SECRET_NAME
-            value: webhook-server-cert
-          securityContext:
-            allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
-            privileged: false
-            seccompProfile:
-              type: RuntimeDefault
-            capabilities:
-              drop:
-              - ALL
-          volumeMounts:
-          - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
-            name: serviceaccount-token
-            readOnly: true
-      restartPolicy: OnFailure
-      volumes:
-      - name: serviceaccount-token
-        projected:
-          defaultMode: 0444
-          sources:
-          - serviceAccountToken:
-              expirationSeconds: 3600
-              path: token
-          - configMap:
-              items:
-              - key: ca.crt
-                path: ca.crt
-              name: kube-root-ca.crt
-          - downwardAPI:
-              items:
-              - fieldRef:
-                  apiVersion: v1
-                  fieldPath: metadata.namespace
-                path: namespace
----
-# Source: kube-green/templates/hooks/job-cert-patch.yaml
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: "release-test-kube-green-certpatch"
-  namespace: default
-  annotations:
-    helm.sh/hook: pre-install,pre-upgrade
-    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
-    helm.sh/hook-weight: "1"
-  labels:
-    app: "release-test-kube-green-certpatch"
-    HELM_CHART_VERSION_REDACTED
-    app.kubernetes.io/name: kube-green
-    app.kubernetes.io/instance: release-test
-    app.kubernetes.io/version: "0.5.2"
-    app.kubernetes.io/managed-by: Helm
-spec:
-  template:
-    metadata:
-      name: "release-test-kube-green-certpatch"
-      labels:
-        app: "release-test-kube-green-certpatch"
-        HELM_CHART_VERSION_REDACTED
-        app.kubernetes.io/name: kube-green
-        app.kubernetes.io/instance: release-test
-        app.kubernetes.io/version: "0.5.2"
-        app.kubernetes.io/managed-by: Helm
-    spec:
-      containers:
-        - name: kube-webhook-certpatch
-          image: registry.k8s.io/ingress-nginx/kube-webhook-certgen:v20221220-controller-v1.5.1-58-g787ea74b6
-          imagePullPolicy: Always
-          args:
-          - patch
-          - --namespace=$(POD_NAMESPACE)
-          - --patch-mutating=false
-          - --patch-validating=true
-          - --secret-name=$(SECRET_NAME)
-          - --webhook-name=kube-green-validating-webhook-configuration
-          env:
-          - name: POD_NAMESPACE
-            valueFrom:
-              fieldRef:
-                fieldPath: metadata.namespace
-          - name: SECRET_NAME
-            value: webhook-server-cert
-          securityContext:
-            allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
-            privileged: false
-            seccompProfile:
-              type: RuntimeDefault
-            capabilities:
-              drop:
-              - ALL
-      restartPolicy: OnFailure
-      volumes:
-      - name: serviceaccount-token
-        projected:
-          defaultMode: 0444
-          sources:
-          - serviceAccountToken:
-              expirationSeconds: 3600
-              path: token
-          - configMap:
-              items:
-              - key: ca.crt
-                path: ca.crt
-              name: kube-root-ca.crt
-          - downwardAPI:
-              items:
-              - fieldRef:
-                  apiVersion: v1
-                  fieldPath: metadata.namespace
-                path: namespace

@@ -70,10 +70,10 @@ priorityClassName: ""
 topologySpreadConstraints: []
 
 certManager:
-  enabled: false
+  enabled: true
 
 jobsCert:
-  enabled: true
+  enabled: false
   image:
     registry: registry.k8s.io
     repository: ingress-nginx/kube-webhook-certgen
