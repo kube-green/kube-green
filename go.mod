@@ -9,7 +9,7 @@ require (
 	github.com/prometheus/client_golang v1.19.1
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/stretchr/testify v1.9.0
-	github.com/vladimirvivien/gexe v0.2.0
+	github.com/vladimirvivien/gexe v0.3.0
 	k8s.io/api v0.30.1
 	k8s.io/apimachinery v0.30.1
 	k8s.io/client-go v0.30.1
