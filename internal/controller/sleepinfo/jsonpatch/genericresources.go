@@ -78,31 +78,27 @@ func (g genericResource) getListOptions(namespace string, target v1alpha1.PatchT
 	labelsToInclude := getLabelsToInclude(includeRef)
 	fieldsToExclude := getFieldToExclude(excludeRef, target)
 	labelsToExclude := getLabelsToExclude(excludeRef)
-	if len(fieldsToInclude) > 0 {
-		fieldSelector, err := fields.ParseSelector(strings.Join(fieldsToInclude, ","))
+
+	// Combine fields to include and exclude into a single field selector
+	var fieldSelectors []string
+	fieldSelectors = append(fieldSelectors, fieldsToInclude...)
+	fieldSelectors = append(fieldSelectors, fieldsToExclude...)
+
+	if len(fieldSelectors) > 0 {
+		fieldSelector, err := fields.ParseSelector(strings.Join(fieldSelectors, ","))
 		if err != nil {
 			return nil, err
 		}
 		listOptions.FieldSelector = fieldSelector
 	}
 
-	if len(labelsToInclude) > 0 {
-		labelSelector, err := labels.Parse(strings.Join(labelsToInclude, ","))
-		if err != nil {
-			return nil, err
-		}
-		listOptions.LabelSelector = labelSelector
-	}
-	if len(fieldsToExclude) > 0 && len(fieldsToInclude) == 0 {
-		fieldSelector, err := fields.ParseSelector(strings.Join(fieldsToExclude, ","))
-		if err != nil {
-			return nil, err
-		}
-		listOptions.FieldSelector = fieldSelector
-	}
+	// Combine labels to include and exclude into a single label selector
+	var labelSelectors []string
+	labelSelectors = append(labelSelectors, labelsToInclude...)
+	labelSelectors = append(labelSelectors, labelsToExclude...)
 
-	if len(labelsToExclude) > 0 && len(fieldsToInclude) == 0 {
-		labelSelector, err := labels.Parse(strings.Join(labelsToExclude, ","))
+	if len(labelSelectors) > 0 {
+		labelSelector, err := labels.Parse(strings.Join(labelSelectors, ","))
 		if err != nil {
 			return nil, err
 		}

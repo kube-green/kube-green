@@ -41,6 +41,14 @@ func TestListResources(t *testing.T) {
 			"kube-green.dev/exclude": "true",
 		},
 	})
+	d4 := mocks.Deployment(mocks.DeploymentOptions{
+		Name:      "d4",
+		Namespace: namespace,
+		Replicas:  getPtr[int32](1),
+		Labels: map[string]string{
+			"kube-green.dev/include": "true",
+		},
+	})
 
 	t.Run("returns empty list if target not supported by cluster", func(t *testing.T) {
 		sleepInfo := &v1alpha1.SleepInfo{
@@ -52,7 +60,7 @@ func TestListResources(t *testing.T) {
 		}
 
 		fakeClient := testutil.PossiblyErroringFakeCtrlRuntimeClient{
-			Client: getFakeClient().WithObjects(d1.Resource(), d2.Resource(), d3.Resource()).Build(),
+			Client: getFakeClient().WithObjects(d1.Resource(), d2.Resource(), d3.Resource(), d4.Resource()).Build(),
 		}
 
 		generic := newGenericResource(resource.ResourceClient{
@@ -92,7 +100,40 @@ func TestListResources(t *testing.T) {
 		}
 
 		fakeClient := testutil.PossiblyErroringFakeCtrlRuntimeClient{
-			Client: getFakeClient().WithObjects(d1.Resource(), d2.Resource(), d3.Resource()).Build(),
+			Client: getFakeClient().WithObjects(d1.Resource(), d2.Resource(), d3.Resource(), d4.Resource()).Build(),
+		}
+
+		generic := newGenericResource(resource.ResourceClient{
+			Client:    fakeClient,
+			Log:       testLogger,
+			SleepInfo: sleepInfo,
+		}, deployPatchData, RestorePatches{})
+		list, err := generic.getListByNamespace(context.Background(), namespace, deployPatchData.Target)
+		require.NoError(t, err)
+		require.Len(t, list, 2)
+
+		cleanResourceVersion(list)
+		require.Equal(t, []unstructured.Unstructured{d3.Unstructured(), d4.Unstructured()}, list)
+	})
+
+	t.Run("include configured resources by name", func(t *testing.T) {
+		sleepInfo := &v1alpha1.SleepInfo{
+			Spec: v1alpha1.SleepInfoSpec{
+				Patches: []v1alpha1.Patch{
+					deployPatchData,
+				},
+				IncludeRef: []v1alpha1.IncludeRef{
+					{
+						Kind:       "Deployment",
+						Name:       "d1",
+						APIVersion: "apps/v1",
+					},
+				},
+			},
+		}
+
+		fakeClient := testutil.PossiblyErroringFakeCtrlRuntimeClient{
+			Client: getFakeClient().WithObjects(d1.Resource(), d2.Resource(), d3.Resource(), d4.Resource()).Build(),
 		}
 
 		generic := newGenericResource(resource.ResourceClient{
@@ -105,7 +146,40 @@ func TestListResources(t *testing.T) {
 		require.Len(t, list, 1)
 
 		cleanResourceVersion(list)
-		require.Equal(t, []unstructured.Unstructured{d3.Unstructured()}, list)
+		require.Equal(t, []unstructured.Unstructured{d1.Unstructured()}, list)
+	})
+
+	t.Run("include configured resources by labels", func(t *testing.T) {
+		sleepInfo := &v1alpha1.SleepInfo{
+			Spec: v1alpha1.SleepInfoSpec{
+				Patches: []v1alpha1.Patch{
+					deployPatchData,
+				},
+				IncludeRef: []v1alpha1.IncludeRef{
+					{
+						MatchLabels: map[string]string{
+							"kube-green.dev/include": "true",
+						},
+					},
+				},
+			},
+		}
+
+		fakeClient := testutil.PossiblyErroringFakeCtrlRuntimeClient{
+			Client: getFakeClient().WithObjects(d1.Resource(), d2.Resource(), d3.Resource(), d4.Resource()).Build(),
+		}
+
+		generic := newGenericResource(resource.ResourceClient{
+			Client:    fakeClient,
+			Log:       testLogger,
+			SleepInfo: sleepInfo,
+		}, deployPatchData, RestorePatches{})
+		list, err := generic.getListByNamespace(context.Background(), namespace, deployPatchData.Target)
+		require.NoError(t, err)
+		require.Len(t, list, 1)
+
+		cleanResourceVersion(list)
+		require.Equal(t, []unstructured.Unstructured{d4.Unstructured()}, list)
 	})
 
 	t.Run("exclude configured resources by name", func(t *testing.T) {
@@ -130,7 +204,7 @@ func TestListResources(t *testing.T) {
 		}
 
 		fakeClient := testutil.PossiblyErroringFakeCtrlRuntimeClient{
-			Client: getFakeClient().WithObjects(d1.Resource(), d2.Resource(), d3.Resource()).Build(),
+			Client: getFakeClient().WithObjects(d1.Resource(), d2.Resource(), d3.Resource(), d4.Resource()).Build(),
 		}
 
 		generic := newGenericResource(resource.ResourceClient{
@@ -140,10 +214,10 @@ func TestListResources(t *testing.T) {
 		}, deployPatchData, RestorePatches{})
 		list, err := generic.getListByNamespace(context.Background(), namespace, deployPatchData.Target)
 		require.NoError(t, err)
-		require.Len(t, list, 1)
+		require.Len(t, list, 2)
 
 		cleanResourceVersion(list)
-		require.Equal(t, []unstructured.Unstructured{d1.Unstructured()}, list)
+		require.Equal(t, []unstructured.Unstructured{d1.Unstructured(), d4.Unstructured()}, list)
 	})
 }
 
