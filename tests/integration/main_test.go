@@ -19,6 +19,7 @@ import (
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/envfuncs"
 	"sigs.k8s.io/e2e-framework/pkg/features"
+	"sigs.k8s.io/e2e-framework/support/kind"
 )
 
 var (
@@ -26,8 +27,11 @@ var (
 )
 
 const (
-	kindClusterName    = "kube-green-e2e"
-	kubegreenTestImage = "kubegreen/kube-green:e2e-test"
+	kindClusterName                  = "kube-green-e2e"
+	kubegreenTestImage               = "kubegreen/kube-green:e2e-test"
+	kindVersionVariableName          = "KIND_K8S_VERSION"
+	kindNodeImage                    = "kindest/node"
+	disableDeleteClusterVariableName = "DISABLE_DELETE_CLUSTER"
 )
 
 func TestMain(m *testing.M) {
@@ -48,7 +52,7 @@ func TestMain(m *testing.M) {
 	})
 
 	testenv.Setup(
-		testutil.CreateKindClusterWithVersion(kindClusterName, "testdata/kind-config.test.yaml"),
+		createKindClusterWithVersion(kindClusterName, "testdata/kind-config.test.yaml"),
 		testutil.GetClusterVersion(),
 		installCertManager(),
 		buildDockerImage(kubegreenTestImage),
@@ -59,7 +63,7 @@ func TestMain(m *testing.M) {
 	testenv.Finish(
 		envfuncs.ExportClusterLogs(kindClusterName, fmt.Sprintf("./tests-logs/kube-green-e2e-%s", runID)),
 		envfuncs.TeardownCRDs("/tmp", "kube-green-e2e-test.yaml"),
-		testutil.DestroyKindCluster(kindClusterName),
+		destroyKindCluster(kindClusterName),
 	)
 
 	// launch package tests
@@ -118,4 +122,28 @@ func installKubeGreen() env.Func {
 		fmt.Printf("kube-green running\n")
 		return ctx, nil
 	}
+}
+
+// createKindClusterWithVersion create KinD cluster with a specific version
+func createKindClusterWithVersion(clusterName, configPath string) env.Func {
+	version, ok := os.LookupEnv(kindVersionVariableName)
+	if !ok {
+		return envfuncs.CreateCluster(kind.NewProvider(), clusterName)
+	}
+	fmt.Printf("kind use version %s\n", version)
+
+	image := fmt.Sprintf("%s:%s", kindNodeImage, version)
+	return envfuncs.CreateClusterWithConfig(kind.NewProvider(), clusterName, configPath, kind.WithImage(image))
+}
+
+// destroyKindCluster destroy KinD cluster with cluster name.
+// If skipDeleteClusterFlag is set, it avoid the delete of the cluster
+// (useful when running tests locally various times).
+func destroyKindCluster(clusterName string) env.Func {
+	if _, ok := os.LookupEnv(disableDeleteClusterVariableName); ok {
+		return func(ctx context.Context, c *envconf.Config) (context.Context, error) {
+			return ctx, nil
+		}
+	}
+	return envfuncs.DestroyCluster(clusterName)
 }

@@ -60,3 +60,11 @@ Create the name of the service account to use
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
+
+{{- define "kube-green.webhook.secret.name" -}}
+webhook-server-cert
+{{- end -}}
+
+{{- define "image" -}}
+{{ printf "%s/%s:%s" .registry .repository .tag }}
+{{- end -}}

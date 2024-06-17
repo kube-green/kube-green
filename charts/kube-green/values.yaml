@@ -1,21 +1,21 @@
 # Default values for kube-green.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
+nameOverride: ""
+fullnameOverride: ""
+
 manager:
   image:
     repository: kubegreen/kube-green
     pullPolicy: IfNotPresent
     tag: "0.5.2"
-
   logtostderr: true
   verbosity: 0
-
   securityContext:
     allowPrivilegeEscalation: false
     capabilities:
       drop:
       - ALL
-
   resources:
     limits:
       cpu: 400m
@@ -68,3 +68,14 @@ labels: {}
 priorityClassName: ""
 
 topologySpreadConstraints: []
+
+certManager:
+  enabled: true
+
+jobsCert:
+  enabled: false
+  image:
+    registry: registry.k8s.io
+    repository: ingress-nginx/kube-webhook-certgen
+    tag: "v20221220-controller-v1.5.1-58-g787ea74b6"
+    pullPolicy: Always

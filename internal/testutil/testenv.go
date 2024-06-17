@@ -16,8 +16,9 @@ import (
 )
 
 const (
-	localBinRelativePath = "../../bin"
-	envtestBin           = "setup-envtest"
+	kindVersionVariableName = "KIND_K8S_VERSION"
+	localBinRelativePath    = "../../bin"
+	envtestBin              = "setup-envtest"
 )
 
 var (

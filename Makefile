@@ -52,7 +52,7 @@ endif
 # Image URL to use all building/pushing image targets
 IMG ?= $(DOCKER_IMAGE_NAME):$(VERSION)
 # KIND_K8S_VERSION refers to the version of Kind to use.
-KIND_K8S_VERSION ?= v1.29.0
+KIND_K8S_VERSION ?= v1.30.0
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -206,6 +206,11 @@ deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in
 .PHONY: undeploy
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	$(KUSTOMIZE) build config/default | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
+
+.PHONY: template
+template: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
+	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+	$(KUSTOMIZE) build -o template.output.yaml config/default
 
 ##@ Build Dependencies
 
@@ -373,3 +378,6 @@ local-run: ## Run the operator locally in kind using ko.
 	@sleep 5
 	kubectl wait --for=condition=ready --timeout=160s pod -l app=kube-green -n kube-green
 	@rm ./kube-green-local-run.yaml
+
+## Includes
+include scripts/make/helm.mk
