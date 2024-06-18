@@ -130,7 +130,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-build-${{ env.cache-name }}
       - name: Build and push
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: '${{ env.context }}'
           platforms: linux/amd64,linux/arm64,linux/arm/v7
