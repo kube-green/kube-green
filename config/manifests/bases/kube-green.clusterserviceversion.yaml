@@ -29,6 +29,9 @@ spec:
       - description: ExcludeRef define the resource to exclude from the sleep.
         displayName: Exclude Ref
         path: excludeRef
+      - description: IncludeRef define the resource to include to the sleep.
+        displayName: Include Ref
+        path: includeRef
       - description: Patches is a list of json 6902 patches to apply to the target
           resources.
         displayName: Patches
