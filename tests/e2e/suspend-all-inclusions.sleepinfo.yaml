@@ -1,0 +1,20 @@
+apiVersion: kube-green.com/v1alpha1
+kind: SleepInfo
+metadata:
+  name: working-hours
+spec:
+  weekdays: "*"
+  sleepAt: "20:00"
+  wakeUpAt: "08:00"
+  suspendCronJobs: true
+  includeRef:
+    - apiVersion: "apps/v1"
+      kind:       Deployment
+      name:       sleep
+    - apiVersion: "apps/v1"
+      kind:       StatefulSet
+      name:       sleep
+    - matchLabels:
+        app: sleep-with-label
+    - matchLabels:
+        app: sleep-cj-with-label

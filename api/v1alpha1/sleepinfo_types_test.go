@@ -36,6 +36,18 @@ func TestSleepInfo(t *testing.T) {
 						Name:       "ss-1",
 					},
 				},
+				IncludeRef: []IncludeRef{
+					{
+						APIVersion: "apps/v1",
+						Kind:       "Deployment",
+						Name:       "deploy-2",
+					},
+					{
+						APIVersion: "apps/v1",
+						Kind:       "StatefulSet",
+						Name:       "ss-2",
+					},
+				},
 			},
 		}
 		t.Run("get sleep schedule", func(t *testing.T) {
@@ -62,6 +74,22 @@ func TestSleepInfo(t *testing.T) {
 					APIVersion: "apps/v1",
 					Kind:       "StatefulSet",
 					Name:       "ss-1",
+				},
+			}, excludeRef)
+		})
+
+		t.Run("get include ref", func(t *testing.T) {
+			excludeRef := sleepInfo.GetIncludeRef()
+			require.Equal(t, []IncludeRef{
+				{
+					APIVersion: "apps/v1",
+					Kind:       "Deployment",
+					Name:       "deploy-2",
+				},
+				{
+					APIVersion: "apps/v1",
+					Kind:       "StatefulSet",
+					Name:       "ss-2",
 				},
 			}, excludeRef)
 		})
@@ -127,6 +155,18 @@ func TestSleepInfo(t *testing.T) {
 						Name:       "ss-1",
 					},
 				},
+				IncludeRef: []IncludeRef{
+					{
+						APIVersion: "apps/v1",
+						Kind:       "Deployment",
+						Name:       "deploy-2",
+					},
+					{
+						APIVersion: "apps/v1",
+						Kind:       "StatefulSet",
+						Name:       "ss-2",
+					},
+				},
 			},
 		}
 		t.Run("get sleep schedule", func(t *testing.T) {
@@ -153,6 +193,22 @@ func TestSleepInfo(t *testing.T) {
 					APIVersion: "apps/v1",
 					Kind:       "StatefulSet",
 					Name:       "ss-1",
+				},
+			}, excludeRef)
+		})
+
+		t.Run("get include ref", func(t *testing.T) {
+			excludeRef := sleepInfo.GetIncludeRef()
+			require.Equal(t, []IncludeRef{
+				{
+					APIVersion: "apps/v1",
+					Kind:       "Deployment",
+					Name:       "deploy-2",
+				},
+				{
+					APIVersion: "apps/v1",
+					Kind:       "StatefulSet",
+					Name:       "ss-2",
 				},
 			}, excludeRef)
 		})
@@ -190,6 +246,18 @@ func TestSleepInfo(t *testing.T) {
 						Name:       "ss-1",
 					},
 				},
+				IncludeRef: []IncludeRef{
+					{
+						APIVersion: "apps/v1",
+						Kind:       "Deployment",
+						Name:       "deploy-2",
+					},
+					{
+						APIVersion: "apps/v1",
+						Kind:       "StatefulSet",
+						Name:       "ss-2",
+					},
+				},
 				SuspendCronjobs: true,
 			},
 		}
@@ -217,6 +285,22 @@ func TestSleepInfo(t *testing.T) {
 					APIVersion: "apps/v1",
 					Kind:       "StatefulSet",
 					Name:       "ss-1",
+				},
+			}, excludeRef)
+		})
+
+		t.Run("get include ref", func(t *testing.T) {
+			excludeRef := sleepInfo.GetIncludeRef()
+			require.Equal(t, []IncludeRef{
+				{
+					APIVersion: "apps/v1",
+					Kind:       "Deployment",
+					Name:       "deploy-2",
+				},
+				{
+					APIVersion: "apps/v1",
+					Kind:       "StatefulSet",
+					Name:       "ss-2",
 				},
 			}, excludeRef)
 		})
