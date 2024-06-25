@@ -41,18 +41,18 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: do-not-sleep-with-label
+  name: sleep-with-label
   labels:
-    app: do-not-sleep-with-label
+    app: sleep-with-label
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: do-not-sleep-with-label
+      app: sleep-with-label
   template:
     metadata:
       labels:
-        app: do-not-sleep-with-label
+        app: sleep-with-label
     spec:
       containers:
       - name: echo-service
@@ -101,18 +101,18 @@ spec:
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: do-not-sleep-with-label
+  name: sleep-with-label
   labels:
-    app: do-not-sleep-with-label
+    app: sleep-with-label
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: do-not-sleep-with-label
+      app: sleep-with-label
   template:
     metadata:
       labels:
-        app: do-not-sleep-with-label
+        app: sleep-with-label
     spec:
       containers:
       - name: echo-service

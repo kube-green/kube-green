@@ -15,9 +15,9 @@ status:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: do-not-sleep-with-label
+  name: sleep-with-label
   labels:
-    app: do-not-sleep-with-label
+    app: sleep-with-label
 status:
   readyReplicas: 1
 ---
@@ -38,8 +38,8 @@ status:
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: do-not-sleep-with-label
+  name: sleep-with-label
   labels:
-    app: do-not-sleep-with-label
+    app: sleep-with-label
 status:
   readyReplicas: 1
