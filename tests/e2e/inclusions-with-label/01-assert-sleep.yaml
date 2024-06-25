@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: echo-service-replica-1
+spec:
+  replicas: 1
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: echo-service-replica-4
+spec:
+  replicas: 4
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sleep-with-label
+  labels:
+    app: sleep-with-label
+status:
+  readyReplicas: 0
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: echo-service-replica-1
+spec:
+  replicas: 1
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: echo-service-replica-4
+spec:
+  replicas: 4
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: sleep-with-label
+  labels:
+    app: sleep-with-label
+status:
+  readyReplicas: 0

@@ -59,26 +59,6 @@ spec:
         image: davidebianchi/echo-service
 ---
 apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: sleep-with-label
-  labels:
-    app: sleep-with-label
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: sleep-with-label
-  template:
-    metadata:
-      labels:
-        app: sleep-with-label
-    spec:
-      containers:
-      - name: echo-service
-        image: davidebianchi/echo-service
----
-apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: echo-service-replica-1
@@ -138,52 +118,10 @@ spec:
       - name: echo-service
         image: davidebianchi/echo-service
 ---
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  name: sleep-with-label
-  labels:
-    app: sleep-with-label
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: sleep-with-label
-  template:
-    metadata:
-      labels:
-        app: sleep-with-label
-    spec:
-      containers:
-      - name: echo-service
-        image: davidebianchi/echo-service
----
 apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: cj-1
-spec:
-  schedule: "0 0 1 1 *"
-  jobTemplate:
-    spec:
-      template:
-        spec:
-          containers:
-          - name: hello
-            image: busybox:stable
-            imagePullPolicy: IfNotPresent
-            command:
-            - /bin/sh
-            - -c
-            - date; echo Hello from the Kubernetes cluster
-          restartPolicy: OnFailure
----
-apiVersion: batch/v1
-kind: CronJob
-metadata:
-  name: sleep-cj-with-label
-  labels:
-    app: sleep-cj-with-label
 spec:
   schedule: "0 0 1 1 *"
   jobTemplate:

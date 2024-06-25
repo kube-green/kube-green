@@ -14,7 +14,3 @@ spec:
     - apiVersion: "apps/v1"
       kind:       StatefulSet
       name:       sleep
-    - matchLabels:
-        app: sleep-with-label
-    - matchLabels:
-        app: sleep-cj-with-label
