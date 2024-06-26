@@ -11,6 +11,3 @@ spec:
     - apiVersion: "apps/v1"
       kind:       Deployment
       name:       sleep
-    - apiVersion: "apps/v1"
-      kind:       StatefulSet
-      name:       sleep

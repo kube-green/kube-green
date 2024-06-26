@@ -33,13 +33,6 @@ metadata:
 spec:
   replicas: 4
 ---
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  name: sleep
-status:
-  readyReplicas: 0
----
 apiVersion: batch/v1
 kind: CronJob
 metadata:
