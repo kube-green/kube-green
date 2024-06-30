@@ -87,7 +87,7 @@ func TestListResources(t *testing.T) {
 				Patches: []v1alpha1.Patch{
 					deployPatchData,
 				},
-				ExcludeRef: []v1alpha1.ExcludeRef{
+				ExcludeRef: []v1alpha1.FilterRef{
 					{
 						Kind:       "Deployment",
 						Name:       "d1",
@@ -130,7 +130,7 @@ func TestListResources(t *testing.T) {
 				Patches: []v1alpha1.Patch{
 					deployPatchData,
 				},
-				ExcludeRef: []v1alpha1.ExcludeRef{
+				ExcludeRef: []v1alpha1.FilterRef{
 					{
 						MatchLabels: map[string]string{
 							"kube-green.dev/exclude": "true",
@@ -168,7 +168,7 @@ func TestListResources(t *testing.T) {
 				Patches: []v1alpha1.Patch{
 					deployPatchData,
 				},
-				IncludeRef: []v1alpha1.IncludeRef{
+				IncludeRef: []v1alpha1.FilterRef{
 					{
 						Kind:       "Deployment",
 						Name:       "d1",
@@ -201,7 +201,7 @@ func TestListResources(t *testing.T) {
 				Patches: []v1alpha1.Patch{
 					deployPatchData,
 				},
-				IncludeRef: []v1alpha1.IncludeRef{
+				IncludeRef: []v1alpha1.FilterRef{
 					{
 						MatchLabels: map[string]string{
 							"kube-green.dev/include": "true",
@@ -234,14 +234,14 @@ func TestListResources(t *testing.T) {
 				Patches: []v1alpha1.Patch{
 					deployPatchData,
 				},
-				IncludeRef: []v1alpha1.IncludeRef{
+				IncludeRef: []v1alpha1.FilterRef{
 					{
 						MatchLabels: map[string]string{
 							"kube-green.dev/include": "true",
 						},
 					},
 				},
-				ExcludeRef: []v1alpha1.ExcludeRef{
+				ExcludeRef: []v1alpha1.FilterRef{
 					{
 						Kind:       "Deployment",
 						Name:       "d5",

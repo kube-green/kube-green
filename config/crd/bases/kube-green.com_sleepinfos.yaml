@@ -42,6 +42,8 @@ spec:
               excludeRef:
                 description: ExcludeRef define the resource to exclude from the sleep.
                 items:
+                  description: Common type to use for both IncludeRef and ExcludeRef
+                    to prevent duplication
                   properties:
                     apiVersion:
                       description: |-
@@ -67,6 +69,8 @@ spec:
               includeRef:
                 description: IncludeRef define the resource to include from the sleep.
                 items:
+                  description: Common type to use for both IncludeRef and ExcludeRef
+                    to prevent duplication
                   properties:
                     apiVersion:
                       description: |-

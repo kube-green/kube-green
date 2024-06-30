@@ -108,10 +108,10 @@ func (g genericResource) getListOptions(namespace string, target v1alpha1.PatchT
 	return listOptions, nil
 }
 
-func getFieldToExclude(excludeRef []v1alpha1.ExcludeRef, target v1alpha1.PatchTarget) []string {
+func getFieldToExclude(excludeRef []v1alpha1.FilterRef, target v1alpha1.PatchTarget) []string {
 	var names []string
 	for _, exclude := range excludeRef {
-		if matchPatchTargetAndExcludeRef(target, exclude) && exclude.Name != "" {
+		if matchPatchTargetAndFilterRef(target, exclude) && exclude.Name != "" {
 			names = append(names, exclude.Name)
 		}
 	}
@@ -123,10 +123,10 @@ func getFieldToExclude(excludeRef []v1alpha1.ExcludeRef, target v1alpha1.PatchTa
 	return fieldsSelector
 }
 
-func getFieldToInclude(includeRef []v1alpha1.IncludeRef, target v1alpha1.PatchTarget) []string {
+func getFieldToInclude(includeRef []v1alpha1.FilterRef, target v1alpha1.PatchTarget) []string {
 	var names []string
 	for _, include := range includeRef {
-		if matchPatchTargetAndIncludeRef(target, include) && include.Name != "" {
+		if matchPatchTargetAndFilterRef(target, include) && include.Name != "" {
 			names = append(names, include.Name)
 		}
 	}
@@ -139,16 +139,11 @@ func getFieldToInclude(includeRef []v1alpha1.IncludeRef, target v1alpha1.PatchTa
 }
 
 // TODO: check when add support to versions
-func matchPatchTargetAndExcludeRef(target v1alpha1.PatchTarget, excludeRef v1alpha1.ExcludeRef) bool {
-	return strings.HasPrefix(excludeRef.APIVersion, fmt.Sprintf("%s/", target.Group)) && excludeRef.Kind == target.Kind
+func matchPatchTargetAndFilterRef(target v1alpha1.PatchTarget, filterRef v1alpha1.FilterRef) bool {
+	return strings.HasPrefix(filterRef.APIVersion, fmt.Sprintf("%s/", target.Group)) && filterRef.Kind == target.Kind
 }
 
-// TODO: check when add support to versions
-func matchPatchTargetAndIncludeRef(target v1alpha1.PatchTarget, includeRef v1alpha1.IncludeRef) bool {
-	return strings.HasPrefix(includeRef.APIVersion, fmt.Sprintf("%s/", target.Group)) && includeRef.Kind == target.Kind
-}
-
-func getLabelsToExclude(excludeRef []v1alpha1.ExcludeRef) []string {
+func getLabelsToExclude(excludeRef []v1alpha1.FilterRef) []string {
 	labelsToExclude := []string{}
 	for _, exclude := range excludeRef {
 		for k, v := range exclude.MatchLabels {
@@ -158,7 +153,7 @@ func getLabelsToExclude(excludeRef []v1alpha1.ExcludeRef) []string {
 	return labelsToExclude
 }
 
-func getLabelsToInclude(includeRef []v1alpha1.IncludeRef) []string {
+func getLabelsToInclude(includeRef []v1alpha1.FilterRef) []string {
 	labelsToInclude := []string{}
 	for _, include := range includeRef {
 		for k, v := range include.MatchLabels {

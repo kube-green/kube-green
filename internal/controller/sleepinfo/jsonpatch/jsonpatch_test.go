@@ -134,7 +134,7 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 					deployPatchData,
 					cronPatchData,
 				},
-				ExcludeRef: []v1alpha1.ExcludeRef{
+				ExcludeRef: []v1alpha1.FilterRef{
 					{
 						MatchLabels: map[string]string{
 							labelsKeyToExclude: labelsValueToExclude,
@@ -490,7 +490,7 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 					deployPatchData,
 					cronPatchData,
 				},
-				ExcludeRef: []v1alpha1.ExcludeRef{
+				ExcludeRef: []v1alpha1.FilterRef{
 					{
 						MatchLabels: map[string]string{
 							labelsKeyToExclude: labelsValueToExclude,

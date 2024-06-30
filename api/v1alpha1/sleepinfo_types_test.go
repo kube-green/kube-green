@@ -24,7 +24,7 @@ func TestSleepInfo(t *testing.T) {
 				SleepTime:  "20:00",
 				WakeUpTime: "8:00",
 				TimeZone:   "Europe/Rome",
-				ExcludeRef: []ExcludeRef{
+				ExcludeRef: []FilterRef{
 					{
 						APIVersion: "apps/v1",
 						Kind:       "Deployment",
@@ -36,7 +36,7 @@ func TestSleepInfo(t *testing.T) {
 						Name:       "ss-1",
 					},
 				},
-				IncludeRef: []IncludeRef{
+				IncludeRef: []FilterRef{
 					{
 						APIVersion: "apps/v1",
 						Kind:       "Deployment",
@@ -64,7 +64,7 @@ func TestSleepInfo(t *testing.T) {
 
 		t.Run("get exclude ref", func(t *testing.T) {
 			excludeRef := sleepInfo.GetExcludeRef()
-			require.Equal(t, []ExcludeRef{
+			require.Equal(t, []FilterRef{
 				{
 					APIVersion: "apps/v1",
 					Kind:       "Deployment",
@@ -80,7 +80,7 @@ func TestSleepInfo(t *testing.T) {
 
 		t.Run("get include ref", func(t *testing.T) {
 			excludeRef := sleepInfo.GetIncludeRef()
-			require.Equal(t, []IncludeRef{
+			require.Equal(t, []FilterRef{
 				{
 					APIVersion: "apps/v1",
 					Kind:       "Deployment",
@@ -143,7 +143,7 @@ func TestSleepInfo(t *testing.T) {
 				Weekdays:  "1-5",
 				SleepTime: "20:00",
 				TimeZone:  "Europe/Rome",
-				ExcludeRef: []ExcludeRef{
+				ExcludeRef: []FilterRef{
 					{
 						APIVersion: "apps/v1",
 						Kind:       "Deployment",
@@ -155,7 +155,7 @@ func TestSleepInfo(t *testing.T) {
 						Name:       "ss-1",
 					},
 				},
-				IncludeRef: []IncludeRef{
+				IncludeRef: []FilterRef{
 					{
 						APIVersion: "apps/v1",
 						Kind:       "Deployment",
@@ -183,7 +183,7 @@ func TestSleepInfo(t *testing.T) {
 
 		t.Run("get exclude ref", func(t *testing.T) {
 			excludeRef := sleepInfo.GetExcludeRef()
-			require.Equal(t, []ExcludeRef{
+			require.Equal(t, []FilterRef{
 				{
 					APIVersion: "apps/v1",
 					Kind:       "Deployment",
@@ -199,7 +199,7 @@ func TestSleepInfo(t *testing.T) {
 
 		t.Run("get include ref", func(t *testing.T) {
 			excludeRef := sleepInfo.GetIncludeRef()
-			require.Equal(t, []IncludeRef{
+			require.Equal(t, []FilterRef{
 				{
 					APIVersion: "apps/v1",
 					Kind:       "Deployment",
@@ -234,7 +234,7 @@ func TestSleepInfo(t *testing.T) {
 				SleepTime:  "20:00",
 				WakeUpTime: "8:00",
 				TimeZone:   "Europe/Rome",
-				ExcludeRef: []ExcludeRef{
+				ExcludeRef: []FilterRef{
 					{
 						APIVersion: "apps/v1",
 						Kind:       "Deployment",
@@ -246,7 +246,7 @@ func TestSleepInfo(t *testing.T) {
 						Name:       "ss-1",
 					},
 				},
-				IncludeRef: []IncludeRef{
+				IncludeRef: []FilterRef{
 					{
 						APIVersion: "apps/v1",
 						Kind:       "Deployment",
@@ -275,7 +275,7 @@ func TestSleepInfo(t *testing.T) {
 
 		t.Run("get exclude ref", func(t *testing.T) {
 			excludeRef := sleepInfo.GetExcludeRef()
-			require.Equal(t, []ExcludeRef{
+			require.Equal(t, []FilterRef{
 				{
 					APIVersion: "apps/v1",
 					Kind:       "Deployment",
@@ -291,7 +291,7 @@ func TestSleepInfo(t *testing.T) {
 
 		t.Run("get include ref", func(t *testing.T) {
 			excludeRef := sleepInfo.GetIncludeRef()
-			require.Equal(t, []IncludeRef{
+			require.Equal(t, []FilterRef{
 				{
 					APIVersion: "apps/v1",
 					Kind:       "Deployment",
