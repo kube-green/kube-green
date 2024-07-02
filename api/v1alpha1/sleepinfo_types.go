@@ -12,36 +12,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-type ExcludeRef struct {
-	// ApiVersion of the kubernetes resources.
-	// Supported api version is "apps/v1".
-	APIVersion string `json:"apiVersion,omitempty"`
-	// Kind of the kubernetes resources of the specific version.
-	// Supported kind are "Deployment" and "CronJob".
-	Kind string `json:"kind,omitempty"`
-	// Name which identify the kubernetes resource.
-	// +optional
-	Name string `json:"name,omitempty"`
-	// MatchLabels which identify the kubernetes resource by labels
-	// +optional
-	MatchLabels map[string]string `json:"matchLabels,omitempty"`
-}
-
-type IncludeRef struct {
-	// ApiVersion of the kubernetes resources.
-	// Supported api version is "apps/v1".
-	APIVersion string `json:"apiVersion,omitempty"`
-	// Kind of the kubernetes resources of the specific version.
-	// Supported kind are "Deployment" and "CronJob".
-	Kind string `json:"kind,omitempty"`
-	// Name which identify the kubernetes resource.
-	// +optional
-	Name string `json:"name,omitempty"`
-	// MatchLabels which identify the kubernetes resource by labels
-	// +optional
-	MatchLabels map[string]string `json:"matchLabels,omitempty"`
-}
-
 // Common type to use for both IncludeRef and ExcludeRef to prevent duplication
 type FilterRef struct {
 	// ApiVersion of the kubernetes resources.

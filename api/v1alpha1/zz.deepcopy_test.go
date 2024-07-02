@@ -84,7 +84,7 @@ func TestDeepCopy(t *testing.T) {
 
 	t.Run("nil", func(t *testing.T) {
 		t.Run("exclude ref", func(t *testing.T) {
-			var excludeRef *ExcludeRef = nil
+			var excludeRef *FilterRef = nil
 
 			require.Nil(t, excludeRef.DeepCopy())
 		})
