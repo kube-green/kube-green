@@ -12,7 +12,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-type ExcludeRef struct {
+// Common type to use for both IncludeRef and ExcludeRef to prevent duplication
+type FilterRef struct {
 	// ApiVersion of the kubernetes resources.
 	// Supported api version is "apps/v1".
 	APIVersion string `json:"apiVersion,omitempty"`
@@ -57,7 +58,11 @@ type SleepInfoSpec struct {
 	// ExcludeRef define the resource to exclude from the sleep.
 	// +optional
 	//+operator-sdk:csv:customresourcedefinitions:type=spec
-	ExcludeRef []ExcludeRef `json:"excludeRef,omitempty"`
+	ExcludeRef []FilterRef `json:"excludeRef,omitempty"`
+	// IncludeRef define the resource to include from the sleep.
+	// +optional
+	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	IncludeRef []FilterRef `json:"includeRef,omitempty"`
 	// If SuspendCronjobs is set to true, on sleep the cronjobs of the namespace will be suspended.
 	// +optional
 	//+operator-sdk:csv:customresourcedefinitions:type=spec
@@ -144,7 +149,11 @@ func (s SleepInfo) GetWakeUpSchedule() (string, error) {
 	return s.getScheduleFromWeekdayAndTime(s.Spec.WakeUpTime)
 }
 
-func (s SleepInfo) GetExcludeRef() []ExcludeRef {
+func (s SleepInfo) GetIncludeRef() []FilterRef {
+	return s.Spec.IncludeRef
+}
+
+func (s SleepInfo) GetExcludeRef() []FilterRef {
 	return s.Spec.ExcludeRef
 }
 

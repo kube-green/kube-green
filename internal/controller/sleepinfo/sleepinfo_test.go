@@ -557,7 +557,7 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
   value: true`,
 				},
 			}
-			sleepInfo.Spec.ExcludeRef = []kubegreenv1alpha1.ExcludeRef{
+			sleepInfo.Spec.ExcludeRef = []kubegreenv1alpha1.FilterRef{
 				{
 					MatchLabels: map[string]string{
 						excludeLabelsKey: excludeLabelsValue,
@@ -762,7 +762,7 @@ func TestDifferentSleepInfoConfiguration(t *testing.T) {
 			name: "with deployments to exclude",
 			getSleepInfo: func(t *testing.T, c *envconf.Config) *kubegreenv1alpha1.SleepInfo {
 				sleepInfo := getDefaultSleepInfo(sleepInfoName, c.Namespace())
-				sleepInfo.Spec.ExcludeRef = []kubegreenv1alpha1.ExcludeRef{
+				sleepInfo.Spec.ExcludeRef = []kubegreenv1alpha1.FilterRef{
 					{
 						APIVersion: "apps/v1",
 						Kind:       "Deployment",
@@ -827,7 +827,7 @@ func TestDifferentSleepInfoConfiguration(t *testing.T) {
 			getSleepInfo: func(t *testing.T, c *envconf.Config) *kubegreenv1alpha1.SleepInfo {
 				sleepInfo := getDefaultSleepInfo(sleepInfoName, c.Namespace())
 				sleepInfo.Spec.SuspendCronjobs = true
-				sleepInfo.Spec.ExcludeRef = []kubegreenv1alpha1.ExcludeRef{
+				sleepInfo.Spec.ExcludeRef = []kubegreenv1alpha1.FilterRef{
 					{
 						APIVersion: "apps/v1",
 						Kind:       "Deployment",

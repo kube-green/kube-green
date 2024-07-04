@@ -144,7 +144,7 @@ func TestValidateSleepInfo(t *testing.T) {
 				Weekdays:   "1-5",
 				SleepTime:  "13:15",
 				WakeUpTime: "13:20",
-				ExcludeRef: []ExcludeRef{
+				ExcludeRef: []FilterRef{
 					{
 						APIVersion: "apps/v1",
 						Kind:       "Deployment",
@@ -158,7 +158,7 @@ func TestValidateSleepInfo(t *testing.T) {
 			sleepInfoSpec: SleepInfoSpec{
 				Weekdays:  "1-5",
 				SleepTime: "13:15",
-				ExcludeRef: []ExcludeRef{
+				ExcludeRef: []FilterRef{
 					{
 						Name: "Backend",
 						MatchLabels: map[string]string{
@@ -173,7 +173,7 @@ func TestValidateSleepInfo(t *testing.T) {
 			sleepInfoSpec: SleepInfoSpec{
 				Weekdays:  "1-5",
 				SleepTime: "13:15",
-				ExcludeRef: []ExcludeRef{
+				ExcludeRef: []FilterRef{
 					{
 						MatchLabels: map[string]string{
 							"app": "backend",
@@ -187,7 +187,7 @@ func TestValidateSleepInfo(t *testing.T) {
 			sleepInfoSpec: SleepInfoSpec{
 				Weekdays:  "1-5",
 				SleepTime: "13:15",
-				ExcludeRef: []ExcludeRef{
+				ExcludeRef: []FilterRef{
 					{
 						Kind:       "Deployment",
 						APIVersion: "apps/v1",
