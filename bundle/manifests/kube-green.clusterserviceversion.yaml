@@ -31,17 +31,17 @@ metadata:
       ]
     capabilities: Seamless Upgrades
     categories: Developer Tools
-    containerImage: docker.io/kubegreen/kube-green:0.6.0-rc.1
-    createdAt: "2024-04-29T16:09:24Z"
+    containerImage: docker.io/kubegreen/kube-green:0.6.0-rc.2
+    createdAt: "2024-07-13T18:17:11Z"
     description: Suspend your pods when no-one's using them to save energy and restore
       when necessary
-    operators.operatorframework.io/builder: operator-sdk-v1.34.1
+    operators.operatorframework.io/builder: operator-sdk-v1.34.2
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
     repository: https://github.com/kube-green/kube-green
     support: kube-green Community
   labels:
     app: kube-green
-  name: kube-green.v0.6.0-rc.1
+  name: kube-green.v0.6.0-rc.2
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -59,6 +59,9 @@ spec:
       - description: ExcludeRef define the resource to exclude from the sleep.
         displayName: Exclude Ref
         path: excludeRef
+      - description: IncludeRef define the resource to include from the sleep.
+        displayName: Include Ref
+        path: includeRef
       - description: Patches is a list of json 6902 patches to apply to the target
           resources.
         displayName: Patches
@@ -243,7 +246,7 @@ spec:
                 - --leader-elect
                 command:
                 - /manager
-                image: docker.io/kubegreen/kube-green:0.6.0-rc.1
+                image: docker.io/kubegreen/kube-green:0.6.0-rc.2
                 livenessProbe:
                   httpGet:
                     path: /healthz
@@ -364,8 +367,8 @@ spec:
   provider:
     name: kube-green Community
     url: https://kube-green.dev
-  replaces: kube-green.v0.6.0-rc.0
-  version: 0.6.0-rc.1
+  replaces: kube-green.v0.6.0-rc.1
+  version: 0.6.0-rc.2
   webhookdefinitions:
   - admissionReviewVersions:
     - v1

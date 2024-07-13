@@ -5,7 +5,7 @@ metadata:
     alm-examples: '[]'
     capabilities: Seamless Upgrades
     categories: Developer Tools
-    containerImage: docker.io/kubegreen/kube-green:0.6.0-rc.1
+    containerImage: docker.io/kubegreen/kube-green:0.6.0-rc.2
     createdAt: "2021-02-21T00:00:00Z"
     description: Suspend your pods when no-one's using them to save energy and restore
       when necessary
@@ -29,7 +29,7 @@ spec:
       - description: ExcludeRef define the resource to exclude from the sleep.
         displayName: Exclude Ref
         path: excludeRef
-      - description: IncludeRef define the resource to include to the sleep.
+      - description: IncludeRef define the resource to include from the sleep.
         displayName: Include Ref
         path: includeRef
       - description: Patches is a list of json 6902 patches to apply to the target
@@ -149,5 +149,5 @@ spec:
   provider:
     name: kube-green Community
     url: https://kube-green.dev
-  replaces: kube-green.v0.6.0-rc.0
+  replaces: kube-green.v0.6.0-rc.1
   version: 0.0.0
