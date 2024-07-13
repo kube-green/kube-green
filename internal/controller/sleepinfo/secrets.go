@@ -21,6 +21,7 @@ func (r *SleepInfoReconciler) getSecret(ctx context.Context, secretName, namespa
 		Name:      secretName,
 	}, secret)
 	if err != nil {
+		r.Log.Info("failed to get secret", "name", secretName, "namespace", namespaceName, "error", err)
 		return nil, err
 	}
 	return secret, nil
@@ -50,6 +51,9 @@ func (r SleepInfoReconciler) upsertSecret(
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      secretName,
 			Namespace: namespace,
+			Labels: map[string]string{
+				"app.kubernetes.io/managed-by": r.ManagerName,
+			},
 			OwnerReferences: []metav1.OwnerReference{
 				{
 					APIVersion: kubegreenv1alpha1.GroupVersion.String(),
