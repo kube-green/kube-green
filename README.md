@@ -48,6 +48,12 @@ To run integration tests:
 make e2e-test
 ```
 
+It is possible to run only a specific harness integration test, running e2e-test with the OPTION variable:
+
+```sh
+make e2e-test OPTION="-run -run=TestSleepInfoE2E/kuttl/run_e2e_tests/harness/{TEST_NAME}"
+```
+
 ## Deployment
 
 To deploy *kube-green* in live systems, follow the [docs](https://kube-green.dev/docs/install/).

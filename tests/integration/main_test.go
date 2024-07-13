@@ -53,6 +53,7 @@ func TestMain(m *testing.M) {
 
 	testenv.Setup(
 		createKindClusterWithVersion(kindClusterName, "testdata/kind-config.test.yaml"),
+		setContextOrPanic(kindClusterName),
 		testutil.GetClusterVersion(),
 		installCertManager(),
 		buildDockerImage(kubegreenTestImage),
@@ -146,4 +147,17 @@ func destroyKindCluster(clusterName string) env.Func {
 		}
 	}
 	return envfuncs.DestroyCluster(clusterName)
+}
+
+func setContextOrPanic(kindClusterName string) env.Func {
+	return func(ctx context.Context, c *envconf.Config) (context.Context, error) {
+		e := gexe.New()
+		if p := e.RunProc(fmt.Sprintf("kubectl config use-context kind-%s", kindClusterName)); p.Err() != nil {
+			// If the context is not found, we should exit as kind cluster setup is not correct.
+			os.Exit(1)
+			return ctx, fmt.Errorf("invalid context kind-%s set %s: %s", kindClusterName, p.Err(), p.Result())
+		}
+
+		return ctx, nil
+	}
 }

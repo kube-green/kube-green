@@ -16,11 +16,13 @@ import (
 	sleepinfocontroller "github.com/kube-green/kube-green/internal/controller/sleepinfo"
 	"github.com/kube-green/kube-green/internal/controller/sleepinfo/metrics"
 
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	ctrlMetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
@@ -32,6 +34,10 @@ import (
 var (
 	scheme   = runtime.NewScheme()
 	setupLog = ctrl.Log.WithName("setup")
+)
+
+const (
+	managerName = "kube-green"
 )
 
 func init() {
@@ -102,6 +108,20 @@ func main() {
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "2bd226ed.kube-green.com",
+		// Cache: cache.Options{
+		// 	ByObject: map[client.Object]cache.ByObject{
+		// 		&v1.Secret{}: {
+		// 			Label: labels.SelectorFromSet(labels.Set{
+		// 				"app.kubernetes.io/managed-by": managerName,
+		// 			}),
+		// 		},
+		// 	},
+		// },
+		Client: client.Options{
+			Cache: &client.CacheOptions{
+				DisableFor: []client.Object{&v1.Secret{}},
+			},
+		},
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
@@ -111,11 +131,12 @@ func main() {
 	customMetrics := metrics.SetupMetricsOrDie("kube_green").MustRegister(ctrlMetrics.Registry)
 
 	if err = (&sleepinfocontroller.SleepInfoReconciler{
-		Client:     mgr.GetClient(),
-		Log:        ctrl.Log.WithName("controllers").WithName("SleepInfo"),
-		Scheme:     mgr.GetScheme(),
-		Metrics:    customMetrics,
-		SleepDelta: sleepDelta,
+		Client:      mgr.GetClient(),
+		Log:         ctrl.Log.WithName("controllers").WithName("SleepInfo"),
+		Scheme:      mgr.GetScheme(),
+		Metrics:     customMetrics,
+		SleepDelta:  sleepDelta,
+		ManagerName: managerName,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "SleepInfo")
 		os.Exit(1)
