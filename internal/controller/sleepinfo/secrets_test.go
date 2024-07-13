@@ -26,6 +26,7 @@ func TestGetSecret(t *testing.T) {
 	testLogger := zap.New(zap.UseDevMode(true))
 	secretName := "secret-name"
 	namespace := "my-namespace"
+	managerName := "manager-name"
 
 	t.Run("get secret correctly", func(t *testing.T) {
 		client := &testutil.PossiblyErroringFakeCtrlRuntimeClient{
@@ -42,9 +43,10 @@ func TestGetSecret(t *testing.T) {
 				Build(),
 		}
 		r := SleepInfoReconciler{
-			Client:     client,
-			Log:        testLogger,
-			SleepDelta: 60,
+			Client:      client,
+			Log:         testLogger,
+			SleepDelta:  60,
+			ManagerName: managerName,
 		}
 
 		secret, err := r.getSecret(context.Background(), secretName, namespace)
@@ -72,9 +74,10 @@ func TestGetSecret(t *testing.T) {
 				Build(),
 		}
 		r := SleepInfoReconciler{
-			Client:     client,
-			Log:        testLogger,
-			SleepDelta: 60,
+			Client:      client,
+			Log:         testLogger,
+			SleepDelta:  60,
+			ManagerName: managerName,
 		}
 
 		secret, err := r.getSecret(context.Background(), secretName, namespace)
@@ -89,6 +92,7 @@ func TestUpsertSecrets(t *testing.T) {
 	now := time.Now()
 	secretName := "secret-name"
 	namespace := "my-namespace"
+	managerName := "manager-name"
 	var replicas1 int32 = 1
 	var replicas4 int32 = 4
 	var replicas0 int32 = 0
@@ -126,9 +130,10 @@ func TestUpsertSecrets(t *testing.T) {
 	t.Run("insert and update secret - sleep and wake up", func(t *testing.T) {
 		client := fakeDeploymentClient(&d1, &d2, &d3)
 		r := SleepInfoReconciler{
-			Client:     client,
-			Log:        testLogger,
-			SleepDelta: 60,
+			Client:      client,
+			Log:         testLogger,
+			SleepDelta:  60,
+			ManagerName: managerName,
 		}
 		sleepInfoData := SleepInfoData{
 			CurrentOperationType: sleepOperation,
@@ -158,6 +163,9 @@ func TestUpsertSecrets(t *testing.T) {
 				Namespace:       namespace,
 				ResourceVersion: "1",
 				OwnerReferences: ownerRefs,
+				Labels: map[string]string{
+					"app.kubernetes.io/managed-by": managerName,
+				},
 			},
 			Data: map[string][]byte{
 				lastOperationKey:         []byte(sleepOperation),
@@ -190,6 +198,9 @@ func TestUpsertSecrets(t *testing.T) {
 					Namespace:       namespace,
 					ResourceVersion: "2",
 					OwnerReferences: ownerRefs,
+					Labels: map[string]string{
+						"app.kubernetes.io/managed-by": managerName,
+					},
 				},
 				Data: map[string][]byte{
 					lastOperationKey: []byte(wakeUpOperation),
@@ -203,9 +214,10 @@ func TestUpsertSecrets(t *testing.T) {
 		client := fakeDeploymentClient(&d1, &d2, &d3)
 
 		r := SleepInfoReconciler{
-			Client:     client,
-			Log:        testLogger,
-			SleepDelta: 60,
+			Client:      client,
+			Log:         testLogger,
+			SleepDelta:  60,
+			ManagerName: managerName,
 		}
 		sleepInfoData := SleepInfoData{
 			CurrentOperationType: sleepOperation,
@@ -235,6 +247,9 @@ func TestUpsertSecrets(t *testing.T) {
 				Namespace:       namespace,
 				ResourceVersion: "1",
 				OwnerReferences: ownerRefs,
+				Labels: map[string]string{
+					"app.kubernetes.io/managed-by": managerName,
+				},
 			},
 			Data: map[string][]byte{
 				lastOperationKey:         []byte(sleepOperation),
@@ -287,6 +302,9 @@ func TestUpsertSecrets(t *testing.T) {
 					Namespace:       namespace,
 					ResourceVersion: "2",
 					OwnerReferences: ownerRefs,
+					Labels: map[string]string{
+						"app.kubernetes.io/managed-by": managerName,
+					},
 				},
 				Data: map[string][]byte{
 					lastOperationKey:         []byte(sleepOperation),
@@ -300,9 +318,10 @@ func TestUpsertSecrets(t *testing.T) {
 	t.Run("insert new secret - operation sleep 0 deployments", func(t *testing.T) {
 		client := fakeDeploymentClient()
 		r := SleepInfoReconciler{
-			Client:     client,
-			Log:        testLogger,
-			SleepDelta: 60,
+			Client:      client,
+			Log:         testLogger,
+			SleepDelta:  60,
+			ManagerName: managerName,
 		}
 		sleepInfoData := SleepInfoData{
 			CurrentOperationType: sleepOperation,
@@ -332,6 +351,9 @@ func TestUpsertSecrets(t *testing.T) {
 				Namespace:       namespace,
 				ResourceVersion: "1",
 				OwnerReferences: ownerRefs,
+				Labels: map[string]string{
+					"app.kubernetes.io/managed-by": managerName,
+				},
 			},
 			Data: map[string][]byte{
 				lastScheduleKey: []byte(now.Format(time.RFC3339)),
@@ -352,9 +374,10 @@ func TestUpsertSecrets(t *testing.T) {
 		client := fakeDeploymentClient(existentSecret)
 
 		r := SleepInfoReconciler{
-			Client:     client,
-			Log:        testLogger,
-			SleepDelta: 60,
+			Client:      client,
+			Log:         testLogger,
+			SleepDelta:  60,
+			ManagerName: managerName,
 		}
 		sleepInfoData := SleepInfoData{
 			CurrentOperationType: sleepOperation,
@@ -384,6 +407,9 @@ func TestUpsertSecrets(t *testing.T) {
 				Namespace:       namespace,
 				ResourceVersion: "16",
 				OwnerReferences: ownerRefs,
+				Labels: map[string]string{
+					"app.kubernetes.io/managed-by": managerName,
+				},
 			},
 			Data: map[string][]byte{
 				lastScheduleKey: []byte(now.Format(time.RFC3339)),
@@ -401,9 +427,10 @@ func TestUpsertSecrets(t *testing.T) {
 			},
 		}
 		r := SleepInfoReconciler{
-			Client:     client,
-			Log:        testLogger,
-			SleepDelta: 60,
+			Client:      client,
+			Log:         testLogger,
+			SleepDelta:  60,
+			ManagerName: managerName,
 		}
 		sleepInfoData := SleepInfoData{
 			CurrentOperationType: sleepOperation,
@@ -442,9 +469,10 @@ func TestUpsertSecrets(t *testing.T) {
 			},
 		}
 		r := SleepInfoReconciler{
-			Client:     client,
-			Log:        testLogger,
-			SleepDelta: 60,
+			Client:      client,
+			Log:         testLogger,
+			SleepDelta:  60,
+			ManagerName: managerName,
 		}
 		sleepInfoData := SleepInfoData{
 			CurrentOperationType: sleepOperation,
