@@ -2,12 +2,25 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: manager-role
+  name: aggregate-manager-role
 rules:
 - apiGroups:
-  - '*'
+  - apps
   resources:
-  - '*'
+  - deployments
+  - statefulsets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - batch
+  resources:
+  - cronjobs
   verbs:
   - create
   - delete
