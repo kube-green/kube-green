@@ -127,3 +127,23 @@ spec:
       - name: echo-service
         image: davidebianchi/echo-service
         imagePullPolicy: IfNotPresent
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    kube-green.dev/aggregate-to-manager: "true"
+  name: kube-green-additional-resources-aggregate-to-manager
+rules:
+- apiGroups:
+  - apps
+  resources:
+  - replicasets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
