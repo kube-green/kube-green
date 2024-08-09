@@ -1,17 +1,11 @@
 # Install with Helm
 
-## Deploy cert-manager chart
+## Using cert-manager
 
-```bash
-helm repo add jetstack https://charts.jetstack.io
+To use kube-green, it is necessary to have a valid certificate for the domain that will be used by the WebHook.
+It is possible to manage it using the cert-manager, or configuring the certificate manually. [Read here](https://kube-green.dev/docs/advanced/webhook-cert-management/) for more information.
 
-helm install \
-  cert-manager jetstack/cert-manager \
-  --namespace cert-manager \
-  --create-namespace \
-  --version v1.12.0 \
-  --set installCRDs=true
-```
+By default, this chart is configured to use the cert-manager to manage the certificate for the WebHook, and it is enabled by the values `.certManager.enabled`. It is possible to set it to *false*, and configure `.jobsCert.enabled` to *true* to manage manually the certificates, using a job which generate them and change correctly the WebHook configuration.
 
 ## Install with kube-green chart
 

@@ -7,6 +7,7 @@ resources:
 - service_account.yaml
 - role.yaml
 - role_binding.yaml
+- role-aggregation.yaml
 - leader_election_role.yaml
 - leader_election_role_binding.yaml
 # Comment the following 4 lines if you want to disable
@@ -16,3 +17,17 @@ resources:
 - auth_proxy_role.yaml
 - auth_proxy_role_binding.yaml
 - auth_proxy_client_clusterrole.yaml
+
+patches:
+  - target:
+      group: rbac.authorization.k8s.io
+      version: v1
+      kind: ClusterRole
+      name: aggregate-manager-role
+    patch: |-
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: ClusterRole
+      metadata:
+        name: aggregate-manager-role
+        labels:
+          kube-green.dev/aggregate-to-manager: "true"
