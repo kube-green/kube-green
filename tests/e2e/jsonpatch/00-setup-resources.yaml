@@ -133,7 +133,7 @@ kind: ClusterRole
 metadata:
   labels:
     kube-green.dev/aggregate-to-manager: "true"
-  name: kube-green-additional-resources-aggregate-to-manager
+  name: kube-green-jsonpatch-replicasets-aggregate-to-manager
 rules:
 - apiGroups:
   - apps
