@@ -1,4 +1,4 @@
-HELM_TMPL_CMD ?= helm template -f charts/kube-green/values.yaml
+HELM_TMPL_CMD ?= helm template -f charts/kube-green/values.yaml -f charts/kube-green/testValues.yaml
 HELM_TMPL_OUT ?= .helm.template-output.yaml
 HELM_SNAPSHOT_OUT ?= charts/snapshots/test-output.snap.yaml
 tmpl_debug ?=

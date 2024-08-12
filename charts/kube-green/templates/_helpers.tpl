@@ -68,3 +68,7 @@ webhook-server-cert
 {{- define "image" -}}
 {{ printf "%s/%s:%s" .registry .repository .tag }}
 {{- end -}}
+
+{{- define "kube-green.rbac.aggregationSelector.label" -}}
+kube-green.dev/aggregate-to-manager: "true"
+{{- end -}}

@@ -2,10 +2,8 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  creationTimestamp: null
   name: kube-green-manager-role-aggregate
-  labels:
-    kube-green.dev/aggregate-to-manager: "true"
+  labels: {{- include "kube-green.rbac.aggregationSelector.label" . | nindent 4 }}
 rules:
 - apiGroups:
   - apps
@@ -77,9 +75,18 @@ metadata:
   name: kube-green-manager-role
 aggregationRule:
   clusterRoleSelectors:
-  - matchLabels:
-      kube-green.dev/aggregate-to-manager: "true"
+  - matchLabels: {{- include "kube-green.rbac.aggregationSelector.label" . | nindent 6 }}
 rules: [] # The control plane automatically fills in the rules
+---
+{{- if .Values.rbac.customClusterRole.enabled -}}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ .Values.rbac.customClusterRole.name }}
+  labels: {{- include "kube-green.rbac.aggregationSelector.label" . | nindent 4 }}
+rules:
+  {{- toYaml .Values.rbac.customClusterRole.rules | nindent 2 -}}
+{{- end }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
