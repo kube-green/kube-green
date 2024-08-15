@@ -31,11 +31,11 @@ kubeRbacProxy:
     tag: "v0.15.0"
   resources:
     limits:
-      cpu: 400m
-      memory: 400Mi
+      cpu: 500m
+      memory: 128Mi
     requests:
-      cpu: 100m
-      memory: 50Mi
+      cpu: 5m
+      memory: 64Mi
 
 imagePullSecrets: []
 
