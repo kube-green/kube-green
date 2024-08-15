@@ -82,11 +82,11 @@ spec:
           protocol: TCP
         resources:
           limits:
-            cpu: {{ .Values.resources.limits.cpu }}
-            memory: {{ .Values.resources.limits.memory }}
+            cpu: {{ .Values.kubeRbacProxy.resources.limits.cpu }}
+            memory: {{ .Values.kubeRbacProxy.resources.limits.memory }}
           requests:
-            cpu: {{ .Values.resources.requests.cpu }}
-            memory: {{ .Values.resources.requests.memory }}
+            cpu: {{ .Values.kubeRbacProxy.resources.requests.cpu }}
+            memory: {{ .Values.kubeRbacProxy.resources.requests.memory }}
         {{- if .Values.manager.securityContext }}
         securityContext:
         {{ toYaml .Values.manager.securityContext | nindent 10 }}
