@@ -29,6 +29,13 @@ kubeRbacProxy:
     repository: gcr.io/kubebuilder/kube-rbac-proxy
     pullPolicy: IfNotPresent
     tag: "v0.15.0"
+  resources:
+    limits:
+      cpu: 500m
+      memory: 128Mi
+    requests:
+      cpu: 5m
+      memory: 64Mi
 
 imagePullSecrets: []
 

@@ -10,11 +10,10 @@ on:
       - "main"
 jobs:
   tests:
-    name: Test k8s ${{ matrix.k8s_version }} on os ${{matrix.os}} - go version ${{ matrix.go_version }}
+    name: Test k8s ${{ matrix.k8s_version }} on os ${{matrix.os}}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        go_version: ['1.22']
         os: [ubuntu-latest]
         k8s_version:
           - 'v1.30.0'
@@ -29,10 +28,10 @@ jobs:
       KIND_K8S_VERSION: ${{matrix.k8s_version}}
     steps:
       - uses: actions/checkout@v4
-      - name: Use golang ${{ matrix.go_version }}
+      - name: Use golang
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ matrix.go_version }}
+          go-version-file: './go.mod'
       - name: docker version
         run: docker version
       - name: Go version
@@ -49,7 +48,7 @@ jobs:
         uses: shogo82148/actions-goveralls@v1
         with:
           path-to-profile: cover.out
-          flag-name: go-${{matrix.go_version}}-k8s-${{matrix.k8s_version}}
+          flag-name: k8s-${{matrix.k8s_version}}
           parallel: true
   finish:
     needs: tests
@@ -67,7 +66,7 @@ jobs:
       - name: Use golang
         uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version-file: './go.mod'
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       - name: Run tests
