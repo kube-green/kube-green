@@ -42,18 +42,15 @@ spec:
               excludeRef:
                 description: ExcludeRef define the resource to exclude from the sleep.
                 items:
-                  description: Common type to use for both IncludeRef and ExcludeRef
-                    to prevent duplication
+                  description: Define a resource to filter, used to include or exclude
+                    resources from the sleep.
                   properties:
                     apiVersion:
-                      description: |-
-                        ApiVersion of the kubernetes resources.
-                        Supported api version is "apps/v1".
+                      description: ApiVersion of the kubernetes resources.
                       type: string
                     kind:
-                      description: |-
-                        Kind of the kubernetes resources of the specific version.
-                        Supported kind are "Deployment" and "CronJob".
+                      description: Kind of the kubernetes resources of the specific
+                        version.
                       type: string
                     matchLabels:
                       additionalProperties:
@@ -69,18 +66,15 @@ spec:
               includeRef:
                 description: IncludeRef define the resource to include from the sleep.
                 items:
-                  description: Common type to use for both IncludeRef and ExcludeRef
-                    to prevent duplication
+                  description: Define a resource to filter, used to include or exclude
+                    resources from the sleep.
                   properties:
                     apiVersion:
-                      description: |-
-                        ApiVersion of the kubernetes resources.
-                        Supported api version is "apps/v1".
+                      description: ApiVersion of the kubernetes resources.
                       type: string
                     kind:
-                      description: |-
-                        Kind of the kubernetes resources of the specific version.
-                        Supported kind are "Deployment" and "CronJob".
+                      description: Kind of the kubernetes resources of the specific
+                        version.
                       type: string
                     matchLabels:
                       additionalProperties:
