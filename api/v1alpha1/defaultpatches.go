@@ -1,5 +1,8 @@
 package v1alpha1
 
+// +kubebuilder:rbac:groups=apps,resources=deployments;statefulsets,verbs=get;list;watch;update;patch
+// +kubebuilder:rbac:groups=batch,resources=cronjobs,verbs=get;list;watch;update;patch
+
 var DeploymentTarget = PatchTarget{
 	Group: "apps",
 	Kind:  "Deployment",

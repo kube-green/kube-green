@@ -4,6 +4,7 @@
 [![Coverage Status][coverage-badge]][coverage]
 [![Documentations][website-badge]][website]
 [![Adopters][adopters-badge]][adopters]
+[![CNCF Landscape][cncf-badge]][cncf-landscape]
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/kube-green/kube-green/main/logo/logo-dark.svg">
@@ -153,3 +154,5 @@ If you already use *kube-green*, add you as an [adopter][add-adopters]!
 [adopters-badge]: https://img.shields.io/static/v1?label=ADOPTERS&color=blue&message=docs&style=flat
 [adopters]: https://kube-green.dev/docs/adopters/
 [add-adopters]: https://github.com/kube-green/kube-green.github.io/blob/main/CONTRIBUTING.md#add-your-organization-to-adopters
+[cncf-badge]: https://img.shields.io/badge/CNCF%20Landscape-5699C6
+[cncf-landscape]: https://landscape.cncf.io/?item=orchestration-management--scheduling-orchestration--kube-green

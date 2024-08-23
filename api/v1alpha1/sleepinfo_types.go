@@ -12,13 +12,13 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-// Common type to use for both IncludeRef and ExcludeRef to prevent duplication
+// Define a resource to filter, used to include or exclude resources from the sleep.
 type FilterRef struct {
 	// ApiVersion of the kubernetes resources.
-	// Supported api version is "apps/v1".
+	// +optional
 	APIVersion string `json:"apiVersion,omitempty"`
 	// Kind of the kubernetes resources of the specific version.
-	// Supported kind are "Deployment" and "CronJob".
+	// +optional
 	Kind string `json:"kind,omitempty"`
 	// Name which identify the kubernetes resource.
 	// +optional

@@ -176,8 +176,9 @@ spec:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  creationTimestamp: null
-  name: kube-green-manager-role
+  name: kube-green-manager-role-aggregate
+  labels:
+    kube-green.dev/aggregate-to-manager: "true"
 rules:
 - apiGroups:
   - apps
@@ -242,6 +243,36 @@ rules:
   - get
   - patch
   - update
+---
+# Source: kube-green/templates/cluster_role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kube-green-manager-role
+aggregationRule:
+  clusterRoleSelectors:
+  - matchLabels:
+      kube-green.dev/aggregate-to-manager: "true"
+rules: [] # The control plane automatically fills in the rules
+---
+# Source: kube-green/templates/cluster_role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kube-green-manager-role-custom-aggregate
+  labels:
+    kube-green.dev/aggregate-to-manager: "true"
+rules:
+  - apiGroups:
+    - traefik.io
+    resources:
+    - ingressroute
+    verbs:
+    - get
+    - list
+    - patch
+    - update
+    - watch
 ---
 # Source: kube-green/templates/cluster_role.yaml
 apiVersion: rbac.authorization.k8s.io/v1
