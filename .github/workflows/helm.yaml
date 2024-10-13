@@ -13,8 +13,6 @@ jobs:
         with:
           fetch-depth: 0
       - uses: azure/setup-helm@v4
-        with:
-          version: 3.3.4
       - name: Linting Chart
         run: helm lint ./charts/kube-green
       - name: Setup Chart Linting
@@ -31,15 +29,16 @@ jobs:
       - name: Run chart-testing (lint)
         run: ct lint --debug --charts charts/kube-green --config ./.github/configs/ct.yaml --lint-conf ./.github/configs/lintconf.yaml
 
-      - name: Set up helm-docs
+      - name: Use golang
+        uses: actions/setup-go@v5
         with:
-          version: 'v1.13.1'
-        uses: gabe565/setup-helm-docs-action@v1
-
+          go-version: '1.22'
+      - name: Set up helm-docs
+        run: go install github.com/norwoodj/helm-docs/cmd/helm-docs@f5b3ede7b103eec1ac7f89e5ac37b5fbc5a795ce
       - name: Generate docs and check for changes
         id: helm-docs
         run: |
-          helm-docs -d | head -n -2 | diff charts/kube-green/README.md -
+          helm-docs -d | head -n 2 | diff charts/kube-green/README.md -
           if [ $? -ne 0 ]; then
             echo -e '\033[0;31mDocumentation outdated! (Run make helm-docs locally and commit)\033[0m ❌'
             diff charts/kube-green/README.md -
@@ -52,16 +51,20 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/helm-v')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - name: Publish Helm chart
-        uses: stefanprodan/helm-gh-pages@master
+      - uses: actions/checkout@v4
         with:
-          token: ${{ secrets.PAT_UPDATE_OPERATORS }}
-          charts_dir: charts
-          charts_url: https://kube-green.github.io/charts
-          owner: kube-green
-          repository: charts
-          branch: gh-pages
-          target_dir: .
-          commit_username: "$GITHUB_ACTOR"
-          commit_email: "$GITHUB_ACTOR@users.noreply.github.com"
+          fetch-depth: 0
+      - name: Configure Git
+        run: |
+          git config user.name "${{ github.actor }}"
+          git config user.email "${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com"
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run chart-releaser
+        uses: helm/chart-releaser-action@v1.6.0
+        env:
+          CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+          CR_OWNER: kube-green
+          CR_GIT_REPO: helm-charts
