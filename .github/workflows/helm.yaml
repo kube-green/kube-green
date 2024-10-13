@@ -38,7 +38,7 @@ jobs:
       - name: Generate docs and check for changes
         id: helm-docs
         run: |
-          helm-docs -d | head -n 2 | diff charts/kube-green/README.md -
+          helm-docs -d | diff charts/kube-green/README.md -
           if [ $? -ne 0 ]; then
             echo -e '\033[0;31mDocumentation outdated! (Run make helm-docs locally and commit)\033[0m ❌'
             diff charts/kube-green/README.md -
