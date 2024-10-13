@@ -98,7 +98,7 @@ func (s SleepInfo) validateSleepInfo(cl client.Client) ([]string, error) {
 	return s.validatePatches(cl)
 }
 
-func isExcludeRefValid(excludeRef ExcludeRef) error {
+func isExcludeRefValid(excludeRef FilterRef) error {
 	if excludeRef.Name == "" && excludeRef.APIVersion == "" && excludeRef.Kind == "" && len(excludeRef.MatchLabels) > 0 {
 		return nil
 	}

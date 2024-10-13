@@ -1,6 +1,8 @@
 # Default values for kube-green.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
+nameOverride: ""
+fullnameOverride: ""
 
 manager:
   image:
@@ -15,7 +17,6 @@ manager:
   logtostderr: true
   # -- Sets the logging verbosity level. A value of 0 means minimal logging.
   verbosity: 0
-
   securityContext:
     # -- Prevents the pod from gaining additional privileges. Set to false for security.
     allowPrivilegeEscalation: false
@@ -44,6 +45,13 @@ kubeRbacProxy:
     pullPolicy: IfNotPresent
     # -- Specific image tag to use for the kube-rbac-proxy.
     tag: "v0.15.0"
+  resources:
+    limits:
+      cpu: 500m
+      memory: 128Mi
+    requests:
+      cpu: 5m
+      memory: 64Mi
 
 # -- List of secrets used to access private image repositories.
 imagePullSecrets: []
@@ -68,15 +76,6 @@ service:
   # -- Port for the service.
   port: 80
 
-# -- Global CPU/memory resource requests and limits.
-resources:
-  limits:
-    cpu: 400m
-    memory: 400Mi
-  requests:
-    cpu: 100m
-    memory: 50Mi
-
 # -- Node labels for pod assignment.
 nodeSelector: {}
 
@@ -86,11 +85,25 @@ tolerations: []
 # -- Affinity rules for pod assignment.
 affinity: {}
 
-# -- Custom labels to apply to all resources.
-labels: {}
-
 # -- Priority class name for the pods.
 priorityClassName: ""
 
 # -- Topology spread constraints for pod placement.
 topologySpreadConstraints: []
+
+certManager:
+  enabled: true
+
+jobsCert:
+  enabled: false
+  image:
+    registry: registry.k8s.io
+    repository: ingress-nginx/kube-webhook-certgen
+    tag: "v20221220-controller-v1.5.1-58-g787ea74b6"
+    pullPolicy: Always
+
+rbac:
+  customClusterRole:
+    enabled: false
+    name: kube-green-manager-role-custom-aggregate
+    rules: []

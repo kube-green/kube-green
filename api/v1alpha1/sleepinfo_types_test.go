@@ -24,11 +24,28 @@ func TestSleepInfo(t *testing.T) {
 				SleepTime:  "20:00",
 				WakeUpTime: "8:00",
 				TimeZone:   "Europe/Rome",
-				ExcludeRef: []ExcludeRef{
+				ExcludeRef: []FilterRef{
 					{
 						APIVersion: "apps/v1",
 						Kind:       "Deployment",
 						Name:       "deploy-1",
+					},
+					{
+						APIVersion: "apps/v1",
+						Kind:       "StatefulSet",
+						Name:       "ss-1",
+					},
+				},
+				IncludeRef: []FilterRef{
+					{
+						APIVersion: "apps/v1",
+						Kind:       "Deployment",
+						Name:       "deploy-2",
+					},
+					{
+						APIVersion: "apps/v1",
+						Kind:       "StatefulSet",
+						Name:       "ss-2",
 					},
 				},
 			},
@@ -47,11 +64,32 @@ func TestSleepInfo(t *testing.T) {
 
 		t.Run("get exclude ref", func(t *testing.T) {
 			excludeRef := sleepInfo.GetExcludeRef()
-			require.Equal(t, []ExcludeRef{
+			require.Equal(t, []FilterRef{
 				{
 					APIVersion: "apps/v1",
 					Kind:       "Deployment",
 					Name:       "deploy-1",
+				},
+				{
+					APIVersion: "apps/v1",
+					Kind:       "StatefulSet",
+					Name:       "ss-1",
+				},
+			}, excludeRef)
+		})
+
+		t.Run("get include ref", func(t *testing.T) {
+			excludeRef := sleepInfo.GetIncludeRef()
+			require.Equal(t, []FilterRef{
+				{
+					APIVersion: "apps/v1",
+					Kind:       "Deployment",
+					Name:       "deploy-2",
+				},
+				{
+					APIVersion: "apps/v1",
+					Kind:       "StatefulSet",
+					Name:       "ss-2",
 				},
 			}, excludeRef)
 		})
@@ -105,11 +143,28 @@ func TestSleepInfo(t *testing.T) {
 				Weekdays:  "1-5",
 				SleepTime: "20:00",
 				TimeZone:  "Europe/Rome",
-				ExcludeRef: []ExcludeRef{
+				ExcludeRef: []FilterRef{
 					{
 						APIVersion: "apps/v1",
 						Kind:       "Deployment",
 						Name:       "deploy-1",
+					},
+					{
+						APIVersion: "apps/v1",
+						Kind:       "StatefulSet",
+						Name:       "ss-1",
+					},
+				},
+				IncludeRef: []FilterRef{
+					{
+						APIVersion: "apps/v1",
+						Kind:       "Deployment",
+						Name:       "deploy-2",
+					},
+					{
+						APIVersion: "apps/v1",
+						Kind:       "StatefulSet",
+						Name:       "ss-2",
 					},
 				},
 			},
@@ -128,11 +183,32 @@ func TestSleepInfo(t *testing.T) {
 
 		t.Run("get exclude ref", func(t *testing.T) {
 			excludeRef := sleepInfo.GetExcludeRef()
-			require.Equal(t, []ExcludeRef{
+			require.Equal(t, []FilterRef{
 				{
 					APIVersion: "apps/v1",
 					Kind:       "Deployment",
 					Name:       "deploy-1",
+				},
+				{
+					APIVersion: "apps/v1",
+					Kind:       "StatefulSet",
+					Name:       "ss-1",
+				},
+			}, excludeRef)
+		})
+
+		t.Run("get include ref", func(t *testing.T) {
+			excludeRef := sleepInfo.GetIncludeRef()
+			require.Equal(t, []FilterRef{
+				{
+					APIVersion: "apps/v1",
+					Kind:       "Deployment",
+					Name:       "deploy-2",
+				},
+				{
+					APIVersion: "apps/v1",
+					Kind:       "StatefulSet",
+					Name:       "ss-2",
 				},
 			}, excludeRef)
 		})
@@ -158,11 +234,28 @@ func TestSleepInfo(t *testing.T) {
 				SleepTime:  "20:00",
 				WakeUpTime: "8:00",
 				TimeZone:   "Europe/Rome",
-				ExcludeRef: []ExcludeRef{
+				ExcludeRef: []FilterRef{
 					{
 						APIVersion: "apps/v1",
 						Kind:       "Deployment",
 						Name:       "deploy-1",
+					},
+					{
+						APIVersion: "apps/v1",
+						Kind:       "StatefulSet",
+						Name:       "ss-1",
+					},
+				},
+				IncludeRef: []FilterRef{
+					{
+						APIVersion: "apps/v1",
+						Kind:       "Deployment",
+						Name:       "deploy-2",
+					},
+					{
+						APIVersion: "apps/v1",
+						Kind:       "StatefulSet",
+						Name:       "ss-2",
 					},
 				},
 				SuspendCronjobs: true,
@@ -182,11 +275,32 @@ func TestSleepInfo(t *testing.T) {
 
 		t.Run("get exclude ref", func(t *testing.T) {
 			excludeRef := sleepInfo.GetExcludeRef()
-			require.Equal(t, []ExcludeRef{
+			require.Equal(t, []FilterRef{
 				{
 					APIVersion: "apps/v1",
 					Kind:       "Deployment",
 					Name:       "deploy-1",
+				},
+				{
+					APIVersion: "apps/v1",
+					Kind:       "StatefulSet",
+					Name:       "ss-1",
+				},
+			}, excludeRef)
+		})
+
+		t.Run("get include ref", func(t *testing.T) {
+			excludeRef := sleepInfo.GetIncludeRef()
+			require.Equal(t, []FilterRef{
+				{
+					APIVersion: "apps/v1",
+					Kind:       "Deployment",
+					Name:       "deploy-2",
+				},
+				{
+					APIVersion: "apps/v1",
+					Kind:       "StatefulSet",
+					Name:       "ss-2",
 				},
 			}, excludeRef)
 		})
@@ -273,6 +387,82 @@ func TestSleepInfo(t *testing.T) {
 		})
 	})
 
+	t.Run("suspend statefulsets options", func(t *testing.T) {
+		t.Run("true", func(t *testing.T) {
+			sleepInfo := SleepInfo{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "SleepInfo",
+					APIVersion: "v1alpha1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "sleep-test-1",
+					Namespace: "namespace",
+				},
+				Spec: SleepInfoSpec{
+					SuspendStatefulSets: getPtr(true),
+				},
+			}
+
+			isStatefulSetsToSuspend := sleepInfo.IsStatefulSetsToSuspend()
+			require.True(t, isStatefulSetsToSuspend)
+		})
+
+		t.Run("false", func(t *testing.T) {
+			sleepInfo := SleepInfo{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "SleepInfo",
+					APIVersion: "v1alpha1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "sleep-test-1",
+					Namespace: "namespace",
+				},
+				Spec: SleepInfoSpec{
+					SuspendStatefulSets: getPtr(false),
+				},
+			}
+
+			isStatefulSetToSuspend := sleepInfo.IsStatefulSetsToSuspend()
+			require.False(t, isStatefulSetToSuspend)
+		})
+
+		t.Run("empty - default to true", func(t *testing.T) {
+			sleepInfo := SleepInfo{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "SleepInfo",
+					APIVersion: "v1alpha1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "sleep-test-1",
+					Namespace: "namespace",
+				},
+				Spec: SleepInfoSpec{},
+			}
+
+			isStatefulSetToSuspend := sleepInfo.IsStatefulSetsToSuspend()
+			require.True(t, isStatefulSetToSuspend)
+		})
+
+		t.Run("nil - default to true", func(t *testing.T) {
+			sleepInfo := SleepInfo{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "SleepInfo",
+					APIVersion: "v1alpha1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "sleep-test-1",
+					Namespace: "namespace",
+				},
+				Spec: SleepInfoSpec{
+					SuspendStatefulSets: nil,
+				},
+			}
+
+			isStatefulSetToSuspend := sleepInfo.IsStatefulSetsToSuspend()
+			require.True(t, isStatefulSetToSuspend)
+		})
+	})
+
 	t.Run("fails if weekday is empty", func(t *testing.T) {
 		sleepInfo := SleepInfo{
 			TypeMeta: metav1.TypeMeta{
@@ -316,7 +506,7 @@ func TestSleepInfo(t *testing.T) {
 		})
 	})
 
-	t.Run("with custom patches", func(t *testing.T) {
+	t.Run("custom patches", func(t *testing.T) {
 		sleepInfo := SleepInfo{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       "SleepInfo",
@@ -327,11 +517,24 @@ func TestSleepInfo(t *testing.T) {
 				Namespace: "namespace",
 			},
 			Spec: SleepInfoSpec{
+				SuspendDeployments:  getPtr(false),
+				SuspendStatefulSets: getPtr(false),
 				Patches: []Patch{
 					{
 						Target: PatchTarget{
 							Group: "apps",
 							Kind:  "Deployment",
+						},
+						Patch: `
+- op: add
+  path: /spec/replicas
+  value: 0
+`,
+					},
+					{
+						Target: PatchTarget{
+							Group: "apps",
+							Kind:  "Statefulset",
 						},
 						Patch: `
 - op: add
@@ -354,7 +557,65 @@ func TestSleepInfo(t *testing.T) {
 			},
 		}
 
-		require.NotEmpty(t, sleepInfo.GetPatches())
+		require.Equal(t, sleepInfo.Spec.Patches, sleepInfo.GetPatches())
+	})
+
+	t.Run("with custom and default patches", func(t *testing.T) {
+		sleepInfo := SleepInfo{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "SleepInfo",
+				APIVersion: "v1alpha1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "sleep-test-1",
+				Namespace: "namespace",
+			},
+			Spec: SleepInfoSpec{
+				SuspendCronjobs: true,
+				Patches: []Patch{
+					{
+						Target: PatchTarget{
+							Group: "apps",
+							Kind:  "Deployment",
+						},
+						Patch: `
+- op: add
+  path: /spec/replicas
+  value: 0
+`,
+					},
+					{
+						Target: PatchTarget{
+							Group: "apps",
+							Kind:  "StatefulSet",
+						},
+						Patch: `
+- op: add
+  path: /spec/replicas
+  value: 0
+`,
+					},
+					{
+						Target: PatchTarget{
+							Group: "batch",
+							Kind:  "CronJob",
+						},
+						Patch: `
+- op: add
+  path: /spec/suspend
+  value: true
+`,
+					},
+				},
+			},
+		}
+
+		patches := append([]Patch{
+			deploymentPatch,
+			statefulSetPatch,
+			cronjobPatch,
+		}, sleepInfo.Spec.Patches...)
+		require.Equal(t, patches, sleepInfo.GetPatches())
 	})
 
 	t.Run("PatchTarget", func(t *testing.T) {

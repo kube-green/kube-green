@@ -43,7 +43,7 @@ func TestValidationWebhook(t *testing.T) {
 						Weekdays:   "1-5",
 						SleepTime:  "19:00",
 						WakeUpTime: "8:00",
-						ExcludeRef: []kubegreenv1alpha1.ExcludeRef{
+						ExcludeRef: []kubegreenv1alpha1.FilterRef{
 							{
 								APIVersion: "apps/v1",
 								Kind:       "Deployment",

@@ -82,11 +82,11 @@ spec:
           protocol: TCP
         resources:
           limits:
-            cpu: 500m
-            memory: 128Mi
+            cpu: {{ .Values.kubeRbacProxy.resources.limits.cpu }}
+            memory: {{ .Values.kubeRbacProxy.resources.limits.memory }}
           requests:
-            cpu: 5m
-            memory: 64Mi
+            cpu: {{ .Values.kubeRbacProxy.resources.requests.cpu }}
+            memory: {{ .Values.kubeRbacProxy.resources.requests.memory }}
         {{- if .Values.manager.securityContext }}
         securityContext:
         {{ toYaml .Values.manager.securityContext | nindent 10 }}
@@ -98,12 +98,16 @@ spec:
         seccompProfile:
           type: RuntimeDefault
       serviceAccountName: {{ .Values.serviceAccount.name }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       terminationGracePeriodSeconds: 10
       volumes:
       - name: cert
         secret:
           defaultMode: 420
-          secretName: webhook-server-cert
+          secretName: {{ include "kube-green.webhook.secret.name" . }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

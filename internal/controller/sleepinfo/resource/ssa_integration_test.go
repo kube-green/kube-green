@@ -213,7 +213,7 @@ func getDeployment(name string, c *envconf.Config) *appsv1.Deployment {
 
 func testenvSetup(t *testing.T) env.Environment {
 	config := envconf.New()
-	envTest, err := testutil.StartEnvTest(config)
+	envTest, err := testutil.StartEnvTest(config, []string{"../../../config/crd/bases"})
 	require.NoError(t, err)
 
 	testenv := env.NewWithConfig(config)
@@ -225,9 +225,6 @@ func testenvSetup(t *testing.T) env.Environment {
 	testenv.AfterEachFeature(func(ctx context.Context, c *envconf.Config, t *testing.T, f features.Feature) (context.Context, error) {
 		return testutil.DeleteNamespace(ctx, c, t, runID)
 	})
-
-	_, err = testutil.SetupCRDs("../../../config/crd/bases", "*")(context.TODO(), config)
-	require.NoError(t, err)
 
 	t.Cleanup(func() {
 		err := envTest.Stop()

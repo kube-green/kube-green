@@ -16,8 +16,9 @@ import (
 )
 
 const (
-	localBinRelativePath = "../../bin"
-	envtestBin           = "setup-envtest"
+	kindVersionVariableName = "KIND_K8S_VERSION"
+	localBinRelativePath    = "../../bin"
+	envtestBin              = "setup-envtest"
 )
 
 var (
@@ -25,8 +26,10 @@ var (
 	basepath   = filepath.Dir(b)
 )
 
-func StartEnvTest(config *envconf.Config) (*envtest.Environment, error) {
-	testEnv := &envtest.Environment{}
+func StartEnvTest(config *envconf.Config, crdDirPaths []string) (*envtest.Environment, error) {
+	testEnv := &envtest.Environment{
+		CRDDirectoryPaths: crdDirPaths,
+	}
 
 	e := gexe.New()
 	version := getK8sVersionForEnvtest()

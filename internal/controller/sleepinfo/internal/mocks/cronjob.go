@@ -1,4 +1,4 @@
-package cronjobs
+package mocks
 
 import (
 	batchv1 "k8s.io/api/batch/v1"
@@ -9,7 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
-type MockSpec struct {
+type CronJobOptions struct {
 	Namespace       string
 	Name            string
 	Labels          map[string]string
@@ -19,7 +19,7 @@ type MockSpec struct {
 	Version         string
 }
 
-func GetMock(opts MockSpec) unstructured.Unstructured {
+func CronJob(opts CronJobOptions) unstructured.Unstructured {
 	if opts.Schedule == "" {
 		opts.Schedule = "0 0 1-5 * *"
 	}

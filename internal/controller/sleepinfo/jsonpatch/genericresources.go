@@ -72,19 +72,33 @@ func (g genericResource) getListOptions(namespace string, target v1alpha1.PatchT
 		Limit:     500,
 	}
 
+	includeRef := g.ResourceClient.SleepInfo.GetIncludeRef()
 	excludeRef := g.ResourceClient.SleepInfo.GetExcludeRef()
+	fieldsToInclude := getFieldToInclude(includeRef, target)
+	labelsToInclude := getLabelsToInclude(includeRef)
 	fieldsToExclude := getFieldToExclude(excludeRef, target)
 	labelsToExclude := getLabelsToExclude(excludeRef)
-	if len(fieldsToExclude) > 0 {
-		fieldSelector, err := fields.ParseSelector(strings.Join(fieldsToExclude, ","))
+
+	// Combine fields to include and exclude into a single field selector
+	var fieldSelectors []string
+	fieldSelectors = append(fieldSelectors, fieldsToInclude...)
+	fieldSelectors = append(fieldSelectors, fieldsToExclude...)
+
+	if len(fieldSelectors) > 0 {
+		fieldSelector, err := fields.ParseSelector(strings.Join(fieldSelectors, ","))
 		if err != nil {
 			return nil, err
 		}
 		listOptions.FieldSelector = fieldSelector
 	}
 
-	if len(labelsToExclude) > 0 {
-		labelSelector, err := labels.Parse(strings.Join(labelsToExclude, ","))
+	// Combine labels to include and exclude into a single label selector
+	var labelSelectors []string
+	labelSelectors = append(labelSelectors, labelsToInclude...)
+	labelSelectors = append(labelSelectors, labelsToExclude...)
+
+	if len(labelSelectors) > 0 {
+		labelSelector, err := labels.Parse(strings.Join(labelSelectors, ","))
 		if err != nil {
 			return nil, err
 		}
@@ -94,10 +108,10 @@ func (g genericResource) getListOptions(namespace string, target v1alpha1.PatchT
 	return listOptions, nil
 }
 
-func getFieldToExclude(excludeRef []v1alpha1.ExcludeRef, target v1alpha1.PatchTarget) []string {
+func getFieldToExclude(excludeRef []v1alpha1.FilterRef, target v1alpha1.PatchTarget) []string {
 	var names []string
 	for _, exclude := range excludeRef {
-		if matchPatchTargetAndExcludeRef(target, exclude) && exclude.Name != "" {
+		if matchPatchTargetAndFilterRef(target, exclude) && exclude.Name != "" {
 			names = append(names, exclude.Name)
 		}
 	}
@@ -109,12 +123,27 @@ func getFieldToExclude(excludeRef []v1alpha1.ExcludeRef, target v1alpha1.PatchTa
 	return fieldsSelector
 }
 
-// TODO: check when add support to versions
-func matchPatchTargetAndExcludeRef(target v1alpha1.PatchTarget, excludeRef v1alpha1.ExcludeRef) bool {
-	return strings.HasPrefix(excludeRef.APIVersion, fmt.Sprintf("%s/", target.Group)) && excludeRef.Kind == target.Kind
+func getFieldToInclude(includeRef []v1alpha1.FilterRef, target v1alpha1.PatchTarget) []string {
+	var names []string
+	for _, include := range includeRef {
+		if matchPatchTargetAndFilterRef(target, include) && include.Name != "" {
+			names = append(names, include.Name)
+		}
+	}
+
+	fieldsSelector := []string{}
+	for _, name := range names {
+		fieldsSelector = append(fieldsSelector, fmt.Sprintf("metadata.name==%s", name))
+	}
+	return fieldsSelector
 }
 
-func getLabelsToExclude(excludeRef []v1alpha1.ExcludeRef) []string {
+// TODO: check when add support to versions
+func matchPatchTargetAndFilterRef(target v1alpha1.PatchTarget, filterRef v1alpha1.FilterRef) bool {
+	return strings.HasPrefix(filterRef.APIVersion, fmt.Sprintf("%s/", target.Group)) && filterRef.Kind == target.Kind
+}
+
+func getLabelsToExclude(excludeRef []v1alpha1.FilterRef) []string {
 	labelsToExclude := []string{}
 	for _, exclude := range excludeRef {
 		for k, v := range exclude.MatchLabels {
@@ -122,4 +151,14 @@ func getLabelsToExclude(excludeRef []v1alpha1.ExcludeRef) []string {
 		}
 	}
 	return labelsToExclude
+}
+
+func getLabelsToInclude(includeRef []v1alpha1.FilterRef) []string {
+	labelsToInclude := []string{}
+	for _, include := range includeRef {
+		for k, v := range include.MatchLabels {
+			labelsToInclude = append(labelsToInclude, fmt.Sprintf("%s==%s", k, v))
+		}
+	}
+	return labelsToInclude
 }

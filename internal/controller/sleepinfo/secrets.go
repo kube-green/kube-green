@@ -6,6 +6,7 @@ import (
 	"time"
 
 	kubegreenv1alpha1 "github.com/kube-green/kube-green/api/v1alpha1"
+	"github.com/kube-green/kube-green/internal/controller/sleepinfo/resource"
 
 	"github.com/go-logr/logr"
 	v1 "k8s.io/api/core/v1"
@@ -37,9 +38,9 @@ func (r SleepInfoReconciler) upsertSecret(
 	sleepInfo *kubegreenv1alpha1.SleepInfo,
 	secret *v1.Secret,
 	sleepInfoData SleepInfoData,
-	resources Resources,
+	resources resource.Resource,
 ) error {
-	logger.Info("update secret", "name", secretName)
+	logger.Info("manage secret", "name", secretName)
 
 	var newSecret = &v1.Secret{
 		TypeMeta: metav1.TypeMeta{
@@ -62,17 +63,19 @@ func (r SleepInfoReconciler) upsertSecret(
 		StringData: make(map[string]string),
 	}
 	newSecret.StringData[lastScheduleKey] = now.Format(time.RFC3339)
-	if resources.hasResources() {
+	if resources.HasResource() {
 		newSecret.StringData[lastOperationKey] = sleepInfoData.CurrentOperationType
 	}
 
-	if resources.hasResources() && sleepInfoData.IsSleepOperation() {
-		data, err := resources.getOriginalResourceInfoToSave()
+	if resources.HasResource() && sleepInfoData.IsSleepOperation() {
+		data, err := resources.GetOriginalInfoToSave()
 		if err != nil {
 			logger.Error(err, "failed to get original resource info to save")
 			return err
 		}
-		newSecret.Data = data
+		newSecret.Data = map[string][]byte{
+			originalJSONPatchDataKey: data,
+		}
 	}
 
 	if secret == nil {

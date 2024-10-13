@@ -12,12 +12,13 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-type ExcludeRef struct {
+// Define a resource to filter, used to include or exclude resources from the sleep.
+type FilterRef struct {
 	// ApiVersion of the kubernetes resources.
-	// Supported api version is "apps/v1".
+	// +optional
 	APIVersion string `json:"apiVersion,omitempty"`
 	// Kind of the kubernetes resources of the specific version.
-	// Supported kind are "Deployment" and "CronJob".
+	// +optional
 	Kind string `json:"kind,omitempty"`
 	// Name which identify the kubernetes resource.
 	// +optional
@@ -57,7 +58,11 @@ type SleepInfoSpec struct {
 	// ExcludeRef define the resource to exclude from the sleep.
 	// +optional
 	//+operator-sdk:csv:customresourcedefinitions:type=spec
-	ExcludeRef []ExcludeRef `json:"excludeRef,omitempty"`
+	ExcludeRef []FilterRef `json:"excludeRef,omitempty"`
+	// IncludeRef define the resource to include from the sleep.
+	// +optional
+	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	IncludeRef []FilterRef `json:"includeRef,omitempty"`
 	// If SuspendCronjobs is set to true, on sleep the cronjobs of the namespace will be suspended.
 	// +optional
 	//+operator-sdk:csv:customresourcedefinitions:type=spec
@@ -66,6 +71,10 @@ type SleepInfoSpec struct {
 	// +optional
 	//+operator-sdk:csv:customresourcedefinitions:type=spec
 	SuspendDeployments *bool `json:"suspendDeployments,omitempty"`
+	// If SuspendStatefulSets is set to false, on sleep the statefulset of the namespace will not be suspended. By default StatefulSet will be suspended.
+	// +optional
+	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	SuspendStatefulSets *bool `json:"suspendStatefulsets,omitempty"`
 	// Patches is a list of json 6902 patches to apply to the target resources.
 	// +optional
 	//+operator-sdk:csv:customresourcedefinitions:type=spec
@@ -140,7 +149,11 @@ func (s SleepInfo) GetWakeUpSchedule() (string, error) {
 	return s.getScheduleFromWeekdayAndTime(s.Spec.WakeUpTime)
 }
 
-func (s SleepInfo) GetExcludeRef() []ExcludeRef {
+func (s SleepInfo) GetIncludeRef() []FilterRef {
+	return s.Spec.IncludeRef
+}
+
+func (s SleepInfo) GetExcludeRef() []FilterRef {
 	return s.Spec.ExcludeRef
 }
 
@@ -173,8 +186,25 @@ func (s SleepInfo) IsDeploymentsToSuspend() bool {
 	return *s.Spec.SuspendDeployments
 }
 
+func (s SleepInfo) IsStatefulSetsToSuspend() bool {
+	if s.Spec.SuspendStatefulSets == nil {
+		return true
+	}
+	return *s.Spec.SuspendStatefulSets
+}
+
 func (s SleepInfo) GetPatches() []Patch {
-	return s.Spec.Patches
+	patches := []Patch{}
+	if s.IsDeploymentsToSuspend() {
+		patches = append(patches, deploymentPatch)
+	}
+	if s.IsStatefulSetsToSuspend() {
+		patches = append(patches, statefulSetPatch)
+	}
+	if s.IsCronjobsToSuspend() {
+		patches = append(patches, cronjobPatch)
+	}
+	return append(patches, s.Spec.Patches...)
 }
 
 //+kubebuilder:object:root=true

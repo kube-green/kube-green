@@ -3,7 +3,7 @@
 # To re-generate a bundle for another specific version without changing the standard setup, you can:
 # - use the VERSION as arg of the bundle target (e.g make bundle VERSION=0.0.2)
 # - use environment variables to overwrite this value (e.g export VERSION=0.0.2)
-VERSION ?= 0.6.0-rc.0
+VERSION ?= 0.6.0-rc.2
 DOCKER_IMAGE_NAME ?= docker.io/kubegreen/kube-green
 OS=$(shell go env GOOS)
 ARCH=$(shell go env GOARCH)
@@ -52,7 +52,7 @@ endif
 # Image URL to use all building/pushing image targets
 IMG ?= $(DOCKER_IMAGE_NAME):$(VERSION)
 # KIND_K8S_VERSION refers to the version of Kind to use.
-KIND_K8S_VERSION ?= v1.29.0
+KIND_K8S_VERSION ?= v1.30.0
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -96,7 +96,7 @@ help: ## Display this help.
 
 .PHONY: manifests
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
-	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+	$(CONTROLLER_GEN) rbac:roleName=aggregate-manager-role crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
 .PHONY: generate
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
@@ -130,7 +130,7 @@ coverage:
 .PHONY: e2e-test
 e2e-test: manifests generate kustomize
 	@$(KUSTOMIZE) build ./config/e2e-test/ -o /tmp/kube-green-e2e-test.yaml
-	@ rm -rf ./tests/integration/tests-logs/
+	@rm -rf ./tests/integration/tests-logs/
 	@echo "==> Generated K8s resource file with Kustomize"
 	go test -tags=e2e ./tests/integration/ -count 1
 
@@ -215,6 +215,11 @@ deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in
 .PHONY: undeploy
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	$(KUSTOMIZE) build config/default | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
+
+.PHONY: template
+template: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
+	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+	$(KUSTOMIZE) build -o template.output.yaml config/default
 
 ##@ Build Dependencies
 
@@ -383,3 +388,6 @@ local-run: ## Run the operator locally in kind using ko.
 	@sleep 5
 	kubectl wait --for=condition=ready --timeout=160s pod -l app=kube-green -n kube-green
 	@rm ./kube-green-local-run.yaml
+
+## Includes
+include scripts/make/helm.mk

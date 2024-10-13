@@ -1,3 +1,6 @@
 {
-  "go.buildTags": "e2e"
+  "go.buildTags": "e2e",
+  "go.coverOnSave": false,
+  "go.lintTool": "golangci-lint",
+  "go.testTimeout": "90s"
 }

@@ -1,19 +1,13 @@
-# Install with Helm 
+# Install with Helm
 
-## Deploy cert-manager chart
+## Using cert-manager
 
-```bash
-helm repo add jetstack https://charts.jetstack.io
+To use kube-green, it is necessary to have a valid certificate for the domain that will be used by the WebHook.
+It is possible to manage it using the cert-manager, or configuring the certificate manually. [Read here](https://kube-green.dev/docs/advanced/webhook-cert-management/) for more information.
 
-helm install \
-  cert-manager jetstack/cert-manager \
-  --namespace cert-manager \
-  --create-namespace \
-  --version v1.12.0 \
-  --set installCRDs=true
-```
+By default, this chart is configured to use the cert-manager to manage the certificate for the WebHook, and it is enabled by the values `.certManager.enabled`. It is possible to set it to *false*, and configure `.jobsCert.enabled` to *true* to manage manually the certificates, using a job which generate them and change correctly the WebHook configuration.
 
-##  Install with kube-green chart 
+## Install with kube-green chart
 
 To successfully install kube-green, in the cluster must be installed a cert-manager.
 If it is not already installed installed, [check the cert-manager installation guide](https://cert-manager.io/docs/installation/).
@@ -27,17 +21,18 @@ helm upgrade kube-green \
 ./charts/kube-green --install 
 ```
 
-# Deploy Kube-Green Helm Chart with Terraform
+## Deploy Kube-Green Helm Chart with Terraform
 
 This example show how to use [Terraform Helm Chart Provider](https://developer.hashicorp.com/terraform/tutorials/kubernetes/helm-provider) to deploy `kube-green` on Kubernetes Clusters. 
 
-## Prerequisites 
-*   [Terraform Install](https://developer.hashicorp.com/terraform/tutorials/aws-get-started/install-cli)
-*   [Helm Provider Credentials Setup](https://developer.hashicorp.com/terraform/tutorials/kubernetes/helm-provider#review-the-helm-configuration)
+### Prerequisites
 
-## Installation
+* [Terraform Install](https://developer.hashicorp.com/terraform/tutorials/aws-get-started/install-cli)
+* [Helm Provider Credentials Setup](https://developer.hashicorp.com/terraform/tutorials/kubernetes/helm-provider#review-the-helm-configuration)
 
-We need to install `cert-manager` as dependency before `kube-green` installation. To provision the both resources in same terraform run, you can declare helm release from cert_manager as dependency from kube-green helm release using [depends_on](https://developer.hashicorp.com/terraform/language/meta-arguments/depends_on) meta-argument. 
+### Installation
+
+We need to install `cert-manager` as dependency before `kube-green` installation. To provision the both resources in same terraform run, you can declare helm release from cert_manager as dependency from kube-green helm release using [depends_on](https://developer.hashicorp.com/terraform/language/meta-arguments/depends_on) meta-argument.
 
 ```hcl
 resource "helm_release" "cert_manager" {
@@ -61,7 +56,7 @@ resource "helm_release" "cert_manager" {
 }
 ```
 
-```hcl 
+```hcl
 resource "helm_release" "kube_green" {
     namespace           = "kube-green"
     create_namespace    = true
@@ -85,8 +80,7 @@ resource "helm_release" "kube_green" {
 }
 ```
 
-
-After the configuration of the `helm_release`, you can run terraform cli to provisioning kube-green installation properly. 
+After the configuration of the `helm_release`, you can run terraform cli to provisioning kube-green installation properly.
 
 ```hcl
 terraform plan 
