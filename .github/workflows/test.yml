@@ -5,6 +5,8 @@ on:
       - "main"
     tags:
       - '*'
+    tags-ignore:
+      - 'helm-v*'
   pull_request:
     branches:
       - "main"
