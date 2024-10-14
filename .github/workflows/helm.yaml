@@ -60,11 +60,10 @@ jobs:
           git config user.email "${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com"
       - name: Setup Helm
         uses: azure/setup-helm@v4
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Run chart-releaser
-        uses: helm/chart-releaser-action@v1.6.0
+        uses: kube-green/chart-releaser-action
         env:
           CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-          CR_OWNER: kube-green
-          CR_GIT_REPO: helm-charts
+        with:
+          owner: kube-green
+          repo: helm-charts
