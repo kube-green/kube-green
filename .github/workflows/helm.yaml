@@ -61,7 +61,7 @@ jobs:
       - name: Setup Helm
         uses: azure/setup-helm@v4
       - name: Run chart-releaser
-        uses: kube-green/chart-releaser-action
+        uses: kube-green/chart-releaser-action@main
         env:
           CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
         with:
