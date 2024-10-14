@@ -1,6 +1,7 @@
 apiVersion: v2
 name: kube-green
 description: kube-green helm chart
+icon: https://raw.githubusercontent.com/kube-green/kube-green/main/logo/logo.svg
 
 # A chart can be either an 'application' or a 'library' chart.
 #
