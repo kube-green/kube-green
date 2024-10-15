@@ -64,7 +64,7 @@ jobs:
       - name: Run chart-releaser
         uses: kube-green/chart-releaser-action@main
         env:
-          CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+          CR_TOKEN: "${{ secrets.GH_PAT_UPDATE_CONTENTS }}"
         with:
           owner: kube-green
           repo: helm-charts

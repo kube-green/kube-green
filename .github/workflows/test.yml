@@ -152,7 +152,7 @@ jobs:
       community-operator-fork: kube-green/community-operators
       community-operator-repo: k8s-operatorhub/community-operators
     secrets:
-      PERSONAL_ACCESS_TOKEN: ${{ secrets.PAT_UPDATE_OPERATORS }}
+      PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PAT_UPDATE_CONTENTS }}
 
   release-community-operators-prod:
     name: Release community operator prod
@@ -162,4 +162,4 @@ jobs:
       community-operator-fork: kube-green/community-operators-prod
       community-operator-repo: redhat-openshift-ecosystem/community-operators-prod
     secrets:
-      PERSONAL_ACCESS_TOKEN: ${{ secrets.PAT_UPDATE_OPERATORS }}
+      PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PAT_UPDATE_CONTENTS }}
