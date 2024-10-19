@@ -61,10 +61,6 @@ jobs:
           repository: kube-green/helm-charts
           path: helm-charts
           token: ${{ secrets.GH_PAT_UPDATE_CONTENTS }}
-      - name: Configure Git
-        run: |
-          git config user.name "${{ github.actor }}"
-          git config user.email "${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com"
       - name: Setup Helm
         uses: azure/setup-helm@v4
       - name: Move to kube-green folder
@@ -82,6 +78,8 @@ jobs:
       - name: Update index.yaml
         run: |
           cd ../helm-charts
+          git config user.name "${{ github.actor }}"
+          git config user.email "${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com"
           cr index -o kube-green -r helm-charts --package-path ../.cr-release-packages
           git add helm-charts/index.yaml
           git commit -m "Update index.yaml"
