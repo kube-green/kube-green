@@ -55,13 +55,21 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          path: kube-green
+      - uses: actions/checkout@v4
+        with:
+          repository: kube-green/helm-charts
+          path: helm-charts
+          token: ${{ secrets.GH_PAT_UPDATE_CONTENTS }}
       - name: Configure Git
         run: |
           git config user.name "${{ github.actor }}"
           git config user.email "${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com"
       - name: Setup Helm
         uses: azure/setup-helm@v4
-      - name: Run chart-releaser
+      - name: Move to kube-green folder
+        run: cd kube-green
+      - name: Run chart-releaser to create release
         uses: kube-green/chart-releaser-action@main
         env:
           CR_TOKEN: "${{ secrets.GH_PAT_UPDATE_CONTENTS }}"
@@ -70,3 +78,11 @@ jobs:
           repo: helm-charts
           pages_branch: main
           commit: main
+          skip_upload: true
+      - name: Update index.yaml
+        run: |
+          cd ../helm-charts
+          cr index -o kube-green -r helm-charts --package-path ../.cr-release-packages
+          git add helm-charts/index.yaml
+          git commit -m "Update index.yaml"
+          git push
