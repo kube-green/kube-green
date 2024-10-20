@@ -79,7 +79,4 @@ jobs:
         run: |
           git config user.name "${{ github.actor }}"
           git config user.email "${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com"
-          cr index -o kube-green -r helm-charts --package-path ../kube-green/.cr-release-packages --pages-branch main
-          git add index.yaml
-          git commit -m "Update index.yaml"
-          git push
+          cr index -o kube-green -r helm-charts --package-path ../kube-green/.cr-release-packages --pages-branch main --index-path . --push
