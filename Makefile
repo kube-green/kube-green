@@ -369,6 +369,7 @@ catalog-push: ## Push a catalog image.
 release: ## Release a new version of the operator, passing vesion as argument (e.g make release version=v0.0.2).
 	./hack/update-version.sh $(version)
 	$(MAKE)
+	$(MAKE) chart-snapshot
 	$(MAKE) bundle
 	git add .
 	git commit -m "Upgrade to $(version)"
