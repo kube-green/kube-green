@@ -51,7 +51,7 @@ make e2e-test
 It is possible to run only a specific harness integration test, running e2e-test with the OPTION variable:
 
 ```sh
-make e2e-test OPTION="-run -run=TestSleepInfoE2E/kuttl/run_e2e_tests/harness/{TEST_NAME}"
+make e2e-test OPTION="-run=TestSleepInfoE2E/kuttl/run_e2e_tests/harness/{TEST_NAME}"
 ```
 
 ## Deployment
