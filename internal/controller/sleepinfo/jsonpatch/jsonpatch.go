@@ -53,7 +53,8 @@ func NewResources(ctx context.Context, res resource.ResourceClient, namespace st
 		var err error
 		generic.data, err = generic.getListByNamespace(ctx, namespace, patchData.Target)
 		if err != nil {
-			return nil, fmt.Errorf("%w: %s", ErrListResources, err)
+			res.Log.WithValues("target", patchData.Target.String()).Error(err, "fails to get list of resources")
+			continue
 		}
 		if len(generic.data) == 0 {
 			continue

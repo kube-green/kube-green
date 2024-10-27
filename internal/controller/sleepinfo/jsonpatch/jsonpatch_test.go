@@ -80,6 +80,39 @@ func TestNewResources(t *testing.T) {
 		}, namespace, nil)
 		require.EqualError(t, err, fmt.Sprintf("%s: sleepInfo is not provided", ErrJSONPatch))
 	})
+
+	t.Run("with multiple resources, if list of one fails continue for the second resource type", func(t *testing.T) {
+		cronjob := mocks.CronJob(mocks.CronJobOptions{
+			Name:      "cron",
+			Namespace: namespace,
+		})
+		fakeClient := testutil.PossiblyErroringFakeCtrlRuntimeClient{
+			Client: getFakeClient().
+				WithRuntimeObjects(&cronjob).
+				Build(),
+			ShouldError: func(method testutil.Method, obj runtime.Object) bool {
+				if method == testutil.List && obj.GetObjectKind().GroupVersionKind().Kind == "Deployment" {
+					return true
+				}
+				return false
+			},
+		}
+
+		sleepInfo := &v1alpha1.SleepInfo{
+			Spec: v1alpha1.SleepInfoSpec{
+				SuspendCronjobs:    true,
+				SuspendDeployments: getPtr(true),
+			},
+		}
+
+		resource, err := NewResources(context.Background(), resource.ResourceClient{
+			Client:    fakeClient,
+			Log:       testLogger,
+			SleepInfo: sleepInfo,
+		}, namespace, nil)
+		require.NoError(t, err)
+		require.Equal(t, true, resource.HasResource())
+	})
 }
 
 func TestUpdateResourcesJSONPatch(t *testing.T) {
