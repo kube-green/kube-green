@@ -19,7 +19,7 @@ kube-green helm chart
 | jobsCert.image.tag | string | `"v20221220-controller-v1.5.1-58-g787ea74b6"` |  |
 | kubeRbacProxy.image.pullPolicy | string | `"IfNotPresent"` | Image pull policy. |
 | kubeRbacProxy.image.repository | string | `"gcr.io/kubebuilder/kube-rbac-proxy"` | Docker image repository for the kube-rbac-proxy. |
-| kubeRbacProxy.image.tag | string | `"v0.15.0"` | Specific image tag to use for the kube-rbac-proxy. |
+| kubeRbacProxy.image.tag | string | `"v0.16.0"` | Specific image tag to use for the kube-rbac-proxy. |
 | kubeRbacProxy.resources.limits.cpu | string | `"500m"` |  |
 | kubeRbacProxy.resources.limits.memory | string | `"128Mi"` |  |
 | kubeRbacProxy.resources.requests.cpu | string | `"5m"` |  |

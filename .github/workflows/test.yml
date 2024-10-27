@@ -16,6 +16,7 @@ jobs:
       matrix:
         os: [ubuntu-latest]
         k8s_version:
+          - 'v1.31.1'
           - 'v1.30.0'
           - 'v1.29.4'
           - 'v1.28.9'

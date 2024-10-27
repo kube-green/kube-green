@@ -52,7 +52,7 @@ endif
 # Image URL to use all building/pushing image targets
 IMG ?= $(DOCKER_IMAGE_NAME):$(VERSION)
 # KIND_K8S_VERSION refers to the version of Kind to use.
-KIND_K8S_VERSION ?= v1.30.0
+KIND_K8S_VERSION ?= v1.31.1
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -236,17 +236,15 @@ ENVTEST ?= $(LOCALBIN)/setup-envtest-$(ENVTEST_VERSION)
 GOTESTSUM ?= $(LOCALBIN)/gotestsum-$(GOTESTSUM_VERSION)
 GOLANGCI_LINT = $(LOCALBIN)/golangci-lint-$(GOLANGCI_LINT_VERSION)
 OPERATOR_SDK ?= $(LOCALBIN)/operator-sdk-$(OPERATOR_SDK_VERSION)
-ENVTEST ?= $(LOCALBIN)/setup-envtest
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v5.3.0
 HELM_DOCS_VERSION ?= v1.14.2
 CONTROLLER_TOOLS_VERSION ?= v0.14.0
-ENVTEST_VERSION ?= latest
+ENVTEST_VERSION ?= release-0.19
 GOTESTSUM_VERSION ?= v1.11.0
-GOLANGCI_LINT_VERSION ?= v1.55.1
-OPERATOR_SDK_VERSION ?= v1.34.1
-ENVTEST_VERSION ?= latest
+GOLANGCI_LINT_VERSION ?= v1.61.0
+OPERATOR_SDK_VERSION ?= v1.37.0
 
 .PHONY: kustomize
 kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.

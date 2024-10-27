@@ -1,6 +1,6 @@
 module github.com/kube-green/kube-green
 
-go 1.23.2
+go 1.23.1
 
 require (
 	github.com/evanphx/json-patch/v5 v5.9.0

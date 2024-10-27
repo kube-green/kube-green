@@ -166,7 +166,7 @@ func (s SleepInfo) getScheduleFromWeekdayAndTime(hourAndMinute string) (string, 
 	}
 
 	splittedTime := strings.Split(hourAndMinute, ":")
-	//nolint:gomnd
+	//nolint:mnd
 	if len(splittedTime) != 2 {
 		return "", fmt.Errorf("time should be of format HH:mm, actual: %s", hourAndMinute)
 	}
