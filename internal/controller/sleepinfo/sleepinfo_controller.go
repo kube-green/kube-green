@@ -33,8 +33,6 @@ const (
 
 	sleepOperation  = "SLEEP"
 	wakeUpOperation = "WAKE_UP"
-
-	fieldManagerName = "kube-green"
 )
 
 // SleepInfoReconciler reconciles a SleepInfo object
@@ -43,8 +41,9 @@ type SleepInfoReconciler struct {
 	Log    logr.Logger
 	Scheme *runtime.Scheme
 	Clock
-	Metrics    metrics.Metrics
-	SleepDelta int64
+	Metrics     metrics.Metrics
+	SleepDelta  int64
+	ManagerName string
 }
 
 type realClock struct{}
@@ -123,7 +122,7 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		Client:           r.Client,
 		SleepInfo:        sleepInfo,
 		Log:              log,
-		FieldManagerName: fieldManagerName,
+		FieldManagerName: r.ManagerName,
 	}, req.Namespace, sleepInfoData.OriginalGenericResourceInfo)
 	if err != nil {
 		log.Error(err, "fails to get resources")

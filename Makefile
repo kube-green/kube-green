@@ -132,7 +132,7 @@ e2e-test: manifests generate kustomize
 	@$(KUSTOMIZE) build ./config/e2e-test/ -o /tmp/kube-green-e2e-test.yaml
 	@rm -rf ./tests/integration/tests-logs/
 	@echo "==> Generated K8s resource file with Kustomize"
-	go test -tags=e2e ./tests/integration/ -count 1
+	go test -tags=e2e ./tests/integration/ -count 1 $(OPTION)
 
 HELM_DOCS = $(shell pwd)/bin/helm-docs
 .PHONY: helm-docs-ensure
