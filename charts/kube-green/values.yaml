@@ -44,7 +44,7 @@ kubeRbacProxy:
     # -- Image pull policy.
     pullPolicy: IfNotPresent
     # -- Specific image tag to use for the kube-rbac-proxy.
-    tag: "v0.15.0"
+    tag: "v0.16.0"
   resources:
     limits:
       cpu: 500m

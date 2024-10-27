@@ -288,7 +288,6 @@ func TestValidateSleepInfo(t *testing.T) {
 	}, meta.RESTScopeNamespace)
 
 	for _, test := range tests {
-		test := test // necessary to ensure the correct value is passed to the closure
 		s := sleepInfo.DeepCopy()
 		s.Spec = test.sleepInfoSpec
 

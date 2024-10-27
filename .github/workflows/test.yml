@@ -16,6 +16,7 @@ jobs:
       matrix:
         os: [ubuntu-latest]
         k8s_version:
+          - 'v1.31.1'
           - 'v1.30.0'
           - 'v1.29.4'
           - 'v1.28.9'
@@ -136,7 +137,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-build-${{ env.cache-name }}
       - name: Build and push
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: '${{ env.context }}'
           platforms: linux/amd64,linux/arm64,linux/arm/v7

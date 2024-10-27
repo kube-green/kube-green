@@ -1,7 +1,5 @@
 run:
   timeout: 5m
-  skip-files:
-    - "zz.deepcopy"
 
 linters:
   enable:
@@ -11,16 +9,16 @@ linters:
   - bodyclose
   - containedctx
   - contextcheck
+  - copyloopvar
   - decorder
   - dupword
   - errname
-  - exportloopref
   - goconst
   - gocritic
   - gocyclo
   - gofmt
   - goimports
-  - gomnd
+  - mnd
   - goprintffuncname
   - gosec
   - govet
@@ -40,7 +38,7 @@ linters:
 linters-settings:
   goconst:
     ignore-tests: true
-  gomnd:
+  mnd:
     checks:
     - case
     - condition
@@ -59,3 +57,5 @@ issues:
       linters:
         - maintidx
         - cyclop
+  exclude-files:
+    - "zz.deepcopy"

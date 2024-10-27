@@ -375,7 +375,6 @@ func TestSchedule(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		test := test // necessary to ensure the correct value is passed to the closure
 		t.Run(test.name, func(t *testing.T) {
 			isToExecute, nextSchedule, requeueAfter, err := sleepInfoReconciler.getNextSchedule(sleepInfoReconciler.Log, test.data, getTime(t, test.now))
 
@@ -447,7 +446,6 @@ func TestTestIsTimeInDeltaMs(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		test := test // necessary to ensure the correct value is passed to the closure
 		t.Run(fmt.Sprintf("name, %s", test.name), func(t *testing.T) {
 			output := isTimeInDelta(test.t1, test.t2, test.delta)
 			require.Equal(t, test.expected, output)

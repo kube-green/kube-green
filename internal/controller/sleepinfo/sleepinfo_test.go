@@ -410,10 +410,10 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 			deployments := getDeploymentList(t, ctx, c)
 			for _, deployment := range deployments {
 				if deployment.GetName() == serviceNameToCreate {
-					require.Equal(t, int32(5), deploymentReplicas(t, deployment))
+					require.Equal(t, int64(5), deploymentReplicas(t, deployment))
 					continue
 				}
-				require.Equal(t, int32(0), deploymentReplicas(t, deployment), deployment.GetName())
+				require.Equal(t, int64(0), deploymentReplicas(t, deployment), deployment.GetName())
 			}
 
 			return ctx
@@ -654,7 +654,7 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 							originalRes := findDeployByName(assert.originalResources.deploymentList, res.GetName())
 							require.NotNil(t, originalRes, "resource not found: %s and type %s", res.GetName(), res.GroupVersionKind().String())
 							spec := res.Object["spec"].(map[string]interface{})
-							require.Equal(t, deploymentReplicas(t, *originalRes), int32(spec["replicas"].(int64)))
+							require.Equal(t, deploymentReplicas(t, *originalRes), spec["replicas"].(int64))
 							continue
 						}
 						originalRes := findResourceByName(assert.originalResources.genericResourcesMap.getResourceList(gvk), res.GetName())
@@ -1064,7 +1064,7 @@ func assertCorrectSleepOperation(t *testing.T, ctx context.Context, cfg *envconf
 						require.Equal(t, deploymentReplicas(t, *originalDeployment), deploymentReplicas(t, deployment))
 						continue
 					}
-					require.Equal(t, int32(0), deploymentReplicas(t, deployment))
+					require.Equal(t, int64(0), deploymentReplicas(t, deployment))
 				}
 			}
 		} else {

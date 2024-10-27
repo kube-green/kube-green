@@ -94,9 +94,6 @@ func (g managedResources) Sleep(ctx context.Context) error {
 		}
 
 		for _, resource := range resourceWrapper.data {
-			// TODO: remove this when go >= 1.22
-			resource := resource
-
 			// This will skip resources that are managed by another controller, since
 			// we should manage the sleep on the controller itself.
 			// Some examples are:

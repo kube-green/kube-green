@@ -375,7 +375,6 @@ func (r resourceMap) upsert(t *testing.T, ctx context.Context, c *envconf.Config
 	k8sClient := c.Client().Resources(c.Namespace()).GetControllerRuntimeClient()
 
 	for _, resource := range resources {
-		resource := resource
 		gvk := resource.GetObjectKind().GroupVersionKind()
 
 		if obj := findResourceByName(r.getResourceList(gvk), resource.GetName()); obj != nil {
@@ -452,12 +451,12 @@ func isSuspendedCronJob(t *testing.T, cronJob unstructured.Unstructured) bool {
 func assertAllReplicasSetToZero(t *testing.T, actualDeployments []unstructured.Unstructured) {
 	t.Helper()
 
-	allReplicas := []int32{}
+	allReplicas := []int64{}
 	for _, deployment := range actualDeployments {
 		allReplicas = append(allReplicas, deploymentReplicas(t, deployment))
 	}
 	for _, replicas := range allReplicas {
-		require.Equal(t, replicas, int32(0))
+		require.Equal(t, replicas, int64(0))
 	}
 }
 
@@ -542,8 +541,8 @@ func isCronJobSuspended(t *testing.T, cronJob unstructured.Unstructured) bool {
 	return suspend
 }
 
-func deploymentReplicas(t *testing.T, d unstructured.Unstructured) int32 {
+func deploymentReplicas(t *testing.T, d unstructured.Unstructured) int64 {
 	v, _, err := unstructured.NestedInt64(d.Object, "spec", "replicas")
 	require.NoError(t, err)
-	return int32(v)
+	return v
 }
