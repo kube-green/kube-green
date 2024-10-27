@@ -56,10 +56,12 @@ type SleepInfoSpec struct {
 	//+operator-sdk:csv:customresourcedefinitions:type=spec
 	TimeZone string `json:"timeZone,omitempty"`
 	// ExcludeRef define the resource to exclude from the sleep.
+	// Exclusion rules are evaluated in AND condition.
 	// +optional
 	//+operator-sdk:csv:customresourcedefinitions:type=spec
 	ExcludeRef []FilterRef `json:"excludeRef,omitempty"`
 	// IncludeRef define the resource to include from the sleep.
+	// Inclusion rules are evaluated in AND condition.
 	// +optional
 	//+operator-sdk:csv:customresourcedefinitions:type=spec
 	IncludeRef []FilterRef `json:"includeRef,omitempty"`
