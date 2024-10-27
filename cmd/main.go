@@ -108,15 +108,6 @@ func main() {
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "2bd226ed.kube-green.com",
-		// Cache: cache.Options{
-		// 	ByObject: map[client.Object]cache.ByObject{
-		// 		&v1.Secret{}: {
-		// 			Label: labels.SelectorFromSet(labels.Set{
-		// 				"app.kubernetes.io/managed-by": managerName,
-		// 			}),
-		// 		},
-		// 	},
-		// },
 		Client: client.Options{
 			Cache: &client.CacheOptions{
 				DisableFor: []client.Object{&v1.Secret{}},
