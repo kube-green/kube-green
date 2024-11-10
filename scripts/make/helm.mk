@@ -21,3 +21,12 @@ chart-test: ## Test the chart against the snapshot
 	@rm $(HELM_TMPL_OUT).bak
 	diff $(HELM_TMPL_OUT) $(HELM_SNAPSHOT_OUT)
 	@echo "==> Tests passed!"
+
+HELM_DOCS = $(shell pwd)/bin/helm-docs
+.PHONY: helm-docs-ensure
+helm-docs-ensure: ##Download helm-docs locally if necessary.
+	$(call go-install-tool,$(HELM_DOCS),github.com/norwoodj/helm-docs/cmd/helm-docs,$(HELM_DOCS_VERSION))
+
+.PHONY: helm-docs
+helm-docs: helm-docs-ensure ## Run helm-docs.
+	$(HELM_DOCS) --chart-search-root $(shell pwd)/charts

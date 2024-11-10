@@ -13,8 +13,6 @@ manager:
     # -- The specific image tag of the kube-green manager to use.
     tag: "0.5.2"
 
-  # -- When true, directs logs to the standard error stream.
-  logtostderr: true
   # -- Sets the logging verbosity level. A value of 0 means minimal logging.
   verbosity: 0
   securityContext:
@@ -92,9 +90,11 @@ priorityClassName: ""
 topologySpreadConstraints: []
 
 certManager:
+  # -- If cert-manager is enabled, the configurations will use it to manage the needed certificates.
   enabled: true
 
 jobsCert:
+  # -- If enabled, the certificates will be managed by a custom Job, without the integration with the cert-manager.
   enabled: false
   image:
     registry: registry.k8s.io
@@ -104,6 +104,19 @@ jobsCert:
 
 rbac:
   customClusterRole:
+    # -- If true, the custom ClusterRole is enabled.
     enabled: false
+    # -- The name of the custom ClusterRole to aggregate with the default role managed by the chart.
     name: kube-green-manager-role-custom-aggregate
+    # -- Rules to add to the custom ClusterRole.
     rules: []
+
+crds:
+  # This option decides if the CRDs should be installed as part of the Helm installation.
+  enabled: true
+
+  # This option add the "helm.sh/resource-policy": keep annotation to the CRD.
+  # This will prevent Helm from uninstalling the CRD when the Helm release is uninstalled.
+  # WARNING: when the CRDs are removed, all custom resources (SleepInfo) will
+  # be removed too by the garbage collector.
+  keep: true
