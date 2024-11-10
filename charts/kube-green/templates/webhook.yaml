@@ -3,7 +3,7 @@ kind: ValidatingWebhookConfiguration
 metadata:
   {{ if .Values.certManager.enabled -}}
   annotations:
-    cert-manager.io/inject-ca-from: kube-green/kube-green-serving-cert
+    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/kube-green-serving-cert
   {{ end -}}
   name: kube-green-validating-webhook-configuration
 webhooks:

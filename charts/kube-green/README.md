@@ -9,10 +9,12 @@ kube-green helm chart
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | affinity | object | `{}` | Affinity rules for pod assignment. |
-| certManager.enabled | bool | `true` |  |
+| certManager.enabled | bool | `true` | If cert-manager is enabled, the configurations will use it to manage the needed certificates. |
+| crds.enabled | bool | `false` |  |
+| crds.keep | bool | `true` |  |
 | fullnameOverride | string | `""` |  |
 | imagePullSecrets | list | `[]` | List of secrets used to access private image repositories. |
-| jobsCert.enabled | bool | `false` |  |
+| jobsCert.enabled | bool | `false` | If enabled, the certificates will be managed by a custom Job, without the integration with the cert-manager. |
 | jobsCert.image.pullPolicy | string | `"Always"` |  |
 | jobsCert.image.registry | string | `"registry.k8s.io"` |  |
 | jobsCert.image.repository | string | `"ingress-nginx/kube-webhook-certgen"` |  |
@@ -40,9 +42,9 @@ kube-green helm chart
 | podAnnotations | object | `{}` | Annotations to add to each pod. |
 | podSecurityContext | object | `{}` | Security settings that apply to all containers in the pod. |
 | priorityClassName | string | `""` | Priority class name for the pods. |
-| rbac.customClusterRole.enabled | bool | `false` |  |
-| rbac.customClusterRole.name | string | `"kube-green-manager-role-custom-aggregate"` |  |
-| rbac.customClusterRole.rules | list | `[]` |  |
+| rbac.customClusterRole.enabled | bool | `false` | If true, the custom ClusterRole is enabled. |
+| rbac.customClusterRole.name | string | `"kube-green-manager-role-custom-aggregate"` | The name of the custom ClusterRole to aggregate with the default role managed by the chart. |
+| rbac.customClusterRole.rules | list | `[]` | Rules to add to the custom ClusterRole. |
 | service.port | int | `80` | Port for the service. |
 | service.type | string | `"ClusterIP"` | Type of service to expose. |
 | serviceAccount.annotations | object | `{}` | Annotations to add to the service account if created. |
