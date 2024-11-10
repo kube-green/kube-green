@@ -10,7 +10,7 @@ kube-green helm chart
 |-----|------|---------|-------------|
 | affinity | object | `{}` | Affinity rules for pod assignment. |
 | certManager.enabled | bool | `true` | If cert-manager is enabled, the configurations will use it to manage the needed certificates. |
-| crds.enabled | bool | `false` |  |
+| crds.enabled | bool | `true` |  |
 | crds.keep | bool | `true` |  |
 | fullnameOverride | string | `""` |  |
 | imagePullSecrets | list | `[]` | List of secrets used to access private image repositories. |
@@ -29,7 +29,6 @@ kube-green helm chart
 | manager.image.pullPolicy | string | `"IfNotPresent"` | Defines the image pull policy. Avoids pulling the image if it's already present. |
 | manager.image.repository | string | `"kubegreen/kube-green"` | The Docker image repository for the kube-green manager application. |
 | manager.image.tag | string | `"0.5.2"` | The specific image tag of the kube-green manager to use. |
-| manager.logtostderr | bool | `true` | When true, directs logs to the standard error stream. |
 | manager.resources.limits.cpu | string | `"400m"` | Maximum CPU allowed. |
 | manager.resources.limits.memory | string | `"400Mi"` | Maximum memory allowed. |
 | manager.resources.requests.cpu | string | `"100m"` | Requested CPU to guarantee for the pod. |

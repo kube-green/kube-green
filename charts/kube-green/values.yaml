@@ -13,8 +13,6 @@ manager:
     # -- The specific image tag of the kube-green manager to use.
     tag: "0.5.2"
 
-  # -- When true, directs logs to the standard error stream.
-  logtostderr: true
   # -- Sets the logging verbosity level. A value of 0 means minimal logging.
   verbosity: 0
   securityContext:
@@ -115,7 +113,7 @@ rbac:
 
 crds:
   # This option decides if the CRDs should be installed as part of the Helm installation.
-  enabled: false
+  enabled: true
 
   # This option add the "helm.sh/resource-policy": keep annotation to the CRD.
   # This will prevent Helm from uninstalling the CRD when the Helm release is uninstalled.
