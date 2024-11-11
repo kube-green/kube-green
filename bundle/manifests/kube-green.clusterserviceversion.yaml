@@ -31,8 +31,8 @@ metadata:
       ]
     capabilities: Seamless Upgrades
     categories: Developer Tools
-    containerImage: docker.io/kubegreen/kube-green:0.6.0-rc.2
-    createdAt: "2024-11-11T19:41:04Z"
+    containerImage: docker.io/kubegreen/kube-green:0.6.0
+    createdAt: "2024-11-11T19:41:42Z"
     description: Suspend your pods when no-one's using them to save energy and restore
       when necessary
     operators.operatorframework.io/builder: operator-sdk-v1.34.2
@@ -41,7 +41,7 @@ metadata:
     support: kube-green Community
   labels:
     app: kube-green
-  name: kube-green.v0.6.0-rc.2
+  name: kube-green.v0.6.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -95,7 +95,7 @@ spec:
       - description: If SuspendStatefulSets is set to false, on sleep the statefulset
           of the namespace will not be suspended. By default StatefulSet will be suspended.
         displayName: Suspend Stateful Sets
-        path: suspendStatefulsets
+        path: suspendStatefulSets
       - description: Time zone to set the schedule, in IANA time zone identifier.
           It is not required, default to UTC. For example, for the Italy time zone
           set Europe/Rome.
@@ -198,7 +198,7 @@ spec:
                 - --leader-elect
                 command:
                 - /manager
-                image: docker.io/kubegreen/kube-green:0.6.0-rc.2
+                image: docker.io/kubegreen/kube-green:0.6.0
                 livenessProbe:
                   httpGet:
                     path: /healthz
@@ -320,7 +320,7 @@ spec:
     name: kube-green Community
     url: https://kube-green.dev
   replaces: kube-green.v0.5.2
-  version: 0.6.0-rc.2
+  version: 0.6.0
   webhookdefinitions:
   - admissionReviewVersions:
     - v1

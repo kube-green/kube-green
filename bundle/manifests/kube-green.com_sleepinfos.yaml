@@ -138,7 +138,7 @@ spec:
                   of the namespace will not be suspended. By default Deployment will
                   be suspended.
                 type: boolean
-              suspendStatefulsets:
+              suspendStatefulSets:
                 description: If SuspendStatefulSets is set to false, on sleep the
                   statefulset of the namespace will not be suspended. By default StatefulSet
                   will be suspended.

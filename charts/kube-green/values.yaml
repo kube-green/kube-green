@@ -11,7 +11,7 @@ manager:
     # -- Defines the image pull policy. Avoids pulling the image if it's already present.
     pullPolicy: IfNotPresent
     # -- The specific image tag of the kube-green manager to use.
-    tag: "0.5.2"
+    tag: "0.6.0"
 
   # -- Sets the logging verbosity level. A value of 0 means minimal logging.
   verbosity: 0

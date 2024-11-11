@@ -5,4 +5,4 @@ kind: Kustomization
 images:
 - name: controller
   newName: docker.io/kubegreen/kube-green
-  newTag: 0.6.0-rc.2
+  newTag: 0.6.0

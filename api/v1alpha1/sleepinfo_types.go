@@ -76,7 +76,7 @@ type SleepInfoSpec struct {
 	// If SuspendStatefulSets is set to false, on sleep the statefulset of the namespace will not be suspended. By default StatefulSet will be suspended.
 	// +optional
 	//+operator-sdk:csv:customresourcedefinitions:type=spec
-	SuspendStatefulSets *bool `json:"suspendStatefulsets,omitempty"`
+	SuspendStatefulSets *bool `json:"suspendStatefulSets,omitempty"`
 	// Patches is a list of json 6902 patches to apply to the target resources.
 	// +optional
 	//+operator-sdk:csv:customresourcedefinitions:type=spec

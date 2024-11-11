@@ -9,7 +9,7 @@ metadata:
     HELM_CHART_VERSION_REDACTED
     app.kubernetes.io/name: kube-green
     app.kubernetes.io/instance: release-test
-    app.kubernetes.io/version: "0.5.2"
+    app.kubernetes.io/version: "0.6.0"
     app.kubernetes.io/managed-by: Helm
 ---
 # Source: kube-green/templates/configmap.yaml
@@ -428,7 +428,7 @@ metadata:
     HELM_CHART_VERSION_REDACTED
     app.kubernetes.io/name: kube-green
     app.kubernetes.io/instance: release-test
-    app.kubernetes.io/version: "0.5.2"
+    app.kubernetes.io/version: "0.6.0"
     app.kubernetes.io/managed-by: Helm
   name: kube-green-controller-manager
   namespace: default
@@ -457,7 +457,7 @@ spec:
         - --leader-elect
         command:
         - /manager
-        image:  "kubegreen/kube-green:0.5.2"
+        image:  "kubegreen/kube-green:0.6.0"
         imagePullPolicy: IfNotPresent
         livenessProbe:
           httpGet:
