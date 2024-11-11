@@ -360,6 +360,8 @@ release: ## Release a new version of the operator, passing vesion as argument (e
 	$(MAKE)
 	$(MAKE) chart-snapshot
 	$(MAKE) bundle
+	$(MAKE) helm-docs
+	$(MAKE) chart-snapshot
 	git add .
 	git commit -m "Upgrade to $(version)"
 	git tag $(version)

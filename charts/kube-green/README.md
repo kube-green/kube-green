@@ -1,6 +1,6 @@
 # kube-green
 
-![Version: 0.5.2](https://img.shields.io/badge/Version-0.5.2-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.5.2](https://img.shields.io/badge/AppVersion-0.5.2-informational?style=flat-square)
+![Version: 1.0.0](https://img.shields.io/badge/Version-1.0.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.6.0](https://img.shields.io/badge/AppVersion-0.6.0-informational?style=flat-square)
 
 kube-green helm chart
 
@@ -28,7 +28,7 @@ kube-green helm chart
 | kubeRbacProxy.resources.requests.memory | string | `"64Mi"` |  |
 | manager.image.pullPolicy | string | `"IfNotPresent"` | Defines the image pull policy. Avoids pulling the image if it's already present. |
 | manager.image.repository | string | `"kubegreen/kube-green"` | The Docker image repository for the kube-green manager application. |
-| manager.image.tag | string | `"0.5.2"` | The specific image tag of the kube-green manager to use. |
+| manager.image.tag | string | `"0.6.0"` | The specific image tag of the kube-green manager to use. |
 | manager.resources.limits.cpu | string | `"400m"` | Maximum CPU allowed. |
 | manager.resources.limits.memory | string | `"400Mi"` | Maximum memory allowed. |
 | manager.resources.requests.cpu | string | `"100m"` | Requested CPU to guarantee for the pod. |
