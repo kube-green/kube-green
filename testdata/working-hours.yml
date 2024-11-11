@@ -13,14 +13,14 @@ spec:
         group: apps
         kind: Deployment
         # labelSelector: "env=dev"
-      patches: |-
+      patch: |-
         - path: /spec/replicas
           op: replace
           value: 0
     - target:
         group: batch
         kind: CronJob
-      patches: |-
+      patch: |-
         - path: /spec/suspend
           op: replace
           value: true
