@@ -32,7 +32,7 @@ metadata:
     capabilities: Seamless Upgrades
     categories: Developer Tools
     containerImage: docker.io/kubegreen/kube-green:0.6.0-rc.2
-    createdAt: "2024-11-10T23:27:32Z"
+    createdAt: "2024-11-11T19:41:04Z"
     description: Suspend your pods when no-one's using them to save energy and restore
       when necessary
     operators.operatorframework.io/builder: operator-sdk-v1.34.2
@@ -319,7 +319,7 @@ spec:
   provider:
     name: kube-green Community
     url: https://kube-green.dev
-  replaces: kube-green.v0.6.0-rc.1
+  replaces: kube-green.v0.5.2
   version: 0.6.0-rc.2
   webhookdefinitions:
   - admissionReviewVersions:
