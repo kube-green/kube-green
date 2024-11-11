@@ -1,0 +1,68 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  labels:
+    app: kube-green
+    kube-green.dev/aggregate-to-manager: "true"
+  name: kube-green-aggregate-manager-role
+rules:
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  - statefulsets
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - batch
+  resources:
+  - cronjobs
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - kube-green.com
+  resources:
+  - sleepinfos
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - kube-green.com
+  resources:
+  - sleepinfos/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - kube-green.com
+  resources:
+  - sleepinfos/status
+  verbs:
+  - get
+  - patch
+  - update

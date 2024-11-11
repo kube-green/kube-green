@@ -1,0 +1,9 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kube-green-manager-role
+aggregationRule:
+  clusterRoleSelectors:
+  - matchLabels:
+      kube-green.dev/aggregate-to-manager: "true"
+rules: [] # The control plane automatically fills in the rules

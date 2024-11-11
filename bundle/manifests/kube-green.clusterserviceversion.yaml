@@ -32,7 +32,7 @@ metadata:
     capabilities: Seamless Upgrades
     categories: Developer Tools
     containerImage: docker.io/kubegreen/kube-green:0.6.0-rc.2
-    createdAt: "2024-07-13T18:17:11Z"
+    createdAt: "2024-11-10T23:27:32Z"
     description: Suspend your pods when no-one's using them to save energy and restore
       when necessary
     operators.operatorframework.io/builder: operator-sdk-v1.34.2
@@ -56,10 +56,12 @@ spec:
         name: sleepinfo
         version: v1
       specDescriptors:
-      - description: ExcludeRef define the resource to exclude from the sleep.
+      - description: ExcludeRef define the resource to exclude from the sleep. Exclusion
+          rules are evaluated in AND condition.
         displayName: Exclude Ref
         path: excludeRef
-      - description: IncludeRef define the resource to include from the sleep.
+      - description: IncludeRef define the resource to include from the sleep. Inclusion
+          rules are evaluated in AND condition.
         displayName: Include Ref
         path: includeRef
       - description: Patches is a list of json 6902 patches to apply to the target
@@ -150,56 +152,6 @@ spec:
     spec:
       clusterPermissions:
       - rules:
-        - apiGroups:
-          - '*'
-          resources:
-          - '*'
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - ""
-          resources:
-          - secrets
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - kube-green.com
-          resources:
-          - sleepinfos
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - kube-green.com
-          resources:
-          - sleepinfos/finalizers
-          verbs:
-          - update
-        - apiGroups:
-          - kube-green.com
-          resources:
-          - sleepinfos/status
-          verbs:
-          - get
-          - patch
-          - update
         - apiGroups:
           - authentication.k8s.io
           resources:
