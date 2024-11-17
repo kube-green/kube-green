@@ -33,7 +33,7 @@ spec:
         - --leader-elect
         command:
         - /manager
-        image:  "{{ .Values.manager.image.repository }}:{{ .Values.manager.image.tag }}"
+        image: {{ include "image" .Values.manager.image }}
         imagePullPolicy: {{ .Values.manager.image.pullPolicy }}
         livenessProbe:
           httpGet:
@@ -71,8 +71,8 @@ spec:
       - args:
         - --secure-listen-address=0.0.0.0:8443
         - --upstream=http://127.0.0.1:8080/
-        - --v={{ .Values.manager.verbosity }}
-        image: "{{ .Values.kubeRbacProxy.image.repository }}:{{ .Values.kubeRbacProxy.image.tag }}"
+        - --v={{ .Values.kubeRbacProxy.verbosity }}
+        image: {{ include "image" .Values.kubeRbacProxy.image }}
         imagePullPolicy: {{ .Values.kubeRbacProxy.image.pullPolicy }}
         name: kube-rbac-proxy
         ports:
@@ -86,9 +86,9 @@ spec:
           requests:
             cpu: {{ .Values.kubeRbacProxy.resources.requests.cpu }}
             memory: {{ .Values.kubeRbacProxy.resources.requests.memory }}
-        {{- if .Values.manager.securityContext }}
+        {{- if .Values.kubeRbacProxy.securityContext }}
         securityContext:
-        {{ toYaml .Values.manager.securityContext | nindent 10 }}
+        {{ toYaml .Values.kubeRbacProxy.securityContext | nindent 10 }}
         {{- else }}
         securityContext: {}
         {{- end }}

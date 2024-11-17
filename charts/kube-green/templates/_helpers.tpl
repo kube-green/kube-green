@@ -65,10 +65,18 @@ Create the name of the service account to use
 webhook-server-cert
 {{- end -}}
 
-{{- define "image" -}}
-{{ printf "%s/%s:%s" .registry .repository .tag }}
-{{- end -}}
-
 {{- define "kube-green.rbac.aggregationSelector.label" -}}
 kube-green.dev/aggregate-to-manager: "true"
+{{- end -}}
+
+{{/*
+Return the docker image from an image object
+*/}}
+{{- define "image" -}}
+{{- $image := . -}}
+{{- if $image.registry -}}
+{{ printf "%s/%s:%s" $image.registry $image.repository $image.tag }}
+{{- else -}}
+{{ printf "%s:%s" $image.repository $image.tag }}
+{{- end -}}
 {{- end -}}

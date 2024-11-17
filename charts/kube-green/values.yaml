@@ -12,9 +12,6 @@ manager:
     pullPolicy: IfNotPresent
     # -- The specific image tag of the kube-green manager to use.
     tag: "0.6.0"
-
-  # -- Sets the logging verbosity level. A value of 0 means minimal logging.
-  verbosity: 0
   securityContext:
     # -- Prevents the pod from gaining additional privileges. Set to false for security.
     allowPrivilegeEscalation: false
@@ -22,7 +19,6 @@ manager:
       drop:
         # -- Drops all Linux capabilities for the pod, enhancing security.
         - ALL
-
   resources:
     limits:
       # -- Maximum CPU allowed.
@@ -37,19 +33,33 @@ manager:
 
 kubeRbacProxy:
   image:
+    registry: gcr.io
     # -- Docker image repository for the kube-rbac-proxy.
-    repository: gcr.io/kubebuilder/kube-rbac-proxy
+    repository: kubebuilder/kube-rbac-proxy
     # -- Image pull policy.
     pullPolicy: IfNotPresent
     # -- Specific image tag to use for the kube-rbac-proxy.
     tag: "v0.16.0"
+  # -- Sets the logging verbosity level. A value of 0 means minimal logging.
+  verbosity: 0
   resources:
     limits:
+      # -- Maximum CPU allowed.
       cpu: 500m
+      # -- Maximum memory allowed.
       memory: 128Mi
     requests:
+      # -- Requested CPU to guarantee for the pod.
       cpu: 5m
+      # -- Requested memory to guarantee for the pod.
       memory: 64Mi
+  securityContext:
+    # -- Prevents the pod from gaining additional privileges. Set to false for security.
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        # -- Drops all Linux capabilities for the pod, enhancing security.
+        - ALL
 
 # -- List of secrets used to access private image repositories.
 imagePullSecrets: []
@@ -100,7 +110,7 @@ jobsCert:
     registry: registry.k8s.io
     repository: ingress-nginx/kube-webhook-certgen
     tag: "v20221220-controller-v1.5.1-58-g787ea74b6"
-    pullPolicy: Always
+    pullPolicy: IfNotPresent
 
 rbac:
   customClusterRole:
