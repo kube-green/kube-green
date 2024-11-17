@@ -1,0 +1,247 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "nameOverride": {
+      "type": "string"
+    },
+    "fullnameOverride": {
+      "type": "string"
+    },
+    "manager": {
+      "$ref": "#/definitions/container"
+    },
+    "kubeRbacProxy": {
+      "type": "object",
+      "allOf": [
+        { "$ref": "#/definitions/container" },
+        {
+          "type": "object",
+          "properties": {
+            "verbosity": {
+              "type": "integer"
+            }
+          },
+          "required": ["verbosity"]
+        }
+      ]
+    },
+    "imagePullSecrets": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "serviceAccount": {
+      "type": "object",
+      "properties": {
+        "create": {
+          "type": "boolean"
+        },
+        "annotations": {
+          "type": "object"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": ["create", "annotations", "name"]
+    },
+    "podAnnotations": {
+      "type": "object"
+    },
+    "podSecurityContext": {
+      "type": "object"
+    },
+    "service": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "port": {
+          "type": "integer"
+        }
+      },
+      "required": ["type", "port"]
+    },
+    "nodeSelector": {
+      "type": "object"
+    },
+    "tolerations": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "affinity": {
+      "type": "object"
+    },
+    "priorityClassName": {
+      "type": "string"
+    },
+    "topologySpreadConstraints": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "certManager": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        }
+      },
+      "required": ["enabled"]
+    },
+    "jobsCert": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "image": {
+          "$ref": "#/definitions/image"
+        }
+      },
+      "required": ["enabled", "image"]
+    },
+    "rbac": {
+      "type": "object",
+      "properties": {
+        "customClusterRole": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "name": {
+              "type": "string"
+            },
+            "rules": {
+              "type": "array",
+              "items": {
+                "type": "object"
+              }
+            }
+          },
+          "required": ["enabled", "name", "rules"]
+        }
+      },
+      "required": ["customClusterRole"]
+    },
+    "crds": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "keep": {
+          "type": "boolean"
+        }
+      },
+      "required": ["enabled", "keep"]
+    }
+  },
+  "definitions": {
+    "container": {
+      "type": "object",
+      "properties": {
+        "image": {
+          "$ref": "#/definitions/image"
+        },
+        "securityContext": {
+          "type": "object",
+          "properties": {
+            "allowPrivilegeEscalation": {
+              "type": "boolean"
+            },
+            "capabilities": {
+              "type": "object",
+              "properties": {
+                "drop": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": ["drop"]
+            }
+          },
+          "required": ["allowPrivilegeEscalation", "capabilities"]
+        },
+        "resources": {
+          "type": "object",
+          "properties": {
+            "limits": {
+              "type": "object",
+              "properties": {
+                "cpu": {
+                  "type": "string"
+                },
+                "memory": {
+                  "type": "string"
+                }
+              },
+              "required": ["cpu", "memory"]
+            },
+            "requests": {
+              "type": "object",
+              "properties": {
+                "cpu": {
+                  "type": "string"
+                },
+                "memory": {
+                  "type": "string"
+                }
+              },
+              "required": ["cpu", "memory"]
+            }
+          },
+          "required": ["limits", "requests"]
+        }
+      },
+      "required": ["image", "securityContext", "resources"]
+    },
+    "image": {
+      "type": "object",
+      "properties": {
+        "registry": {
+          "type": "string"
+        },
+        "repository": {
+          "type": "string"
+        },
+        "tag": {
+          "type": "string"
+        },
+        "pullPolicy": {
+          "type": "string"
+        }
+      },
+      "required": ["repository", "tag", "pullPolicy"]
+    }
+  },
+  "required": [
+    "nameOverride",
+    "fullnameOverride",
+    "manager",
+    "kubeRbacProxy",
+    "imagePullSecrets",
+    "serviceAccount",
+    "podAnnotations",
+    "podSecurityContext",
+    "service",
+    "nodeSelector",
+    "tolerations",
+    "affinity",
+    "priorityClassName",
+    "topologySpreadConstraints",
+    "certManager",
+    "jobsCert",
+    "rbac",
+    "crds"
+  ]
+}

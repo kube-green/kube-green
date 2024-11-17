@@ -507,7 +507,7 @@ spec:
         - --leader-elect
         command:
         - /manager
-        image:  "kubegreen/kube-green:0.6.0"
+        image: kubegreen/kube-green:0.6.0
         imagePullPolicy: IfNotPresent
         livenessProbe:
           httpGet:
@@ -548,7 +548,7 @@ spec:
         - --secure-listen-address=0.0.0.0:8443
         - --upstream=http://127.0.0.1:8080/
         - --v=0
-        image: "gcr.io/kubebuilder/kube-rbac-proxy:v0.16.0"
+        image: gcr.io/kubebuilder/kube-rbac-proxy:v0.16.0
         imagePullPolicy: IfNotPresent
         name: kube-rbac-proxy
         ports:
