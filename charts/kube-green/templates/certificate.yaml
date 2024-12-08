@@ -6,8 +6,8 @@ metadata:
   namespace: {{ .Release.Namespace }}
 spec:
   dnsNames:
-  - kube-green-webhook-service.kube-green.svc
-  - kube-green-webhook-service.kube-green.svc.cluster.local
+  - {{ printf "kube-green-webhook-service.%s.svc" .Release.Namespace }}
+  - {{ printf "kube-green-webhook-service.%s.svc.cluster.local" .Release.Namespace }}
   issuerRef:
     kind: Issuer
     name: kube-green-selfsigned-issuer
