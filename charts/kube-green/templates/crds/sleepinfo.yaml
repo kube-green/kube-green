@@ -9,7 +9,6 @@ metadata:
     {{ if .Values.crds.keep -}}
     helm.sh/resource-policy: keep
     {{ end -}}
-    controller-gen.kubebuilder.io/version: v0.14.0
   creationTimestamp: null
   name: sleepinfos.kube-green.com
 spec:

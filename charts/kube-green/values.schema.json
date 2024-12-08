@@ -11,21 +11,6 @@
     "manager": {
       "$ref": "#/definitions/container"
     },
-    "kubeRbacProxy": {
-      "type": "object",
-      "allOf": [
-        { "$ref": "#/definitions/container" },
-        {
-          "type": "object",
-          "properties": {
-            "verbosity": {
-              "type": "integer"
-            }
-          },
-          "required": ["verbosity"]
-        }
-      ]
-    },
     "imagePullSecrets": {
       "type": "array",
       "items": {
@@ -228,7 +213,6 @@
     "nameOverride",
     "fullnameOverride",
     "manager",
-    "kubeRbacProxy",
     "imagePullSecrets",
     "serviceAccount",
     "podAnnotations",
