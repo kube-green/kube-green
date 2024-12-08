@@ -28,8 +28,8 @@ spec:
     spec:
       containers:
       - args:
+        - --metrics-bind-address=:8443
         - --health-probe-bind-address=:8081
-        - --metrics-bind-address=127.0.0.1:8080
         - --leader-elect
         command:
         - /manager
@@ -68,30 +68,6 @@ spec:
         - mountPath: /tmp/k8s-webhook-server/serving-certs
           name: cert
           readOnly: true
-      - args:
-        - --secure-listen-address=0.0.0.0:8443
-        - --upstream=http://127.0.0.1:8080/
-        - --v={{ .Values.kubeRbacProxy.verbosity }}
-        image: {{ include "image" .Values.kubeRbacProxy.image }}
-        imagePullPolicy: {{ .Values.kubeRbacProxy.image.pullPolicy }}
-        name: kube-rbac-proxy
-        ports:
-        - containerPort: 8443
-          name: https
-          protocol: TCP
-        resources:
-          limits:
-            cpu: {{ .Values.kubeRbacProxy.resources.limits.cpu }}
-            memory: {{ .Values.kubeRbacProxy.resources.limits.memory }}
-          requests:
-            cpu: {{ .Values.kubeRbacProxy.resources.requests.cpu }}
-            memory: {{ .Values.kubeRbacProxy.resources.requests.memory }}
-        {{- if .Values.kubeRbacProxy.securityContext }}
-        securityContext:
-        {{ toYaml .Values.kubeRbacProxy.securityContext | nindent 10 }}
-        {{- else }}
-        securityContext: {}
-        {{- end }}
       securityContext:
         runAsNonRoot: true
         seccompProfile:
