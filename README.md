@@ -7,8 +7,8 @@
 [![CNCF Landscape][cncf-badge]][cncf-landscape]
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/kube-green/kube-green/main/logo/logo-dark.svg">
-  <img alt="Dark kube-green logo" src="https://raw.githubusercontent.com/kube-green/kube-green/main/logo/logo.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/kube-green/kube-green/main/logo/logo-horizontal-dark.svg">
+  <img alt="Dark kube-green logo" src="https://raw.githubusercontent.com/kube-green/kube-green/main/logo/logo-horizontal.svg">
 </picture>
 
 How many of your dev/preview pods stay on during weekends? Or at night? It's a waste of resources! And money! But fear not, *kube-green* is here to the rescue.
