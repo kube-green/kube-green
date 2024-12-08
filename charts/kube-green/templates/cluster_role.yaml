@@ -101,7 +101,7 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: kube-green-proxy-role
+  name: kube-green-metrics-auth-role
 rules:
 - apiGroups:
   - authentication.k8s.io
