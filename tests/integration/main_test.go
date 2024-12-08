@@ -20,6 +20,7 @@ import (
 	"sigs.k8s.io/e2e-framework/pkg/envfuncs"
 	"sigs.k8s.io/e2e-framework/pkg/features"
 	"sigs.k8s.io/e2e-framework/support/kind"
+	"sigs.k8s.io/e2e-framework/third_party/helm"
 )
 
 var (
@@ -32,6 +33,8 @@ const (
 	kindVersionVariableName          = "KIND_K8S_VERSION"
 	kindNodeImage                    = "kindest/node"
 	disableDeleteClusterVariableName = "DISABLE_DELETE_CLUSTER"
+	installationModeVariableName     = "INSTALLATION_MODE"
+	kubeGreenInstallationMode        = "helm"
 )
 
 func TestMain(m *testing.M) {
@@ -55,7 +58,6 @@ func TestMain(m *testing.M) {
 		createKindClusterWithVersion(kindClusterName, "testdata/kind-config.test.yaml"),
 		setContextOrPanic(kindClusterName),
 		testutil.GetClusterVersion(),
-		installCertManager(),
 		buildDockerImage(kubegreenTestImage),
 		envfuncs.LoadDockerImageToCluster(kindClusterName, kubegreenTestImage),
 		installKubeGreen(),
@@ -109,7 +111,31 @@ func installCertManager() env.Func {
 
 func installKubeGreen() env.Func {
 	return func(ctx context.Context, c *envconf.Config) (context.Context, error) {
-		ctx, err := envfuncs.SetupCRDs("/tmp", "kube-green-e2e-test.yaml")(ctx, c)
+		mode, ok := os.LookupEnv(installationModeVariableName)
+		if !ok {
+			mode = kubeGreenInstallationMode
+		}
+		switch mode {
+		case "kustomize":
+			fmt.Println("installing kube-green with kustomize")
+			return installKubeGreenWithKustomize()(ctx, c)
+		case "helm":
+			fmt.Println("installing kube-green with kustomize")
+			return installWithHelmChart()(ctx, c)
+		default:
+			return ctx, fmt.Errorf("installation mode %s not supported", mode)
+		}
+	}
+}
+
+func installKubeGreenWithKustomize() env.Func {
+	return func(ctx context.Context, c *envconf.Config) (context.Context, error) {
+		ctx, err := installCertManager()(ctx, c)
+		if err != nil {
+			return ctx, err
+		}
+
+		ctx, err = envfuncs.SetupCRDs("/tmp", "kube-green-e2e-test.yaml")(ctx, c)
 		if err != nil {
 			return ctx, err
 		}
@@ -117,10 +143,33 @@ func installKubeGreen() env.Func {
 		if p := e.RunProc("kubectl wait --for=condition=ready --timeout=160s pod -l app=kube-green -n kube-green"); p.Err() != nil {
 			return ctx, fmt.Errorf("kubectl wait kube-green webhook %s: %s", p.Err(), p.Result())
 		}
-		// TODO: this sleep is because sometimes kube-green is flag as ready but webhook
+		// TODO: this sleep is because sometimes kube-green is flagged as ready but webhook
 		// is not ready. We should investigate about it.
 		time.Sleep(2 * time.Second)
-		fmt.Printf("kube-green running\n")
+		fmt.Println("kube-green running")
+		return ctx, nil
+	}
+}
+
+func installWithHelmChart() env.Func {
+	return func(ctx context.Context, c *envconf.Config) (context.Context, error) {
+		manager := helm.New(c.KubeconfigFile())
+		err := manager.RunInstall(
+			helm.WithChart("../../charts/kube-green"),
+			helm.WithNamespace("kube-green-system"),
+			helm.WithArgs(
+				"--set", "certManager.enabled=false",
+				"--set", "jobsCert.enabled=true",
+
+				"--generate-name",
+				"--create-namespace",
+				"--wait",
+			),
+		)
+		if err != nil {
+			return nil, err
+		}
+
 		return ctx, nil
 	}
 }

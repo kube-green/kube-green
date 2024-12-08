@@ -43,7 +43,13 @@ It is possible to run all the unit tests with
 make test
 ```
 
-To run integration tests:
+To run integration tests installing kube-green with kustomize, run:
+
+```sh
+make e2e-test-kustomize
+```
+
+otherwise, to run integration tests installing kube-green with helm, run:
 
 ```sh
 make e2e-test
