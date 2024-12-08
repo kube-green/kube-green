@@ -113,7 +113,7 @@ jobs:
 
   docker-build:
     name: Build docker
-    needs: [tests, e2e]
+    needs: [tests, e2e-kustomize, e2e-helm, chart]
     runs-on: ubuntu-latest
     if: ${{ startsWith(github.ref, 'refs/tags/') || github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
 
