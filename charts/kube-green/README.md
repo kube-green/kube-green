@@ -19,17 +19,6 @@ kube-green helm chart
 | jobsCert.image.registry | string | `"registry.k8s.io"` |  |
 | jobsCert.image.repository | string | `"ingress-nginx/kube-webhook-certgen"` |  |
 | jobsCert.image.tag | string | `"v20221220-controller-v1.5.1-58-g787ea74b6"` |  |
-| kubeRbacProxy.image.pullPolicy | string | `"IfNotPresent"` | Image pull policy. |
-| kubeRbacProxy.image.registry | string | `"gcr.io"` |  |
-| kubeRbacProxy.image.repository | string | `"kubebuilder/kube-rbac-proxy"` | Docker image repository for the kube-rbac-proxy. |
-| kubeRbacProxy.image.tag | string | `"v0.16.0"` | Specific image tag to use for the kube-rbac-proxy. |
-| kubeRbacProxy.resources.limits.cpu | string | `"500m"` | Maximum CPU allowed. |
-| kubeRbacProxy.resources.limits.memory | string | `"128Mi"` | Maximum memory allowed. |
-| kubeRbacProxy.resources.requests.cpu | string | `"5m"` | Requested CPU to guarantee for the pod. |
-| kubeRbacProxy.resources.requests.memory | string | `"64Mi"` | Requested memory to guarantee for the pod. |
-| kubeRbacProxy.securityContext.allowPrivilegeEscalation | bool | `false` | Prevents the pod from gaining additional privileges. Set to false for security. |
-| kubeRbacProxy.securityContext.capabilities.drop[0] | string | `"ALL"` | Drops all Linux capabilities for the pod, enhancing security. |
-| kubeRbacProxy.verbosity | int | `0` | Sets the logging verbosity level. A value of 0 means minimal logging. |
 | manager.image.pullPolicy | string | `"IfNotPresent"` | Defines the image pull policy. Avoids pulling the image if it's already present. |
 | manager.image.repository | string | `"kubegreen/kube-green"` | The Docker image repository for the kube-green manager application. |
 | manager.image.tag | string | `"0.6.0"` | The specific image tag of the kube-green manager to use. |
