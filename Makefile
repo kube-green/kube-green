@@ -127,11 +127,16 @@ test: manifests generate fmt vet gotestsum envtest ## Run tests.
 coverage:
 	GO_TEST_ARGS='-cover -coverprofile cover.out' $(MAKE) test
 
-.PHONY: e2e-test
-e2e-test: manifests generate kustomize
+.PHONY: e2e-test-kustomize
+e2e-test-kustomize: manifests generate kustomize
 	@$(KUSTOMIZE) build ./config/e2e-test/ -o /tmp/kube-green-e2e-test.yaml
 	@rm -rf ./tests/integration/tests-logs/
 	@echo "==> Generated K8s resource file with Kustomize"
+	INSTALLATION_MODE=kustomize go test -tags=e2e ./tests/integration/ -count 1 $(OPTION)
+
+.PHONY: e2e-test
+e2e-test:
+	@rm -rf ./tests/integration/tests-logs/
 	go test -tags=e2e ./tests/integration/ -count 1 $(OPTION)
 
 ##@ Build

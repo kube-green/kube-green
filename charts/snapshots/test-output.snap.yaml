@@ -588,8 +588,8 @@ metadata:
   namespace: default
 spec:
   dnsNames:
-  - kube-green-webhook-service.kube-green.svc
-  - kube-green-webhook-service.kube-green.svc.cluster.local
+  - kube-green-webhook-service.default.svc
+  - kube-green-webhook-service.default.svc.cluster.local
   issuerRef:
     kind: Issuer
     name: kube-green-selfsigned-issuer
