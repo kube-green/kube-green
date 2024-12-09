@@ -33,13 +33,13 @@ type SleepInfoSpec struct {
 	// Weekdays are in cron notation.
 	//
 	// For example, to configure a schedule from monday to friday, set it to "1-5"
-	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Weekdays string `json:"weekdays"`
 	// Hours:Minutes
 	//
 	// Accept cron schedule for both hour and minute.
 	// For example, *:*/2 is set to configure a run every even minute.
-	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	SleepTime string `json:"sleepAt"`
 	// Hours:Minutes
 	//
@@ -47,57 +47,57 @@ type SleepInfoSpec struct {
 	// For example, *:*/2 is set to configure a run every even minute.
 	// It is not required.
 	// +optional
-	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	WakeUpTime string `json:"wakeUpAt,omitempty"`
 	// Time zone to set the schedule, in IANA time zone identifier.
 	// It is not required, default to UTC.
 	// For example, for the Italy time zone set Europe/Rome.
 	// +optional
-	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	TimeZone string `json:"timeZone,omitempty"`
 	// ExcludeRef define the resource to exclude from the sleep.
 	// Exclusion rules are evaluated in AND condition.
 	// +optional
-	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	ExcludeRef []FilterRef `json:"excludeRef,omitempty"`
 	// IncludeRef define the resource to include from the sleep.
 	// Inclusion rules are evaluated in AND condition.
 	// +optional
-	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	IncludeRef []FilterRef `json:"includeRef,omitempty"`
 	// If SuspendCronjobs is set to true, on sleep the cronjobs of the namespace will be suspended.
 	// +optional
-	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	SuspendCronjobs bool `json:"suspendCronJobs,omitempty"`
 	// If SuspendDeployments is set to false, on sleep the deployment of the namespace will not be suspended. By default Deployment will be suspended.
 	// +optional
-	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	SuspendDeployments *bool `json:"suspendDeployments,omitempty"`
 	// If SuspendStatefulSets is set to false, on sleep the statefulset of the namespace will not be suspended. By default StatefulSet will be suspended.
 	// +optional
-	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	SuspendStatefulSets *bool `json:"suspendStatefulSets,omitempty"`
 	// Patches is a list of json 6902 patches to apply to the target resources.
 	// +optional
-	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Patches []Patch `json:"patches,omitempty"`
 }
 
 type Patch struct {
 	// Target is the target resource to patch.
-	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Target PatchTarget `json:"target"`
 	// Patch is the json6902 patch to apply to the target resource.
-	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Patch string `json:"patch"`
 }
 
 type PatchTarget struct {
 	// Group of the Kubernetes resources.
-	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Group string `json:"group"`
 	// Kind of the Kubernetes resources.
-	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Kind string `json:"kind"`
 }
 
@@ -116,19 +116,19 @@ func (p PatchTarget) GroupKind() schema.GroupKind {
 type SleepInfoStatus struct {
 	// Information when was the last time the run was successfully scheduled.
 	// +optional
-	//+operator-sdk:csv:customresourcedefinitions:type=status,displayName="Last Schedule Time"
+	// +operator-sdk:csv:customresourcedefinitions:type=status,displayName="Last Schedule Time"
 	LastScheduleTime metav1.Time `json:"lastScheduleTime,omitempty"`
 	// The operation type handled in last schedule. SLEEP or WAKE_UP are the
 	// possibilities
 	// +optional
-	//+operator-sdk:csv:customresourcedefinitions:type=status,displayName="Operation Type"
+	// +operator-sdk:csv:customresourcedefinitions:type=status,displayName="Operation Type"
 	OperationType string `json:"operation,omitempty"`
 }
 
-//+kubebuilder:object:root=true
-//+kubebuilder:subresource:status
-//+kubebuilder:resource:path=sleepinfos
-//+operator-sdk:csv:customresourcedefinitions:displayName="SleepInfo",resources={{Secret,v1,sleepinfo}}
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +kubebuilder:resource:path=sleepinfos
+// +operator-sdk:csv:customresourcedefinitions:displayName="SleepInfo",resources={{Secret,v1,sleepinfo}}
 // +genclient - this is required for auto generated docs
 
 // SleepInfo is the Schema for the sleepinfos API
@@ -209,7 +209,7 @@ func (s SleepInfo) GetPatches() []Patch {
 	return append(patches, s.Spec.Patches...)
 }
 
-//+kubebuilder:object:root=true
+// +kubebuilder:object:root=true
 
 // SleepInfoList contains a list of SleepInfo
 type SleepInfoList struct {
