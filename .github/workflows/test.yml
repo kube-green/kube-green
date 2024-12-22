@@ -76,7 +76,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: ${{ failure() }}
         with:
-          name: e2e-logs-${{ env.GITHUB_RUN_ID }}
+          name: e2e-logs-kustomize-${{ env.GITHUB_RUN_ID }}
           path: ./tests/integration/tests-logs/
           retention-days: 1
 
@@ -99,7 +99,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: ${{ failure() }}
         with:
-          name: e2e-logs-${{ env.GITHUB_RUN_ID }}
+          name: e2e-logs-helm-${{ env.GITHUB_RUN_ID }}
           path: ./tests/integration/tests-logs/
           retention-days: 1
 
