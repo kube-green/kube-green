@@ -3,7 +3,7 @@ kind: Service
 metadata:
   labels:
     control-plane: controller-manager
-    app.kubernetes.io/name: <operator-name>
+    app.kubernetes.io/name: kube-green
     app.kubernetes.io/managed-by: kustomize
   name: controller-manager-metrics-service
   namespace: system

@@ -60,7 +60,7 @@ jobs:
           parallel-finished: true
 
   e2e-kustomize:
-    name: e2e test with kind
+    name: e2e test with kustomize in kind cluster
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -81,7 +81,7 @@ jobs:
           retention-days: 1
 
   e2e-helm:
-    name: e2e test with kind
+    name: e2e test with helm in kind cluster
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
