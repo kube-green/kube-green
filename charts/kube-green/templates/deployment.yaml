@@ -28,7 +28,12 @@ spec:
     spec:
       containers:
       - args:
-        - --metrics-bind-address=:8443
+        {{- with .Values.manager.metrics }}
+        {{ if .enabled -}}
+        - --metrics-bind-address={{ .bindAddress }}
+        - --metrics-secure={{ default true .secure }}
+        {{- end }}
+        {{- end }}
         - --health-probe-bind-address=:8081
         - --leader-elect
         command:

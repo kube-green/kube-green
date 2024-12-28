@@ -482,6 +482,7 @@ spec:
       containers:
       - args:
         - --metrics-bind-address=:8443
+        - --metrics-secure=true
         - --health-probe-bind-address=:8081
         - --leader-elect
         command:
