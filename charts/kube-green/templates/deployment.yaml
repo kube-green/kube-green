@@ -36,6 +36,7 @@ spec:
         {{- end }}
         - --health-probe-bind-address=:8081
         - --leader-elect
+        - --webhook-cert-path=/tmp/k8s-webhook-server/serving-certs
         command:
         - /manager
         image: {{ include "image" .Values.manager.image }}
