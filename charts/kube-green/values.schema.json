@@ -9,7 +9,36 @@
       "type": "string"
     },
     "manager": {
-      "$ref": "#/definitions/container"
+      "allOf": [
+        {
+          "$ref": "#/definitions/container"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "metrics": {
+              "type": "object",
+              "properties": {
+                "enabled": {
+                  "type": "boolean",
+                  "default": true
+                },
+                "port": {
+                  "bindAddress": "string",
+                  "default": ":8443"
+                },
+                "secure": {
+                  "type": "boolean",
+                  "default": true
+                },
+                "certPath": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ]
     },
     "imagePullSecrets": {
       "type": "array",

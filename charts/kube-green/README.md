@@ -22,6 +22,10 @@ kube-green helm chart
 | manager.image.pullPolicy | string | `"IfNotPresent"` | Defines the image pull policy. Avoids pulling the image if it's already present. |
 | manager.image.repository | string | `"kubegreen/kube-green"` | The Docker image repository for the kube-green manager application. |
 | manager.image.tag | string | `"0.6.0"` | The specific image tag of the kube-green manager to use. |
+| manager.metrics.bindAddress | string | `":8443"` | The address to bind the metrics server. |
+| manager.metrics.certPath | string | `""` | The path to the certificate folder for the metrics server. Inside, the files tls.crt and tls.key are expected. If not set, |
+| manager.metrics.enabled | bool | `true` | If enabled, the manager will expose metrics. |
+| manager.metrics.secure | bool | `true` | If true, the metrics server will use a secure connection via HTTPS. Set it to false to use HTTP instead. |
 | manager.resources.limits.cpu | string | `"400m"` | Maximum CPU allowed. |
 | manager.resources.limits.memory | string | `"400Mi"` | Maximum memory allowed. |
 | manager.resources.requests.cpu | string | `"100m"` | Requested CPU to guarantee for the pod. |

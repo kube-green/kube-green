@@ -32,6 +32,9 @@ spec:
         {{ if .enabled -}}
         - --metrics-bind-address={{ .bindAddress }}
         - --metrics-secure={{ default true .secure }}
+        {{- if .certPath }}
+        - --metrics-cert-path={{ .certPath }}
+        {{- end }}
         {{- end }}
         {{- end }}
         - --health-probe-bind-address=:8081

@@ -30,7 +30,6 @@ manager:
       cpu: 100m
       # -- Requested memory to guarantee for the pod.
       memory: 50Mi
-  # -- Metrics configuration for the manager.
   metrics:
     # -- If enabled, the manager will expose metrics.
     enabled: true
@@ -38,6 +37,8 @@ manager:
     bindAddress: ":8443"
     # -- If true, the metrics server will use a secure connection via HTTPS. Set it to false to use HTTP instead.
     secure: true
+    # -- The path to the certificate folder for the metrics server. Inside, the files tls.crt and tls.key are expected. If not set,
+    certPath: ""
 
 # -- List of secrets used to access private image repositories.
 imagePullSecrets: []

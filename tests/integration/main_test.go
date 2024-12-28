@@ -158,6 +158,7 @@ func installWithHelmChart() env.Func {
 			helm.WithChart("../../charts/kube-green"),
 			helm.WithNamespace("kube-green-system"),
 			helm.WithArgs(
+				"--set", "manager.image.tag=e2e-test",
 				"--set", "certManager.enabled=false",
 				"--set", "jobsCert.enabled=true",
 
