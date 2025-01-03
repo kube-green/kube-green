@@ -1040,11 +1040,12 @@ func getSleepInfoReconciler(t *testing.T, c *envconf.Config, logger logr.Logger,
 			now: now,
 			t:   t,
 		},
-		Client:      k8sClient,
-		Log:         logger,
-		Metrics:     metrics.SetupMetricsOrDie("kube_green"),
-		SleepDelta:  60,
-		ManagerName: "kube-green",
+		Client:                  k8sClient,
+		Log:                     logger,
+		Metrics:                 metrics.SetupMetricsOrDie("kube_green"),
+		SleepDelta:              60,
+		MaxConcurrentReconciles: 30,
+		ManagerName:             "kube-green",
 	}
 }
 
@@ -1257,11 +1258,12 @@ func nextReconciler(t *testing.T, ctx context.Context) SleepInfoReconciler {
 			now: assert.scheduleTime,
 			t:   t,
 		},
-		Client:      assert.reconciler.Client,
-		Log:         assert.reconciler.Log,
-		Metrics:     assert.reconciler.Metrics,
-		SleepDelta:  60,
-		ManagerName: "kube-green",
+		Client:                  assert.reconciler.Client,
+		Log:                     assert.reconciler.Log,
+		Metrics:                 assert.reconciler.Metrics,
+		SleepDelta:              60,
+		MaxConcurrentReconciles: 30,
+		ManagerName:             "kube-green",
 	}
 	result, err := sleepInfoReconciler.Reconcile(ctx, assert.req)
 	require.NoError(t, err)

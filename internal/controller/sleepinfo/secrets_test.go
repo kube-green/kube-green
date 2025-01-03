@@ -43,10 +43,11 @@ func TestGetSecret(t *testing.T) {
 				Build(),
 		}
 		r := SleepInfoReconciler{
-			Client:      client,
-			Log:         testLogger,
-			SleepDelta:  60,
-			ManagerName: managerName,
+			Client:                  client,
+			Log:                     testLogger,
+			SleepDelta:              60,
+			ManagerName:             managerName,
+			MaxConcurrentReconciles: 30,
 		}
 
 		secret, err := r.getSecret(context.Background(), secretName, namespace)
@@ -74,10 +75,11 @@ func TestGetSecret(t *testing.T) {
 				Build(),
 		}
 		r := SleepInfoReconciler{
-			Client:      client,
-			Log:         testLogger,
-			SleepDelta:  60,
-			ManagerName: managerName,
+			Client:                  client,
+			Log:                     testLogger,
+			SleepDelta:              60,
+			MaxConcurrentReconciles: 30,
+			ManagerName:             managerName,
 		}
 
 		secret, err := r.getSecret(context.Background(), secretName, namespace)
@@ -214,10 +216,11 @@ func TestUpsertSecrets(t *testing.T) {
 		client := fakeDeploymentClient(&d1, &d2, &d3)
 
 		r := SleepInfoReconciler{
-			Client:      client,
-			Log:         testLogger,
-			SleepDelta:  60,
-			ManagerName: managerName,
+			Client:                  client,
+			Log:                     testLogger,
+			SleepDelta:              60,
+			MaxConcurrentReconciles: 10,
+			ManagerName:             managerName,
 		}
 		sleepInfoData := SleepInfoData{
 			CurrentOperationType: sleepOperation,

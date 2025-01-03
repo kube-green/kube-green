@@ -56,6 +56,7 @@ func main() {
 	var sleepDelta int64
 	var secureMetrics bool
 	var enableHTTP2 bool
+	var maxConcurrentReconciles int
 	flag.StringVar(&webhookHost, "webhook-host", "", "The host where the server binds to. Default means all interfaces.")
 	flag.IntVar(&webhookPort, "webhook-server-port", 9443, "The port where the server will listen.")
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
@@ -68,6 +69,7 @@ func main() {
 		"If set the metrics endpoint is served securely")
 	flag.BoolVar(&enableHTTP2, "enable-http2", false,
 		"If set, HTTP/2 will be enabled for the metrics and webhook servers")
+	flag.IntVar(&maxConcurrentReconciles, "max-concurrent-reconciles", 20, "Max concurrent schedules that will be processed at the same time.")
 
 	opts := zap.Options{}
 	opts.BindFlags(flag.CommandLine)
@@ -122,12 +124,13 @@ func main() {
 	customMetrics := metrics.SetupMetricsOrDie("kube_green").MustRegister(ctrlMetrics.Registry)
 
 	if err = (&sleepinfocontroller.SleepInfoReconciler{
-		Client:      mgr.GetClient(),
-		Log:         ctrl.Log.WithName("controllers").WithName("SleepInfo"),
-		Scheme:      mgr.GetScheme(),
-		Metrics:     customMetrics,
-		SleepDelta:  sleepDelta,
-		ManagerName: managerName,
+		Client:                  mgr.GetClient(),
+		Log:                     ctrl.Log.WithName("controllers").WithName("SleepInfo"),
+		Scheme:                  mgr.GetScheme(),
+		Metrics:                 customMetrics,
+		SleepDelta:              sleepDelta,
+		ManagerName:             managerName,
+		MaxConcurrentReconciles: maxConcurrentReconciles,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "SleepInfo")
 		os.Exit(1)
