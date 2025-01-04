@@ -106,7 +106,7 @@ replacements:
          kind: Certificate
          group: cert-manager.io
          version: v1
-         name: service-cert
+         name: serving-cert
        fieldPaths:
          - .spec.dnsNames.0
          - .spec.dnsNames.1
@@ -124,7 +124,7 @@ replacements:
          kind: Certificate
          group: cert-manager.io
          version: v1
-         name: service-cert
+         name: serving-cert
        fieldPaths:
          - .spec.dnsNames.0
          - .spec.dnsNames.1

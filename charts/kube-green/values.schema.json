@@ -67,18 +67,6 @@
     "podSecurityContext": {
       "type": "object"
     },
-    "service": {
-      "type": "object",
-      "properties": {
-        "type": {
-          "type": "string"
-        },
-        "port": {
-          "type": "integer"
-        }
-      },
-      "required": ["type", "port"]
-    },
     "nodeSelector": {
       "type": "object"
     },
@@ -246,7 +234,6 @@
     "serviceAccount",
     "podAnnotations",
     "podSecurityContext",
-    "service",
     "nodeSelector",
     "tolerations",
     "affinity",

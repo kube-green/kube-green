@@ -34,11 +34,9 @@ manager:
     # -- If enabled, the manager will expose metrics.
     enabled: true
     # -- The address to bind the metrics server.
-    bindAddress: ":8443"
-    # -- If true, the metrics server will use a secure connection via HTTPS. Set it to false to use HTTP instead.
+    port: 8443
+    # -- If true, the metrics server will use a secure connection via HTTPS. Set it to false to use HTTP instead. The certificate will be created in a secret called "metrics-server-cert".
     secure: true
-    # -- The path to the certificate folder for the metrics server. Inside, the files tls.crt and tls.key are expected. If not set,
-    certPath: ""
 
 # -- List of secrets used to access private image repositories.
 imagePullSecrets: []
@@ -56,12 +54,6 @@ podAnnotations: {}
 
 # -- Security settings that apply to all containers in the pod.
 podSecurityContext: {}
-
-service:
-  # -- Type of service to expose.
-  type: ClusterIP
-  # -- Port for the service.
-  port: 80
 
 # -- Node labels for pod assignment.
 nodeSelector: {}

@@ -483,6 +483,7 @@ spec:
       - args:
         - --metrics-bind-address=:8443
         - --metrics-secure=true
+        - --metrics-cert-path=/tmp/k8s-metrics-server/metrics-certs
         - --health-probe-bind-address=:8081
         - --leader-elect
         - --webhook-cert-path=/tmp/k8s-webhook-server/serving-certs
@@ -525,6 +526,9 @@ spec:
         - mountPath: /tmp/k8s-webhook-server/serving-certs
           name: cert
           readOnly: true
+        - mountPath: /tmp/k8s-metrics-server/metrics-certs
+          name: metrics-cert
+          readOnly: true
       securityContext:
         runAsNonRoot: true
         seccompProfile:
@@ -536,8 +540,18 @@ spec:
         secret:
           defaultMode: 420
           secretName: webhook-server-cert
+      - name: metrics-cert
+        secret:
+          secretName: metrics-server-cert
+          items:
+            - key: ca.crt
+              path: ca.crt
+            - key: tls.crt
+              path: tls.crt
+            - key: tls.key
+              path: tls.key
 ---
-# Source: kube-green/templates/certificate.yaml
+# Source: kube-green/templates/cert-manager.yaml
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
@@ -552,7 +566,22 @@ spec:
     name: kube-green-selfsigned-issuer
   secretName: webhook-server-cert
 ---
-# Source: kube-green/templates/certificate.yaml
+# Source: kube-green/templates/cert-manager.yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: kube-green-metrics-certs
+  namespace: default
+spec:
+  dnsNames:
+  - kube-green-controller-manager-metrics-service.default.svc
+  - kube-green-controller-manager-metrics-service.default.svc.cluster.local
+  issuerRef:
+    kind: Issuer
+    name: kube-green-selfsigned-issuer
+  secretName: metrics-server-cert
+---
+# Source: kube-green/templates/cert-manager.yaml
 apiVersion: cert-manager.io/v1
 kind: Issuer
 metadata:

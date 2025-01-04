@@ -28,15 +28,15 @@ spec:
     spec:
       containers:
       - args:
-        {{- with .Values.manager.metrics }}
+        {{ with .Values.manager.metrics -}}
         {{ if .enabled -}}
-        - --metrics-bind-address={{ .bindAddress }}
-        - --metrics-secure={{ default true .secure }}
-        {{- if .certPath }}
-        - --metrics-cert-path={{ .certPath }}
+        - --metrics-bind-address={{ printf ":%d" (int64 .port) }}
+        - --metrics-secure={{ .secure }}
+        {{ if and $.Values.manager.metrics.enabled $.Values.manager.metrics.secure -}}
+        - --metrics-cert-path=/tmp/k8s-metrics-server/metrics-certs
+        {{ end }}
         {{- end }}
-        {{- end }}
-        {{- end }}
+        {{- end -}}
         - --health-probe-bind-address=:8081
         - --leader-elect
         - --webhook-cert-path=/tmp/k8s-webhook-server/serving-certs
@@ -77,6 +77,11 @@ spec:
         - mountPath: /tmp/k8s-webhook-server/serving-certs
           name: cert
           readOnly: true
+        {{- if and $.Values.manager.metrics.enabled $.Values.manager.metrics.secure }}
+        - mountPath: /tmp/k8s-metrics-server/metrics-certs
+          name: metrics-cert
+          readOnly: true
+        {{- end }}
       securityContext:
         runAsNonRoot: true
         seccompProfile:
@@ -92,6 +97,18 @@ spec:
         secret:
           defaultMode: 420
           secretName: {{ include "kube-green.webhook.secret.name" . }}
+      {{ if and $.Values.manager.metrics.enabled $.Values.manager.metrics.secure -}}
+      - name: metrics-cert
+        secret:
+          secretName: {{ include "kube-green.metrics.secret.name" . }}
+          items:
+            - key: ca.crt
+              path: ca.crt
+            - key: tls.crt
+              path: tls.crt
+            - key: tls.key
+              path: tls.key
+      {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
