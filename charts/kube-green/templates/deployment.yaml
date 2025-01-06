@@ -102,7 +102,11 @@ spec:
         secret:
           secretName: {{ include "kube-green.metrics.secret.name" . }}
           items:
+            {{- if .Values.certManager.enabled }}
             - key: ca.crt
+            {{- else if .Values.jobsCert.enabled }}
+            - key: ca
+            {{- end }}
               path: ca.crt
             - key: tls.crt
               path: tls.crt
