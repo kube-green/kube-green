@@ -9,20 +9,34 @@
       "type": "string"
     },
     "manager": {
-      "$ref": "#/definitions/container"
-    },
-    "kubeRbacProxy": {
-      "type": "object",
       "allOf": [
-        { "$ref": "#/definitions/container" },
+        {
+          "$ref": "#/definitions/container"
+        },
         {
           "type": "object",
           "properties": {
-            "verbosity": {
-              "type": "integer"
+            "metrics": {
+              "type": "object",
+              "properties": {
+                "enabled": {
+                  "type": "boolean",
+                  "default": true
+                },
+                "port": {
+                  "bindAddress": "string",
+                  "default": ":8443"
+                },
+                "secure": {
+                  "type": "boolean",
+                  "default": true
+                },
+                "certPath": {
+                  "type": "string"
+                }
+              }
             }
-          },
-          "required": ["verbosity"]
+          }
         }
       ]
     },
@@ -52,18 +66,6 @@
     },
     "podSecurityContext": {
       "type": "object"
-    },
-    "service": {
-      "type": "object",
-      "properties": {
-        "type": {
-          "type": "string"
-        },
-        "port": {
-          "type": "integer"
-        }
-      },
-      "required": ["type", "port"]
     },
     "nodeSelector": {
       "type": "object"
@@ -228,12 +230,10 @@
     "nameOverride",
     "fullnameOverride",
     "manager",
-    "kubeRbacProxy",
     "imagePullSecrets",
     "serviceAccount",
     "podAnnotations",
     "podSecurityContext",
-    "service",
     "nodeSelector",
     "tolerations",
     "affinity",

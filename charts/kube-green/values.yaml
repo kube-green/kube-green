@@ -30,36 +30,13 @@ manager:
       cpu: 100m
       # -- Requested memory to guarantee for the pod.
       memory: 50Mi
-
-kubeRbacProxy:
-  image:
-    registry: gcr.io
-    # -- Docker image repository for the kube-rbac-proxy.
-    repository: kubebuilder/kube-rbac-proxy
-    # -- Image pull policy.
-    pullPolicy: IfNotPresent
-    # -- Specific image tag to use for the kube-rbac-proxy.
-    tag: "v0.16.0"
-  # -- Sets the logging verbosity level. A value of 0 means minimal logging.
-  verbosity: 0
-  resources:
-    limits:
-      # -- Maximum CPU allowed.
-      cpu: 500m
-      # -- Maximum memory allowed.
-      memory: 128Mi
-    requests:
-      # -- Requested CPU to guarantee for the pod.
-      cpu: 5m
-      # -- Requested memory to guarantee for the pod.
-      memory: 64Mi
-  securityContext:
-    # -- Prevents the pod from gaining additional privileges. Set to false for security.
-    allowPrivilegeEscalation: false
-    capabilities:
-      drop:
-        # -- Drops all Linux capabilities for the pod, enhancing security.
-        - ALL
+  metrics:
+    # -- If enabled, the manager will expose metrics.
+    enabled: true
+    # -- The address to bind the metrics server.
+    port: 8443
+    # -- If true, the metrics server will use a secure connection via HTTPS. Set it to false to use HTTP instead. The certificate will be created in a secret called "metrics-server-cert".
+    secure: true
 
 # -- List of secrets used to access private image repositories.
 imagePullSecrets: []
@@ -77,12 +54,6 @@ podAnnotations: {}
 
 # -- Security settings that apply to all containers in the pod.
 podSecurityContext: {}
-
-service:
-  # -- Type of service to expose.
-  type: ClusterIP
-  # -- Port for the service.
-  port: 80
 
 # -- Node labels for pod assignment.
 nodeSelector: {}

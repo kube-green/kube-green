@@ -77,8 +77,8 @@ aggregationRule:
   clusterRoleSelectors:
   - matchLabels: {{- include "kube-green.rbac.aggregationSelector.label" . | nindent 6 }}
 rules: [] # The control plane automatically fills in the rules
+{{- if .Values.rbac.customClusterRole.enabled }}
 ---
-{{- if .Values.rbac.customClusterRole.enabled -}}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -86,7 +86,8 @@ metadata:
   labels: {{- include "kube-green.rbac.aggregationSelector.label" . | nindent 4 }}
 rules:
   {{- toYaml .Values.rbac.customClusterRole.rules | nindent 2 -}}
-{{- end }}
+{{ end -}}
+{{- if and .Values.manager.metrics.enabled .Values.manager.metrics.secure }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -101,7 +102,7 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: kube-green-proxy-role
+  name: kube-green-metrics-auth-role
 rules:
 - apiGroups:
   - authentication.k8s.io
@@ -115,4 +116,4 @@ rules:
   - subjectaccessreviews
   verbs:
   - create
----
+{{ end -}}

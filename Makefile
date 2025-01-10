@@ -226,21 +226,21 @@ $(LOCALBIN): ## Ensure that the directory exists
 
 ## Tool Binaries
 KUBECTL ?= kubectl
-KUSTOMIZE ?= $(LOCALBIN)/kustomize-$(KUSTOMIZE_VERSION)
-CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen-$(CONTROLLER_TOOLS_VERSION)
-ENVTEST ?= $(LOCALBIN)/setup-envtest-$(ENVTEST_VERSION)
-GOTESTSUM ?= $(LOCALBIN)/gotestsum-$(GOTESTSUM_VERSION)
-GOLANGCI_LINT = $(LOCALBIN)/golangci-lint-$(GOLANGCI_LINT_VERSION)
-OPERATOR_SDK ?= $(LOCALBIN)/operator-sdk-$(OPERATOR_SDK_VERSION)
+KUSTOMIZE ?= $(LOCALBIN)/kustomize
+CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
+ENVTEST ?= $(LOCALBIN)/setup-envtest
+GOTESTSUM ?= $(LOCALBIN)/gotestsum
+GOLANGCI_LINT = $(LOCALBIN)/golangci-lint
+OPERATOR_SDK ?= $(LOCALBIN)/operator-sdk
 
 ## Tool Versions
-KUSTOMIZE_VERSION ?= v5.3.0
+KUSTOMIZE_VERSION ?= v5.5.0
 HELM_DOCS_VERSION ?= v1.14.2
-CONTROLLER_TOOLS_VERSION ?= v0.14.0
+CONTROLLER_TOOLS_VERSION ?= v0.16.5
 ENVTEST_VERSION ?= release-0.19
-GOTESTSUM_VERSION ?= v1.11.0
-GOLANGCI_LINT_VERSION ?= v1.61.0
-OPERATOR_SDK_VERSION ?= v1.37.0
+GOTESTSUM_VERSION ?= v1.12.0
+GOLANGCI_LINT_VERSION ?= v1.62.2
+OPERATOR_SDK_VERSION ?= v1.38.0
 
 .PHONY: kustomize
 kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
@@ -260,7 +260,7 @@ $(GOTESTSUM): $(LOCALBIN)
 .PHONY: golangci-lint
 golangci-lint: $(GOLANGCI_LINT) ## Download golangci-lint locally if necessary.
 $(GOLANGCI_LINT): $(LOCALBIN)
-	$(call go-install-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/cmd/golangci-lint,${GOLANGCI_LINT_VERSION})
+	$(call go-install-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/cmd/golangci-lint,$(GOLANGCI_LINT_VERSION))
 
 .PHONY: envtest
 envtest: $(ENVTEST) ## Download setup-envtest locally if necessary.
@@ -268,17 +268,19 @@ $(ENVTEST): $(LOCALBIN)
 	$(call go-install-tool,$(ENVTEST),sigs.k8s.io/controller-runtime/tools/setup-envtest,$(ENVTEST_VERSION))
 
 # go-install-tool will 'go install' any package with custom target and name of binary, if it doesn't exist
-# $1 - target path with name of binary (ideally with version)
+# $1 - target path with name of binary
 # $2 - package url which can be installed
 # $3 - specific version of package
 define go-install-tool
-@[ -f $(1) ] || { \
+@[ -f "$(1)-$(3)" ] || { \
 set -e; \
 package=$(2)@$(3) ;\
 echo "Downloading $${package}" ;\
+rm -f $(1) || true ;\
 GOBIN=$(LOCALBIN) go install $${package} ;\
-mv "$$(echo "$(1)" | sed "s/-$(3)$$//")" $(1) ;\
-}
+mv $(1) $(1)-$(3) ;\
+} ;\
+ln -sf $(1)-$(3) $(1)
 endef
 
 .PHONY: operator-sdk

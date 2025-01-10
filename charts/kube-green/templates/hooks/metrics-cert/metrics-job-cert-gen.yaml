@@ -1,6 +1,6 @@
-{{- if and (not .Values.certManager.enabled) .Values.jobsCert.enabled }}
-{{- $name := printf "%s-certgen" (include "kube-green.fullname" .) }}
-{{- $webhookServiceName := include "kube-green.webhook.service.name" . -}}
+{{- if and (not .Values.certManager.enabled) .Values.jobsCert.enabled .Values.manager.metrics.enabled .Values.manager.metrics.secure }}
+{{- $name := printf "%s-metrics-certgen" (include "kube-green.fullname" .) }}
+{{- $metricsServiceName := include "kube-green.metrics.service.name" . -}}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -21,16 +21,16 @@ spec:
         app: {{ $name | quote }}
         {{- include "kube-green.labels" . | nindent 8 }}
     spec:
-      serviceAccountName: {{ include "kube-green.webhook.serviceAccount.name" . }}
+      serviceAccountName: {{ include "kube-green.metrics.serviceAccount.name" . }}
       containers:
-        - name: kube-webhook-certgen
+        - name: kube-metrics-certgen
           image: {{ include "image" .Values.jobsCert.image }}
           imagePullPolicy: {{ .Values.jobsCert.image.pullPolicy }}
           args:
           - create
-          - --host={{ $webhookServiceName }},{{ $webhookServiceName }}.{{ .Release.Namespace }}.svc
+          - --host={{ $metricsServiceName }},{{ $metricsServiceName }}.{{ .Release.Namespace }}.svc
           - --namespace={{ .Release.Namespace }}
-          - --secret-name={{ include "kube-green.webhook.secret.name" . }}
+          - --secret-name={{ include "kube-green.metrics.secret.name" . }}
           - --cert-name=tls.crt
           - --key-name=tls.key
           securityContext:

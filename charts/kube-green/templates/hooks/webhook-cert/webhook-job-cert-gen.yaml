@@ -1,12 +1,13 @@
 {{- if and (not .Values.certManager.enabled) .Values.jobsCert.enabled }}
-{{- $name := printf "%s-certpatch" (include "kube-green.fullname" .) }}
+{{- $name := printf "%s-webhook-certgen" (include "kube-green.fullname" .) }}
+{{- $webhookServiceName := include "kube-green.webhook.service.name" . -}}
 apiVersion: batch/v1
 kind: Job
 metadata:
   name: {{ $name | quote }}
   namespace: {{ .Release.Namespace }}
   annotations:
-    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook: pre-install,pre-upgrade
     helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
     helm.sh/hook-weight: "1"
   labels:
@@ -22,16 +23,16 @@ spec:
     spec:
       serviceAccountName: {{ include "kube-green.webhook.serviceAccount.name" . }}
       containers:
-        - name: kube-webhook-certpatch
+        - name: kube-webhook-certgen
           image: {{ include "image" .Values.jobsCert.image }}
           imagePullPolicy: {{ .Values.jobsCert.image.pullPolicy }}
           args:
-          - patch
+          - create
+          - --host={{ $webhookServiceName }},{{ $webhookServiceName }}.{{ .Release.Namespace }}.svc
           - --namespace={{ .Release.Namespace }}
-          - --patch-mutating=false
-          - --patch-validating=true
           - --secret-name={{ include "kube-green.webhook.secret.name" . }}
-          - --webhook-name=kube-green-validating-webhook-configuration
+          - --cert-name=tls.crt
+          - --key-name=tls.key
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
