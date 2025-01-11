@@ -12,26 +12,6 @@ metadata:
     app.kubernetes.io/version: "0.6.0"
     app.kubernetes.io/managed-by: Helm
 ---
-# Source: kube-green/templates/configmap.yaml
-apiVersion: v1
-data:
-  controller_manager_config.yaml: |
-    apiVersion: controller-runtime.sigs.k8s.io/v1alpha1
-    kind: ControllerManagerConfig
-    health:
-      healthProbeBindAddress: :8081
-    metrics:
-      bindAddress: 127.0.0.1:8080
-    webhook:
-      port: 9443
-    leaderElection:
-      leaderElect: true
-      resourceName: 2bd226ed.kube-green.com
-kind: ConfigMap
-metadata:
-  name: kube-green-manager-config
-  namespace: default
----
 # Source: kube-green/templates/crds/sleepinfo.yaml
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
@@ -39,8 +19,7 @@ metadata:
   annotations:
     cert-manager.io/inject-ca-from: default/kube-green-serving-cert
     helm.sh/resource-policy: keep
-    controller-gen.kubebuilder.io/version: v0.14.0
-  creationTimestamp: null
+    creationTimestamp: null
   name: sleepinfos.kube-green.com
 spec:
   group: kube-green.com
@@ -340,7 +319,7 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: kube-green-proxy-role
+  name: kube-green-metrics-auth-role
 rules:
 - apiGroups:
   - authentication.k8s.io
@@ -373,11 +352,11 @@ subjects:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: kube-green-proxy-rolebinding
+  name: kube-green-metrics-auth-rolebinding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: kube-green-proxy-role
+  name: kube-green-metrics-auth-role
 subjects:
 - kind: ServiceAccount
   name: kube-green-controller-manager
@@ -450,7 +429,7 @@ spec:
   - name: https
     port: 8443
     protocol: TCP
-    targetPort: https
+    targetPort: 8443
   selector:
     control-plane: controller-manager
 ---
@@ -502,9 +481,12 @@ spec:
     spec:
       containers:
       - args:
+        - --metrics-bind-address=:8443
+        - --metrics-secure=true
+        - --metrics-cert-path=/tmp/k8s-metrics-server/metrics-certs
         - --health-probe-bind-address=:8081
-        - --metrics-bind-address=127.0.0.1:8080
         - --leader-elect
+        - --webhook-cert-path=/tmp/k8s-webhook-server/serving-certs
         command:
         - /manager
         image: kubegreen/kube-green:0.6.0
@@ -544,30 +526,9 @@ spec:
         - mountPath: /tmp/k8s-webhook-server/serving-certs
           name: cert
           readOnly: true
-      - args:
-        - --secure-listen-address=0.0.0.0:8443
-        - --upstream=http://127.0.0.1:8080/
-        - --v=0
-        image: gcr.io/kubebuilder/kube-rbac-proxy:v0.16.0
-        imagePullPolicy: IfNotPresent
-        name: kube-rbac-proxy
-        ports:
-        - containerPort: 8443
-          name: https
-          protocol: TCP
-        resources:
-          limits:
-            cpu: 500m
-            memory: 128Mi
-          requests:
-            cpu: 5m
-            memory: 64Mi
-        securityContext:
-        
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-            - ALL
+        - mountPath: /tmp/k8s-metrics-server/metrics-certs
+          name: metrics-cert
+          readOnly: true
       securityContext:
         runAsNonRoot: true
         seccompProfile:
@@ -579,8 +540,18 @@ spec:
         secret:
           defaultMode: 420
           secretName: webhook-server-cert
+      - name: metrics-cert
+        secret:
+          secretName: metrics-server-cert
+          items:
+            - key: ca.crt
+              path: ca.crt
+            - key: tls.crt
+              path: tls.crt
+            - key: tls.key
+              path: tls.key
 ---
-# Source: kube-green/templates/certificate.yaml
+# Source: kube-green/templates/cert-manager.yaml
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
@@ -595,7 +566,22 @@ spec:
     name: kube-green-selfsigned-issuer
   secretName: webhook-server-cert
 ---
-# Source: kube-green/templates/certificate.yaml
+# Source: kube-green/templates/cert-manager.yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: kube-green-metrics-certs
+  namespace: default
+spec:
+  dnsNames:
+  - kube-green-controller-manager-metrics-service.default.svc
+  - kube-green-controller-manager-metrics-service.default.svc.cluster.local
+  issuerRef:
+    kind: Issuer
+    name: kube-green-selfsigned-issuer
+  secretName: metrics-server-cert
+---
+# Source: kube-green/templates/cert-manager.yaml
 apiVersion: cert-manager.io/v1
 kind: Issuer
 metadata:

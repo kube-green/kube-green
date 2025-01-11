@@ -120,7 +120,7 @@ func installKubeGreen() env.Func {
 			fmt.Println("installing kube-green with kustomize")
 			return installKubeGreenWithKustomize()(ctx, c)
 		case "helm":
-			fmt.Println("installing kube-green with kustomize")
+			fmt.Println("installing kube-green with helm")
 			return installWithHelmChart()(ctx, c)
 		default:
 			return ctx, fmt.Errorf("installation mode %s not supported", mode)
@@ -158,6 +158,7 @@ func installWithHelmChart() env.Func {
 			helm.WithChart("../../charts/kube-green"),
 			helm.WithNamespace("kube-green-system"),
 			helm.WithArgs(
+				"--set", "manager.image.tag=e2e-test",
 				"--set", "certManager.enabled=false",
 				"--set", "jobsCert.enabled=true",
 

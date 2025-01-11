@@ -50,6 +50,7 @@ linters-settings:
       - name: context-as-argument
         arguments:
           - allowTypesBefore: "*testing.T"
+      - name: comment-spacings
 
 issues:
   exclude-rules:

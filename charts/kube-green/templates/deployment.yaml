@@ -28,9 +28,18 @@ spec:
     spec:
       containers:
       - args:
+        {{ with .Values.manager.metrics -}}
+        {{ if .enabled -}}
+        - --metrics-bind-address={{ printf ":%d" (int64 .port) }}
+        - --metrics-secure={{ .secure }}
+        {{ if and $.Values.manager.metrics.enabled $.Values.manager.metrics.secure -}}
+        - --metrics-cert-path=/tmp/k8s-metrics-server/metrics-certs
+        {{ end }}
+        {{- end }}
+        {{- end -}}
         - --health-probe-bind-address=:8081
-        - --metrics-bind-address=127.0.0.1:8080
         - --leader-elect
+        - --webhook-cert-path=/tmp/k8s-webhook-server/serving-certs
         command:
         - /manager
         image: {{ include "image" .Values.manager.image }}
@@ -68,29 +77,10 @@ spec:
         - mountPath: /tmp/k8s-webhook-server/serving-certs
           name: cert
           readOnly: true
-      - args:
-        - --secure-listen-address=0.0.0.0:8443
-        - --upstream=http://127.0.0.1:8080/
-        - --v={{ .Values.kubeRbacProxy.verbosity }}
-        image: {{ include "image" .Values.kubeRbacProxy.image }}
-        imagePullPolicy: {{ .Values.kubeRbacProxy.image.pullPolicy }}
-        name: kube-rbac-proxy
-        ports:
-        - containerPort: 8443
-          name: https
-          protocol: TCP
-        resources:
-          limits:
-            cpu: {{ .Values.kubeRbacProxy.resources.limits.cpu }}
-            memory: {{ .Values.kubeRbacProxy.resources.limits.memory }}
-          requests:
-            cpu: {{ .Values.kubeRbacProxy.resources.requests.cpu }}
-            memory: {{ .Values.kubeRbacProxy.resources.requests.memory }}
-        {{- if .Values.kubeRbacProxy.securityContext }}
-        securityContext:
-        {{ toYaml .Values.kubeRbacProxy.securityContext | nindent 10 }}
-        {{- else }}
-        securityContext: {}
+        {{- if and $.Values.manager.metrics.enabled $.Values.manager.metrics.secure }}
+        - mountPath: /tmp/k8s-metrics-server/metrics-certs
+          name: metrics-cert
+          readOnly: true
         {{- end }}
       securityContext:
         runAsNonRoot: true
@@ -107,6 +97,22 @@ spec:
         secret:
           defaultMode: 420
           secretName: {{ include "kube-green.webhook.secret.name" . }}
+      {{ if and $.Values.manager.metrics.enabled $.Values.manager.metrics.secure -}}
+      - name: metrics-cert
+        secret:
+          secretName: {{ include "kube-green.metrics.secret.name" . }}
+          items:
+            {{- if .Values.certManager.enabled }}
+            - key: ca.crt
+            {{- else if .Values.jobsCert.enabled }}
+            - key: ca
+            {{- end }}
+              path: ca.crt
+            - key: tls.crt
+              path: tls.crt
+            - key: tls.key
+              path: tls.key
+      {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
