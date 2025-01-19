@@ -21,8 +21,6 @@ on:
     secrets:
       PERSONAL_ACCESS_TOKEN:
         required: true
-      KUBE_GREEN_OPERATOR_FORK_PR:
-        required: true
 jobs:
   community-operator:
     runs-on: ubuntu-latest
@@ -54,7 +52,7 @@ jobs:
           path: community-operators
           signoff: true
           branch: kube-green-${{ env.VERSION }}
-          token: ${{ secrets.KUBE_GREEN_OPERATOR_FORK_PR }}
+          token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           commit-message: upgrade kube-green to ${{ env.VERSION }}
           committer: ${{ github.actor }} <${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com>
           delete-branch: true
