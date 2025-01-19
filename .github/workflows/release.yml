@@ -1,8 +1,8 @@
 name: Release
 on:
   push:
-    tags-ignore:
-      - 'helm-v*'
+    tags:
+      - '*'
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -14,10 +14,9 @@ jobs:
         id: install
       - name: Generate file config
         shell: bash
-        run: kubectl kustomize ./config/default -o kube-green.yaml
-      - name: Extract CRD
-        shell: bash
-        run: cat kube-green.yaml | yq -r -e 'select(.kind == "CustomResourceDefinition")' - | yq eval 'del(.metadata.annotations."cert-manager.io/inject-ca-from")' - > crds.yaml
+        run: |
+          kubectl kustomize ./config/default -o kube-green.yaml
+          cat kube-green.yaml | yq -r -e 'select(.kind == "CustomResourceDefinition")' - | yq eval 'del(.metadata.annotations."cert-manager.io/inject-ca-from")' - > crds.yaml
       - name: Release
         uses: softprops/action-gh-release@v2
         with:

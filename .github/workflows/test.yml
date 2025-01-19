@@ -3,8 +3,8 @@ on:
   push:
     branches:
       - "main"
-    tags-ignore:
-      - 'helm-v*'
+    tags:
+      - '*'
   pull_request:
     branches:
       - "main"
@@ -16,15 +16,12 @@ jobs:
       matrix:
         os: [ubuntu-latest]
         k8s_version:
-          - 'v1.31.1'
-          - 'v1.30.0'
-          - 'v1.29.4'
-          - 'v1.28.9'
-          - 'v1.27.13'
-          - 'v1.26.15'
-          - 'v1.25.16'
-          - 'v1.24.17'
-          - 'v1.23.17'
+          - 'v1.32.0'
+          - 'v1.31.4'
+          - 'v1.30.8'
+          - 'v1.29.12'
+          - 'v1.28.15'
+          - 'v1.27.16'
     env:
       KIND_K8S_VERSION: ${{matrix.k8s_version}}
     steps:
