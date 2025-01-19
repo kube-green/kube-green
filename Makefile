@@ -325,7 +325,7 @@ bundle: manifests kustomize operator-sdk ## Generate bundle manifests and metada
 # This sed remove seccompProfile, since it not passes openshift 4.10 tests. Remove it when this version
 # will be unsupported
 	sed -i '' -e '/seccompProfile/,/RuntimeDefault/d' ./bundle/manifests/kube-green.clusterserviceversion.yaml
-	operator-sdk bundle validate ./bundle --select-optional suite=operatorframework
+	$(OPERATOR_SDK) bundle validate ./bundle
 
 .PHONY: bundle-build
 bundle-build: ## Build the bundle image.

@@ -147,7 +147,7 @@ spec:
   - email: bianchidavide12+kubegreen@gmail.com
     name: Davide
   maturity: alpha
-  minKubeVersion: 1.23.0
+  minKubeVersion: 1.27.0
   provider:
     name: kube-green Community
     url: https://kube-green.dev

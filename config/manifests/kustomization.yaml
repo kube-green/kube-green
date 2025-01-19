@@ -9,7 +9,7 @@ resources:
 # [WEBHOOK] To enable webhooks, uncomment all the sections with [WEBHOOK] prefix.
 # Do NOT uncomment sections with prefix [CERTMANAGER], as OLM does not support cert-manager.
 # These patches remove the unnecessary "cert" volume and its manager container volumeMount.
-patchesJson6902:
+patches:
 - target:
     group: apps
     version: v1
@@ -20,11 +20,27 @@ patchesJson6902:
     # Remove the manager container's "cert" volumeMount, since OLM will create and mount a set of certs.
     # Update the indices in this path if adding or removing containers/volumeMounts in the manager's Deployment.
     - op: remove
-      path: /spec/template/spec/containers/0/volumeMounts/0
+      path: /spec/template/spec/containers/0/volumeMounts
     # Remove the "cert" volume, since OLM will create and mount a set of certs.
     # Update the indices in this path if adding or removing volumes in the manager's Deployment.
     - op: remove
-      path: /spec/template/spec/volumes/0
+      path: /spec/template/spec/volumes
+    - op: remove
+      path: /spec/template/spec/containers/0/args/4
+    - op: remove
+      path: /spec/template/spec/containers/0/args/3
+- path: remove-role_patch.yaml
+- target:
+    group: rbac.authorization.k8s.io
+    version: v1
+    kind: ClusterRole
+    name: aggregate-manager-role
+  patch: |-
+    - op: remove
+      path: /metadata/labels/kube-green.dev~1aggregate-to-manager
+    - op: replace
+      path: /metadata/name
+      value: manager-role
 
 labels:
 - includeSelectors: true

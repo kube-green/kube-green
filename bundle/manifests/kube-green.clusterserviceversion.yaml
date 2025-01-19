@@ -32,7 +32,7 @@ metadata:
     capabilities: Seamless Upgrades
     categories: Developer Tools
     containerImage: docker.io/kubegreen/kube-green:0.7.0
-    createdAt: "2025-01-19T17:24:53Z"
+    createdAt: "2025-01-19T21:44:34Z"
     description: Suspend your pods when no-one's using them to save energy and restore
       when necessary
     operators.operatorframework.io/builder: operator-sdk-v1.34.2
@@ -153,6 +153,65 @@ spec:
       clusterPermissions:
       - rules:
         - apiGroups:
+          - ""
+          resources:
+          - secrets
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - apps
+          resources:
+          - deployments
+          - statefulsets
+          verbs:
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - batch
+          resources:
+          - cronjobs
+          verbs:
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - kube-green.com
+          resources:
+          - sleepinfos
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - kube-green.com
+          resources:
+          - sleepinfos/finalizers
+          verbs:
+          - update
+        - apiGroups:
+          - kube-green.com
+          resources:
+          - sleepinfos/status
+          verbs:
+          - get
+          - patch
+          - update
+        - apiGroups:
           - authentication.k8s.io
           resources:
           - tokenreviews
@@ -196,8 +255,6 @@ spec:
                 - --metrics-bind-address=:8443
                 - --leader-elect
                 - --health-probe-bind-address=:8081
-                - --metrics-cert-path=/tmp/k8s-metrics-server/metrics-certs
-                - --webhook-cert-path=/tmp/k8s-webhook-server/serving-certs
                 command:
                 - /manager
                 image: docker.io/kubegreen/kube-green:0.7.0
@@ -230,18 +287,10 @@ spec:
                   capabilities:
                     drop:
                     - ALL
-                volumeMounts:
-                - mountPath: /tmp/k8s-webhook-server/serving-certs
-                  name: webhook-certs
-                  readOnly: true
               securityContext:
                 runAsNonRoot: true
               serviceAccountName: kube-green-controller-manager
               terminationGracePeriodSeconds: 10
-              volumes:
-              - name: webhook-certs
-                secret:
-                  secretName: webhook-server-cert
       permissions:
       - rules:
         - apiGroups:
@@ -302,7 +351,7 @@ spec:
   - email: bianchidavide12+kubegreen@gmail.com
     name: Davide
   maturity: alpha
-  minKubeVersion: 1.23.0
+  minKubeVersion: 1.27.0
   provider:
     name: kube-green Community
     url: https://kube-green.dev
