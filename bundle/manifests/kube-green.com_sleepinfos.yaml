@@ -3,7 +3,7 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     cert-manager.io/inject-ca-from: kube-green/kube-green-serving-cert
-    controller-gen.kubebuilder.io/version: v0.14.0
+    controller-gen.kubebuilder.io/version: v0.16.5
   creationTimestamp: null
   labels:
     app: kube-green
@@ -125,7 +125,6 @@ spec:
                 description: |-
                   Hours:Minutes
 
-
                   Accept cron schedule for both hour and minute.
                   For example, *:*/2 is set to configure a run every even minute.
                 type: string
@@ -153,7 +152,6 @@ spec:
                 description: |-
                   Hours:Minutes
 
-
                   Accept cron schedule for both hour and minute.
                   For example, *:*/2 is set to configure a run every even minute.
                   It is not required.
@@ -161,7 +159,6 @@ spec:
               weekdays:
                 description: |-
                   Weekdays are in cron notation.
-
 
                   For example, to configure a schedule from monday to friday, set it to "1-5"
                 type: string

@@ -4,12 +4,6 @@ metadata:
   creationTimestamp: null
   labels:
     app: kube-green
-    app.kubernetes.io/component: kube-rbac-proxy
-    app.kubernetes.io/created-by: kube-green
-    app.kubernetes.io/instance: metrics-reader
-    app.kubernetes.io/managed-by: kustomize
-    app.kubernetes.io/name: clusterrole
-    app.kubernetes.io/part-of: kube-green
   name: kube-green-metrics-reader
 rules:
 - nonResourceURLs:
