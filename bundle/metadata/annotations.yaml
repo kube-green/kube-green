@@ -12,3 +12,5 @@ annotations:
   # Annotations for testing.
   operators.operatorframework.io.test.mediatype.v1: scorecard+v1
   operators.operatorframework.io.test.config.v1: tests/scorecard/
+  # OpenShift annotations.
+  com.redhat.openshift.versions: 4.10-4.17
