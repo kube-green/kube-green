@@ -1,6 +1,6 @@
 # kube-green
 
-![Version: 0.6.0](https://img.shields.io/badge/Version-0.6.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.6.0](https://img.shields.io/badge/AppVersion-0.6.0-informational?style=flat-square)
+![Version: 0.7.0](https://img.shields.io/badge/Version-0.7.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.7.0](https://img.shields.io/badge/AppVersion-0.7.0-informational?style=flat-square)
 
 kube-green helm chart
 
@@ -21,7 +21,7 @@ kube-green helm chart
 | jobsCert.image.tag | string | `"v20221220-controller-v1.5.1-58-g787ea74b6"` |  |
 | manager.image.pullPolicy | string | `"IfNotPresent"` | Defines the image pull policy. Avoids pulling the image if it's already present. |
 | manager.image.repository | string | `"kubegreen/kube-green"` | The Docker image repository for the kube-green manager application. |
-| manager.image.tag | string | `"0.6.0"` | The specific image tag of the kube-green manager to use. |
+| manager.image.tag | string | `"0.7.0"` | The specific image tag of the kube-green manager to use. |
 | manager.metrics.enabled | bool | `true` | If enabled, the manager will expose metrics. |
 | manager.metrics.port | int | `8443` | The address to bind the metrics server. |
 | manager.metrics.secure | bool | `true` | If true, the metrics server will use a secure connection via HTTPS. Set it to false to use HTTP instead. The certificate will be created in a secret called "metrics-server-cert". |

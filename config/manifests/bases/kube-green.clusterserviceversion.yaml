@@ -5,7 +5,7 @@ metadata:
     alm-examples: '[]'
     capabilities: Seamless Upgrades
     categories: Developer Tools
-    containerImage: docker.io/kubegreen/kube-green:0.6.0
+    containerImage: docker.io/kubegreen/kube-green:0.7.0
     createdAt: "2021-02-21T00:00:00Z"
     description: Suspend your pods when no-one's using them to save energy and restore
       when necessary
@@ -151,5 +151,5 @@ spec:
   provider:
     name: kube-green Community
     url: https://kube-green.dev
-  replaces: kube-green.v0.5.2
+  replaces: kube-green.v0.6.0
   version: 0.0.0

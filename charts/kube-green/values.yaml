@@ -11,7 +11,7 @@ manager:
     # -- Defines the image pull policy. Avoids pulling the image if it's already present.
     pullPolicy: IfNotPresent
     # -- The specific image tag of the kube-green manager to use.
-    tag: "0.6.0"
+    tag: "0.7.0"
   securityContext:
     # -- Prevents the pod from gaining additional privileges. Set to false for security.
     allowPrivilegeEscalation: false
