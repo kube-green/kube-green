@@ -41,9 +41,10 @@ type SleepInfoReconciler struct {
 	Log    logr.Logger
 	Scheme *runtime.Scheme
 	Clock
-	Metrics     metrics.Metrics
-	SleepDelta  int64
-	ManagerName string
+	Metrics                 metrics.Metrics
+	SleepDelta              int64
+	ManagerName             string
+	MaxConcurrentReconciles int
 }
 
 type realClock struct{}
@@ -204,7 +205,7 @@ func (r *SleepInfoReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&kubegreenv1alpha1.SleepInfo{}).
 		WithOptions(controller.Options{
-			MaxConcurrentReconciles: 20,
+			MaxConcurrentReconciles: r.MaxConcurrentReconciles,
 		}).
 		WithEventFilter(pred).
 		Complete(r)
