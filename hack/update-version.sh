@@ -25,6 +25,7 @@ sed -i.bck -E "s|containerImage:(.*)kubegreen/kube-green:[0-9]+.[0-9]+.[0-9]+.*|
 sed -i.bck -E "s|replaces: (.*)|replaces:$(grep 'name: kube-green\.v' ./bundle/manifests/kube-green.clusterserviceversion.yaml | cut -d ':' -f2)|" ${SOURCE_DIR}/config/manifests/bases/kube-green.clusterserviceversion.yaml
 sed -i.bck -E "/manager:/,/tag:/s/tag: \"[0-9]+.[0-9]+.[0-9]+.*\"/tag: \"$TAG_VALUE_WITHOUT_V\"/" ${SOURCE_DIR}/charts/kube-green/values.yaml
 sed -i.bck -E "s|appVersion: \"[0-9]+.[0-9]+.[0-9]+.*\"|appVersion: \"$TAG_VALUE_WITHOUT_V\"|" ${SOURCE_DIR}/charts/kube-green/Chart.yaml
+sed -i.bck -E "s|version: [0-9]+.[0-9]+.[0-9]+.*|version: $TAG_VALUE_WITHOUT_V|" ${SOURCE_DIR}/charts/kube-green/Chart.yaml
 rm -fr \
   "${SOURCE_DIR}/Makefile.bck" \
   "${SOURCE_DIR}/config/manager/kustomization.yaml.bck" \
