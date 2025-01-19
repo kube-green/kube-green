@@ -3,8 +3,8 @@ on:
   push:
     branches:
       - "main"
-    tags-ignore:
-      - 'helm-v*'
+    tags:
+      - '*'
   pull_request:
     branches:
       - "main"

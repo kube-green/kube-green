@@ -1,8 +1,8 @@
 name: Release
 on:
   push:
-    tags-ignore:
-      - 'helm-v*'
+    tags:
+      - '*'
 jobs:
   release:
     runs-on: ubuntu-latest
