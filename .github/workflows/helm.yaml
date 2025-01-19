@@ -28,6 +28,8 @@ jobs:
 
       - name: Run chart-testing (lint)
         run: ct lint --debug --charts charts/kube-green --config ./.github/configs/ct.yaml --lint-conf ./.github/configs/lintconf.yaml
+      - name: Run chart snapshot tests
+        run: make chart-test
 
       - name: Use golang
         uses: actions/setup-go@v5
