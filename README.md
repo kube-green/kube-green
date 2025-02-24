@@ -19,7 +19,7 @@ If you already use *kube-green*, add you as an [adopter][add-adopters]!
 
 ## Getting Started
 
-These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See how to install the project on a live system in our [docs](https://kube-green.dev/docs/install/).
+These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See how to install the project on a live system in our [docs](https://kube-green.dev/docs/installation/).
 
 ### Prerequisites
 
@@ -63,7 +63,7 @@ make e2e-test OPTION="-run=TestSleepInfoE2E/kuttl/run_e2e_tests/harness/{TEST_NA
 
 ## Deployment
 
-To deploy *kube-green* in live systems, follow the [docs](https://kube-green.dev/docs/install/).
+To deploy *kube-green* in live systems, follow the [docs](https://kube-green.dev/docs/installation/).
 
 To run kube-green for development purpose, you can use [ko](https://ko.build/) to deploy
 in a KinD cluster.
