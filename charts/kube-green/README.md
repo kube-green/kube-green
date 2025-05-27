@@ -25,6 +25,13 @@ kube-green helm chart
 | manager.metrics.enabled | bool | `true` | If enabled, the manager will expose metrics. |
 | manager.metrics.port | int | `8443` | The address to bind the metrics server. |
 | manager.metrics.secure | bool | `true` | If true, the metrics server will use a secure connection via HTTPS. Set it to false to use HTTP instead. The certificate will be created in a secret called "metrics-server-cert". |
+| manager.metrics.serviceMonitor.enabled | bool | `false` | Enable a prometheus ServiceMonitor |
+| manager.metrics.serviceMonitor.additionalLabels | object | `{}}` | Prometheus ServiceMonitor labels |
+| manager.metrics.serviceMonitor.selector | object | `{}` | Prometheus ServiceMonitor selector |
+| manager.metrics.serviceMonitor.interval | string | `30s` | Prometheus ServiceMonitor interval |
+| manager.metrics.serviceMonitor.namespace | string | `""` | Prometheus ServiceMonitor namespace |
+| manager.metrics.serviceMonitor.metricRelabelings | list | `[]` | Prometheus [MetricRelabelConfigs] to apply to samples before ingestion |
+| manager.metrics.serviceMonitor.relabelings | list | `[]` | Prometheus [RelabelConfigs] to apply to samples before scraping |
 | manager.resources.limits.cpu | string | `"400m"` | Maximum CPU allowed. |
 | manager.resources.limits.memory | string | `"400Mi"` | Maximum memory allowed. |
 | manager.resources.requests.cpu | string | `"100m"` | Requested CPU to guarantee for the pod. |
