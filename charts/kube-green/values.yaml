@@ -38,7 +38,7 @@ manager:
     # -- If true, the metrics server will use a secure connection via HTTPS. Set it to false to use HTTP instead. The certificate will be created in a secret called "metrics-server-cert".
     secure: true
     serviceMonitor:
-      # -- Enable a prometheus ServiceMonitor
+      # -- Enable a Prometheus ServiceMonitor
       enabled: false
       # -- Prometheus ServiceMonitor labels
       additionalLabels: {}
