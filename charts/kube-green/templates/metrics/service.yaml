@@ -1,0 +1,18 @@
+{{- if .Values.manager.metrics.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    control-plane: controller-manager
+  name: {{ include "kube-green.metrics.service.name" . }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  ports:
+    - name: https
+      port: {{ .Values.manager.metrics.port }}
+      protocol: TCP
+      targetPort: {{ .Values.manager.metrics.port }}
+  selector:
+    control-plane: controller-manager
+{{ end -}}

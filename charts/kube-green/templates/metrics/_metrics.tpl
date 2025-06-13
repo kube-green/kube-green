@@ -13,3 +13,7 @@ metrics-server-cert
 {{- define "kube-green.metrics.serviceAccount.name" -}}
 {{- include  "kube-green.metrics.name" . -}}
 {{- end -}}
+
+{{- define "kube-green.metrics.serviceMonitor.name" -}}
+kube-green-controller-manager-metrics-servicemonitor
+{{- end -}}
