@@ -34,6 +34,7 @@ kube-green helm chart
 | nameOverride | string | `""` |  |
 | nodeSelector | object | `{}` | Node labels for pod assignment. |
 | podAnnotations | object | `{}` | Annotations to add to each pod. |
+| podLabels | object | `{}` | Labels to add to each pod. |
 | podSecurityContext | object | `{}` | Security settings that apply to all containers in the pod. |
 | priorityClassName | string | `""` | Priority class name for the pods. |
 | rbac.customClusterRole.enabled | bool | `false` | If true, the custom ClusterRole is enabled. |
