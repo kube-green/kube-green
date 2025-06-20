@@ -54,5 +54,7 @@ spec:
       - {{ .Release.Namespace }}
   selector:
     matchLabels:
+      app: kube-green
       control-plane: controller-manager
+      {{- include "kube-green.labels" . | nindent 6 }}
 {{- end }}
