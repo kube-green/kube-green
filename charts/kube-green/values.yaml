@@ -19,6 +19,8 @@ manager:
       drop:
         # -- Drops all Linux capabilities for the pod, enhancing security.
         - ALL
+  # -- run the manager in the host network. Required when using a custom CNI on EKS.
+  hostNetwork: false
   resources:
     limits:
       # -- Maximum CPU allowed.
