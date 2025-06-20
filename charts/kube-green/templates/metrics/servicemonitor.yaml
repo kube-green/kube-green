@@ -1,0 +1,60 @@
+{{- if and .Values.manager.metrics.serviceMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    {{- include "kube-green.labels" . | nindent 4 }}
+    {{- with .Values.manager.metrics.serviceMonitor.selector }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- with .Values.manager.metrics.serviceMonitor.additionalLabels }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
+  name: {{ include "kube-green.metrics.serviceMonitor.name" . }}
+  {{- with .Values.manager.metrics.serviceMonitor.namespace }}
+  namespace: {{ . }}
+  {{- end }}
+spec:
+  endpoints:
+    - port: https
+      {{- with .Values.manager.metrics.serviceMonitor.interval }}
+      interval: {{ . }}
+      {{- end }}
+      path: /metrics
+      {{- with .Values.manager.metrics.serviceMonitor.relabelings }}
+      relabelings:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.manager.metrics.serviceMonitor.metricRelabelings }}
+      metricRelabelings:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.manager.metrics.secure }}
+      scheme: https
+      tlsConfig:
+        insecureSkipVerify: true
+        ca:
+          secret:
+            {{- if .Values.certManager.enabled }}
+            key: ca.crt
+            {{- else if .Values.jobsCert.enabled }}
+            key: ca
+            {{- end }}
+            name: metrics-server-cert
+        cert:
+          secret:
+            name: metrics-server-cert
+            key: tls.crt
+        keySecret:
+          name: metrics-server-cert
+          key: tls.key
+      {{- end }}
+  namespaceSelector:
+    matchNames:
+      - {{ .Release.Namespace }}
+  selector:
+    matchLabels:
+      app: kube-green
+      control-plane: controller-manager
+      {{- include "kube-green.labels" . | nindent 6 }}
+{{- end }}
