@@ -1,0 +1,20 @@
+{{- if .Values.manager.metrics.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: kube-green
+    control-plane: controller-manager
+    {{- include "kube-green.labels" . | nindent 4 }}
+  name: {{ include "kube-green.metrics.service.name" . }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  ports:
+    - name: https
+      port: {{ .Values.manager.metrics.port }}
+      protocol: TCP
+      targetPort: {{ .Values.manager.metrics.port }}
+  selector:
+    control-plane: controller-manager
+{{ end -}}
