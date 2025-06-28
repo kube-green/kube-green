@@ -1,0 +1,9 @@
+Thank you for installing kube-green!
+
+Current realease for chart: {{ .Chart.Name }} is: {{ .Release.Name }}
+
+kube-green adds default support to Deployments, StatefulSets, and CronJobs.
+
+kube-green webhooks require a valid certificate to expose the webhook server to the Kubernetes API server.
+The recommended way to handle certs for the webhook is by using cert-manager (which is enabled be default).
+Current value for certManager is: {{ .Values.certManager.enabled }}

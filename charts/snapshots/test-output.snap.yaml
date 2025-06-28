@@ -416,20 +416,26 @@ subjects:
   name: kube-green-controller-manager
   namespace: default
 ---
-# Source: kube-green/templates/service.yaml
+# Source: kube-green/templates/metrics/service.yaml
 apiVersion: v1
 kind: Service
 metadata:
   labels:
+    app: kube-green
     control-plane: controller-manager
+    HELM_CHART_VERSION_REDACTED
+    app.kubernetes.io/name: kube-green
+    app.kubernetes.io/instance: release-test
+    app.kubernetes.io/version: "0.7.0"
+    app.kubernetes.io/managed-by: Helm
   name: kube-green-controller-manager-metrics-service
   namespace: default
 spec:
   ports:
-  - name: https
-    port: 8443
-    protocol: TCP
-    targetPort: 8443
+    - name: https
+      port: 8443
+      protocol: TCP
+      targetPort: 8443
   selector:
     control-plane: controller-manager
 ---
