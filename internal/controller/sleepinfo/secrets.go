@@ -16,7 +16,7 @@ import (
 
 func (r *SleepInfoReconciler) getSecret(ctx context.Context, secretName, namespaceName string) (*v1.Secret, error) {
 	secret := &v1.Secret{}
-	err := r.Client.Get(ctx, client.ObjectKey{
+	err := r.Get(ctx, client.ObjectKey{
 		Namespace: namespaceName,
 		Name:      secretName,
 	}, secret)
@@ -83,12 +83,12 @@ func (r SleepInfoReconciler) upsertSecret(
 	}
 
 	if secret == nil {
-		if err := r.Client.Create(ctx, newSecret); err != nil {
+		if err := r.Create(ctx, newSecret); err != nil {
 			return err
 		}
 		logger.Info("secret created")
 	} else {
-		if err := r.Client.Update(ctx, newSecret); err != nil {
+		if err := r.Update(ctx, newSecret); err != nil {
 			return err
 		}
 		logger.Info("secret updated")

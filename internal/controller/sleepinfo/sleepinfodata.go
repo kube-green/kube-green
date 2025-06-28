@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/kube-green/kube-green/api/v1alpha1"
 	kubegreenv1alpha1 "github.com/kube-green/kube-green/api/v1alpha1"
 	"github.com/kube-green/kube-green/internal/controller/sleepinfo/cronjobs"
 	"github.com/kube-green/kube-green/internal/controller/sleepinfo/deployments"
@@ -94,14 +93,14 @@ func convertOldSecretDataToNewFormat(originalGenericResourceInfo map[string]json
 		if err != nil {
 			return nil, fmt.Errorf("fails to set original deployment replicas info to restore: %s", err)
 		}
-		originalGenericResourceInfo[v1alpha1.DeploymentTarget.String()] = data
+		originalGenericResourceInfo[kubegreenv1alpha1.DeploymentTarget.String()] = data
 	}
 	if cronjobStatus, ok := secretData[originalCronjobStatusKey]; ok {
 		data, err := cronjobs.GetOriginalInfoToRestore(cronjobStatus)
 		if err != nil {
 			return nil, fmt.Errorf("fails to set original cronjob status info to restore: %s", err)
 		}
-		originalGenericResourceInfo[v1alpha1.CronJobTarget.String()] = data
+		originalGenericResourceInfo[kubegreenv1alpha1.CronJobTarget.String()] = data
 	}
 	return originalGenericResourceInfo, nil
 }

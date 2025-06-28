@@ -10,13 +10,13 @@ import (
 	"os"
 	"path/filepath"
 
-	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
-	// to ensure that exec-entrypoint and run can make use of them.
-	"github.com/kube-green/kube-green/api/v1alpha1"
 	kubegreencomv1alpha1 "github.com/kube-green/kube-green/api/v1alpha1"
 	sleepinfocontroller "github.com/kube-green/kube-green/internal/controller/sleepinfo"
 	"github.com/kube-green/kube-green/internal/controller/sleepinfo/metrics"
+	webhookv1alpha1 "github.com/kube-green/kube-green/internal/webhook/v1alpha1"
 
+	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
+	// to ensure that exec-entrypoint and run can make use of them.
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -205,7 +205,7 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "SleepInfo")
 		os.Exit(1)
 	}
-	if err = v1alpha1.SetupWebhookWithManager(mgr); err != nil {
+	if err = webhookv1alpha1.SetupWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "SleepInfo")
 		os.Exit(1)
 	}
