@@ -25,7 +25,7 @@ func (r *SleepInfoReconciler) getNextSchedule(log logr.Logger, data SleepInfoDat
 	}
 	nextSchedule := sched.Next(earliestTime)
 
-	if earliestTime == lastSchedule && nextSchedule.Before(now) && !isTimeInDelta(nextSchedule, now, scheduleDelta) {
+	if time.Time.Equal(earliestTime, lastSchedule) && nextSchedule.Before(now) && !isTimeInDelta(nextSchedule, now, scheduleDelta) {
 		nextSchedule = sched.Next(now.Add(-scheduleDelta))
 	}
 	isToExecute := isTimeInDelta(now, nextSchedule, scheduleDelta)

@@ -8,8 +8,12 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/kube-green/kube-green/internal/patcher"
+
+	"github.com/robfig/cron/v3"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // Define a resource to filter, used to include or exclude resources from the sleep.
@@ -207,6 +211,59 @@ func (s SleepInfo) GetPatches() []Patch {
 		patches = append(patches, cronjobPatch)
 	}
 	return append(patches, s.Spec.Patches...)
+}
+
+func (s SleepInfo) Validate(cl client.Client) ([]string, error) {
+	schedule, err := s.GetSleepSchedule()
+	if err != nil {
+		return nil, err
+	}
+	if _, err = cron.ParseStandard(schedule); err != nil {
+		return nil, err
+	}
+
+	schedule, err = s.GetWakeUpSchedule()
+	if err != nil {
+		return nil, err
+	}
+	if schedule != "" {
+		if _, err = cron.ParseStandard(schedule); err != nil {
+			return nil, err
+		}
+	}
+
+	for _, excludeRef := range s.GetExcludeRef() {
+		if err := isExcludeRefValid(excludeRef); err != nil {
+			return nil, err
+		}
+	}
+
+	return s.validatePatches(cl)
+}
+
+func isExcludeRefValid(excludeRef FilterRef) error {
+	if excludeRef.Name == "" && excludeRef.APIVersion == "" && excludeRef.Kind == "" && len(excludeRef.MatchLabels) > 0 {
+		return nil
+	}
+	if len(excludeRef.MatchLabels) == 0 && excludeRef.Name != "" && excludeRef.APIVersion != "" && excludeRef.Kind != "" {
+		return nil
+	}
+	return fmt.Errorf(`excludeRef is invalid. Must have set: matchLabels or name,apiVersion and kind fields`)
+}
+
+func (s *SleepInfo) validatePatches(cl client.Client) ([]string, error) {
+	warnings := []string{}
+	for _, patch := range s.GetPatches() {
+		if _, err := cl.RESTMapper().RESTMapping(patch.Target.GroupKind()); err != nil {
+			warnings = append(warnings, fmt.Sprintf("SleepInfo patch target is invalid: %s", err))
+		}
+
+		if _, err := patcher.New([]byte(patch.Patch)); err != nil {
+			return nil, fmt.Errorf("patch is invalid for target %s: %w", patch.Target, err)
+		}
+	}
+
+	return warnings, nil
 }
 
 // +kubebuilder:object:root=true

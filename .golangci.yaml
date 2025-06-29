@@ -1,62 +1,74 @@
-run:
-  timeout: 5m
-
+version: "2"
 linters:
   enable:
-  - asasalint
-  - asciicheck
-  - bidichk
-  - bodyclose
-  - containedctx
-  - contextcheck
-  - copyloopvar
-  - decorder
-  - dupword
-  - errname
-  - goconst
-  - gocritic
-  - gocyclo
-  - gofmt
-  - goimports
-  - mnd
-  - goprintffuncname
-  - gosec
-  - govet
-  - ineffassign
-  - maintidx
-  - misspell
-  - noctx
-  - nolintlint
-  - nosprintfhostport
-  - revive
-  - tagliatelle
-  - unconvert
-  - unparam
-  - unused
-  - whitespace
-
-linters-settings:
-  goconst:
-    ignore-tests: true
-  mnd:
-    checks:
-    - case
-    - condition
-    - return
-  revive:
+    - asasalint
+    - asciicheck
+    - bidichk
+    - bodyclose
+    - containedctx
+    - contextcheck
+    - copyloopvar
+    - decorder
+    - dupword
+    - errname
+    - goconst
+    - gocritic
+    - gocyclo
+    - goprintffuncname
+    - gosec
+    - maintidx
+    - misspell
+    - mnd
+    - noctx
+    - nolintlint
+    - nosprintfhostport
+    - revive
+    - tagliatelle
+    - unconvert
+    - unparam
+    - whitespace
+  settings:
+    mnd:
+      checks:
+        - case
+        - condition
+        - return
+    revive:
+      rules:
+        - name: var-declaration
+          disabled: true
+        - name: context-as-argument
+          arguments:
+            - allowTypesBefore: '*testing.T'
+        - name: comment-spacings
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
     rules:
-      - name: var-declaration
-        disabled: true
-      - name: context-as-argument
-        arguments:
-          - allowTypesBefore: "*testing.T"
-      - name: comment-spacings
-
-issues:
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - maintidx
-        - cyclop
-  exclude-files:
-    - "zz.deepcopy"
+      - linters:
+          - cyclop
+          - maintidx
+        path: _test\.go
+      - linters:
+          - goconst
+        path: (.+)_test\.go
+    paths:
+      - zz.deepcopy
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - zz.deepcopy
+      - third_party$
+      - builtin$
+      - examples$

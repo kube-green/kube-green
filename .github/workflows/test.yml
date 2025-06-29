@@ -16,10 +16,11 @@ jobs:
       matrix:
         os: [ubuntu-latest]
         k8s_version:
-          - 'v1.32.0'
-          - 'v1.31.4'
-          - 'v1.30.8'
-          - 'v1.29.12'
+          - 'v1.33.1'
+          - 'v1.32.5'
+          - 'v1.31.9'
+          - 'v1.30.13'
+          - 'v1.29.14'
           - 'v1.28.15'
           - 'v1.27.16'
     env:
@@ -39,7 +40,7 @@ jobs:
       - name: Run lint
         run: make lint
       - name: Run tests with coverage
-        run: make coverage
+        run: make ci-coverage
       - name: Vet and Build
         run: make
       - name: Send the coverage output

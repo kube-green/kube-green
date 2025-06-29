@@ -72,8 +72,8 @@ func (g genericResource) getListOptions(namespace string, target v1alpha1.PatchT
 		Limit:     500,
 	}
 
-	includeRef := g.ResourceClient.SleepInfo.GetIncludeRef()
-	excludeRef := g.ResourceClient.SleepInfo.GetExcludeRef()
+	includeRef := g.SleepInfo.GetIncludeRef()
+	excludeRef := g.SleepInfo.GetExcludeRef()
 	fieldsToInclude := getFieldToInclude(includeRef, target)
 	labelsToInclude := getLabelsToInclude(includeRef)
 	fieldsToExclude := getFieldToExclude(excludeRef, target)

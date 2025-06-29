@@ -102,7 +102,7 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		log.Error(err, "unable to get secret data")
 		return ctrl.Result{}, err
 	}
-	now := r.Clock.Now()
+	now := r.Now()
 
 	isToExecute, nextSchedule, requeueAfter, err := r.getNextSchedule(log, sleepInfoData, now)
 	if err != nil {
@@ -204,6 +204,7 @@ func (r *SleepInfoReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	pred := predicate.GenerationChangedPredicate{}
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&kubegreenv1alpha1.SleepInfo{}).
+		Named("kubegreen-sleepinfo").
 		WithOptions(controller.Options{
 			MaxConcurrentReconciles: r.MaxConcurrentReconciles,
 		}).
@@ -213,7 +214,7 @@ func (r *SleepInfoReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 func (r *SleepInfoReconciler) getSleepInfo(ctx context.Context, req ctrl.Request) (*kubegreenv1alpha1.SleepInfo, error) {
 	sleepInfo := &kubegreenv1alpha1.SleepInfo{}
-	if err := r.Client.Get(ctx, req.NamespacedName, sleepInfo); err != nil {
+	if err := r.Get(ctx, req.NamespacedName, sleepInfo); err != nil {
 		return nil, err
 	}
 	return sleepInfo, nil

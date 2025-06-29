@@ -8,9 +8,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/kube-green/kube-green/internal/patcher"
+	"github.com/kube-green/kube-green/api/v1alpha1"
 
-	"github.com/robfig/cron/v3"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -28,7 +27,7 @@ type customValidator struct {
 
 func SetupWebhookWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewWebhookManagedBy(mgr).
-		For(&SleepInfo{}).
+		For(&v1alpha1.SleepInfo{}).
 		WithValidator(&customValidator{
 			Client: mgr.GetClient(),
 		}).
@@ -40,85 +39,32 @@ var _ webhook.CustomValidator = &customValidator{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (v *customValidator) ValidateCreate(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
-	s, ok := obj.(*SleepInfo)
+	s, ok := obj.(*v1alpha1.SleepInfo)
 	if !ok {
 		return nil, fmt.Errorf("fails to decode SleepInfo")
 	}
 	sleepinfolog.Info("validate create", "name", s.Name, "namespace", s.Namespace)
 
-	return s.validateSleepInfo(v.Client)
+	return s.Validate(v.Client)
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
 func (v *customValidator) ValidateUpdate(ctx context.Context, _, new runtime.Object) (admission.Warnings, error) {
-	s, ok := new.(*SleepInfo)
+	s, ok := new.(*v1alpha1.SleepInfo)
 	if !ok {
 		return nil, fmt.Errorf("fails to decode SleepInfo")
 	}
 	sleepinfolog.Info("validate update", "name", s.Name, "namespace", s.Namespace)
 
-	return s.validateSleepInfo(v.Client)
+	return s.Validate(v.Client)
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
 func (v *customValidator) ValidateDelete(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
-	s, ok := obj.(*SleepInfo)
+	s, ok := obj.(*v1alpha1.SleepInfo)
 	if !ok {
 		return nil, fmt.Errorf("fails to decode SleepInfo")
 	}
 	sleepinfolog.Info("validate delete", "name", s.Name)
 	return nil, nil
-}
-
-func (s SleepInfo) validateSleepInfo(cl client.Client) ([]string, error) {
-	schedule, err := s.GetSleepSchedule()
-	if err != nil {
-		return nil, err
-	}
-	if _, err = cron.ParseStandard(schedule); err != nil {
-		return nil, err
-	}
-
-	schedule, err = s.GetWakeUpSchedule()
-	if err != nil {
-		return nil, err
-	}
-	if schedule != "" {
-		if _, err = cron.ParseStandard(schedule); err != nil {
-			return nil, err
-		}
-	}
-
-	for _, excludeRef := range s.GetExcludeRef() {
-		if err := isExcludeRefValid(excludeRef); err != nil {
-			return nil, err
-		}
-	}
-
-	return s.validatePatches(cl)
-}
-
-func isExcludeRefValid(excludeRef FilterRef) error {
-	if excludeRef.Name == "" && excludeRef.APIVersion == "" && excludeRef.Kind == "" && len(excludeRef.MatchLabels) > 0 {
-		return nil
-	}
-	if len(excludeRef.MatchLabels) == 0 && excludeRef.Name != "" && excludeRef.APIVersion != "" && excludeRef.Kind != "" {
-		return nil
-	}
-	return fmt.Errorf(`excludeRef is invalid. Must have set: matchLabels or name,apiVersion and kind fields`)
-}
-
-func (s *SleepInfo) validatePatches(cl client.Client) ([]string, error) {
-	warnings := []string{}
-	for _, patch := range s.GetPatches() {
-		if _, err := cl.RESTMapper().RESTMapping(patch.Target.GroupKind()); err != nil {
-			warnings = append(warnings, fmt.Sprintf("SleepInfo patch target is invalid: %s", err))
-		}
-
-		if _, err := patcher.New([]byte(patch.Patch)); err != nil {
-			return nil, fmt.Errorf("patch is invalid for target %s: %w", patch.Target, err)
-		}
-	}
-
-	return warnings, nil
 }
