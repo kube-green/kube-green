@@ -74,7 +74,7 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	sleepInfo, err := r.getSleepInfo(ctx, req)
 	if err != nil {
-		log.Error(err, "unable to fetch sleepInfo")
+		log.V(8).Info("unable to fetch sleepInfo", "err", err.Error())
 		// we'll ignore not-found errors, since they can't be fixed by an immediate
 		// requeue (we'll need to wait for a new notification), and we can get them
 		// on deleted requests.
