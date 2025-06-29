@@ -177,3 +177,12 @@ jobs:
       community-operator-repo: redhat-openshift-ecosystem/community-operators-prod
     secrets:
       PERSONAL_ACCESS_TOKEN: ${{ secrets.KUBE_GREEN_OPERATOR_FORK_PR }}
+
+  release-helm:
+    name: Release Helm Chart
+    uses: ./.github/workflows/helm.yaml
+    needs: docker-build
+    with:
+      release: true
+    secrets:
+      GH_PAT_UPDATE_CONTENTS: ${{ secrets.GH_PAT_UPDATE_CONTENTS }}

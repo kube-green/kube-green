@@ -2,9 +2,17 @@ name: Helm Chart Releaser
 on:
   push:
     branches: [ "*" ]
-    tags: [ "*" ]
   pull_request:
     branches: [ "*" ]
+  workflow_call:
+    inputs:
+      release:
+        required: false
+        type: boolean
+        default: false
+    secrets:
+      GH_PAT_UPDATE_CONTENTS:
+        required: true
 jobs:
   lint:
     runs-on: ubuntu-latest
