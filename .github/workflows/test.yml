@@ -40,7 +40,7 @@ jobs:
       - name: Run lint
         run: make lint
       - name: Run tests with coverage
-        run: make coverage
+        run: make ci-coverage
       - name: Vet and Build
         run: make
       - name: Send the coverage output

@@ -129,7 +129,12 @@ test: manifests generate fmt vet gotestsum envtest ## Run tests.
 
 .PHONY: coverage
 coverage:
-	GO_TEST_ARGS='-cover -coverprofile cover.out' $(MAKE) test
+	GO_TEST_ARGS="-cover -coverprofile cover.out" $(MAKE) test
+
+.PHONY: ci-coverage
+ci-coverage:
+	@PACKAGES_TO_COVER=$$(go list ./... | grep -v 'testutil' | grep -v 'mocks'); \
+	GO_TEST_ARGS="-cover -coverprofile cover.out -coverpkg=$$(echo $$PACKAGES_TO_COVER | tr ' ' ',')" $(MAKE) test
 
 .PHONY: e2e-test-kustomize
 e2e-test-kustomize: manifests generate kustomize
