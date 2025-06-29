@@ -71,6 +71,9 @@ serviceAccount:
 # -- Annotations to add to each pod.
 podAnnotations: {}
 
+# -- Labels to add to each pod.
+podLabels: {}
+
 # -- Security settings that apply to all containers in the pod.
 podSecurityContext: {}
 

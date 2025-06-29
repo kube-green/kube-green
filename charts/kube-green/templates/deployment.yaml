@@ -24,6 +24,9 @@ spec:
       labels:
         app: kube-green
         control-plane: controller-manager
+        {{- with .Values.podLabels }}
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
         {{- include "kube-green.selectorLabels" . | nindent 8 }}
     spec:
       containers:
