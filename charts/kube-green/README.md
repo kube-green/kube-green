@@ -1,6 +1,6 @@
 # kube-green
 
-![Version: 0.7.0](https://img.shields.io/badge/Version-0.7.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.7.0](https://img.shields.io/badge/AppVersion-0.7.0-informational?style=flat-square)
+![Version: 0.7.1](https://img.shields.io/badge/Version-0.7.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.7.1](https://img.shields.io/badge/AppVersion-0.7.1-informational?style=flat-square)
 
 kube-green helm chart
 
@@ -22,7 +22,7 @@ kube-green helm chart
 | manager.hostNetwork | bool | `false` | run the manager in the host network. Required when using a custom CNI on EKS. |
 | manager.image.pullPolicy | string | `"IfNotPresent"` | Defines the image pull policy. Avoids pulling the image if it's already present. |
 | manager.image.repository | string | `"kubegreen/kube-green"` | The Docker image repository for the kube-green manager application. |
-| manager.image.tag | string | `"0.7.0"` | The specific image tag of the kube-green manager to use. |
+| manager.image.tag | string | `"0.7.1"` | The specific image tag of the kube-green manager to use. |
 | manager.metrics.enabled | bool | `true` | If enabled, the manager will expose metrics. |
 | manager.metrics.port | int | `8443` | The address to bind the metrics server. |
 | manager.metrics.secure | bool | `true` | If true, the metrics server will use a secure connection via HTTPS. Set it to false to use HTTP instead. The certificate will be created in a secret called "metrics-server-cert". |

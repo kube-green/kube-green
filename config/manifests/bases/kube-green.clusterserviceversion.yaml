@@ -5,7 +5,7 @@ metadata:
     alm-examples: '[]'
     capabilities: Seamless Upgrades
     categories: Developer Tools
-    containerImage: docker.io/kubegreen/kube-green:0.7.0
+    containerImage: docker.io/kubegreen/kube-green:0.7.1
     createdAt: "2021-02-21T00:00:00Z"
     description: Suspend your pods when no-one's using them to save energy and restore
       when necessary
@@ -26,12 +26,14 @@ spec:
         name: sleepinfo
         version: v1
       specDescriptors:
-      - description: ExcludeRef define the resource to exclude from the sleep. Exclusion
-          rules are evaluated in AND condition.
+      - description: |-
+          ExcludeRef define the resource to exclude from the sleep.
+          Exclusion rules are evaluated in AND condition.
         displayName: Exclude Ref
         path: excludeRef
-      - description: IncludeRef define the resource to include from the sleep. Inclusion
-          rules are evaluated in AND condition.
+      - description: |-
+          IncludeRef define the resource to include from the sleep.
+          Inclusion rules are evaluated in AND condition.
         displayName: Include Ref
         path: includeRef
       - description: Patches is a list of json 6902 patches to apply to the target
@@ -50,8 +52,11 @@ spec:
       - description: Kind of the Kubernetes resources.
         displayName: Kind
         path: patches[0].target.kind
-      - description: "Hours:Minutes \n Accept cron schedule for both hour and minute.
-          For example, *:*/2 is set to configure a run every even minute."
+      - description: |-
+          Hours:Minutes
+
+          Accept cron schedule for both hour and minute.
+          For example, *:*/2 is set to configure a run every even minute.
         displayName: Sleep Time
         path: sleepAt
       - description: If SuspendCronjobs is set to true, on sleep the cronjobs of the
@@ -66,26 +71,33 @@ spec:
           of the namespace will not be suspended. By default StatefulSet will be suspended.
         displayName: Suspend Stateful Sets
         path: suspendStatefulSets
-      - description: Time zone to set the schedule, in IANA time zone identifier.
-          It is not required, default to UTC. For example, for the Italy time zone
-          set Europe/Rome.
+      - description: |-
+          Time zone to set the schedule, in IANA time zone identifier.
+          It is not required, default to UTC.
+          For example, for the Italy time zone set Europe/Rome.
         displayName: Time Zone
         path: timeZone
-      - description: "Hours:Minutes \n Accept cron schedule for both hour and minute.
-          For example, *:*/2 is set to configure a run every even minute. It is not
-          required."
+      - description: |-
+          Hours:Minutes
+
+          Accept cron schedule for both hour and minute.
+          For example, *:*/2 is set to configure a run every even minute.
+          It is not required.
         displayName: Wake Up Time
         path: wakeUpAt
-      - description: "Weekdays are in cron notation. \n For example, to configure
-          a schedule from monday to friday, set it to \"1-5\""
+      - description: |-
+          Weekdays are in cron notation.
+
+          For example, to configure a schedule from monday to friday, set it to "1-5"
         displayName: Weekdays
         path: weekdays
       statusDescriptors:
       - description: Information when was the last time the run was successfully scheduled.
         displayName: Last Schedule Time
         path: lastScheduleTime
-      - description: The operation type handled in last schedule. SLEEP or WAKE_UP
-          are the possibilities
+      - description: |-
+          The operation type handled in last schedule. SLEEP or WAKE_UP are the
+          possibilities
         displayName: Operation Type
         path: operation
       version: v1alpha1
@@ -151,5 +163,5 @@ spec:
   provider:
     name: kube-green Community
     url: https://kube-green.dev
-  replaces: kube-green.v0.6.0
+  replaces: kube-green.v0.7.0
   version: 0.0.0

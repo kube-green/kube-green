@@ -9,7 +9,7 @@ metadata:
     HELM_CHART_VERSION_REDACTED
     app.kubernetes.io/name: kube-green
     app.kubernetes.io/instance: release-test
-    app.kubernetes.io/version: "0.7.0"
+    app.kubernetes.io/version: "0.7.1"
     app.kubernetes.io/managed-by: Helm
 ---
 # Source: kube-green/templates/crds/sleepinfo.yaml
@@ -426,7 +426,7 @@ metadata:
     HELM_CHART_VERSION_REDACTED
     app.kubernetes.io/name: kube-green
     app.kubernetes.io/instance: release-test
-    app.kubernetes.io/version: "0.7.0"
+    app.kubernetes.io/version: "0.7.1"
     app.kubernetes.io/managed-by: Helm
   name: kube-green-controller-manager-metrics-service
   namespace: default
@@ -463,7 +463,7 @@ metadata:
     HELM_CHART_VERSION_REDACTED
     app.kubernetes.io/name: kube-green
     app.kubernetes.io/instance: release-test
-    app.kubernetes.io/version: "0.7.0"
+    app.kubernetes.io/version: "0.7.1"
     app.kubernetes.io/managed-by: Helm
   name: kube-green-controller-manager
   namespace: default
@@ -495,7 +495,7 @@ spec:
         - --webhook-cert-path=/tmp/k8s-webhook-server/serving-certs
         command:
         - /manager
-        image: kubegreen/kube-green:0.7.0
+        image: kubegreen/kube-green:0.7.1
         imagePullPolicy: IfNotPresent
         livenessProbe:
           httpGet:
