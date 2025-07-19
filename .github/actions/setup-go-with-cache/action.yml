@@ -1,0 +1,21 @@
+name: 'Setup Go with bin cache'
+description: 'Setup Go environment and cache the bin folder'
+inputs:
+  go-version-file:
+    description: 'Path to go.mod file'
+    required: false
+    default: go.mod
+runs:
+  using: 'composite'
+  steps:
+    - name: Use golang
+      uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+      with:
+        go-version-file: ${{ inputs.go-version-file }}
+    - name: Cache bin tool folder
+      uses: actions/cache@2cdf405574d6ef1f33a1d12acccd3ae82f47b3f2 # v4.1.0
+      with:
+        path: bin/
+        key: ${{ runner.os }}-bin-${{ hashFiles('Makefile') }}
+        restore-keys: |
+          ${{ runner.os }}-bin-
