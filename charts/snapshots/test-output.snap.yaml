@@ -494,7 +494,7 @@ spec:
         - --leader-elect
         - --webhook-cert-path=/tmp/k8s-webhook-server/serving-certs
         command:
-        - /manager
+        - /kube-green
         image: kubegreen/kube-green:0.7.1
         imagePullPolicy: IfNotPresent
         livenessProbe:
