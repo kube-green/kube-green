@@ -155,7 +155,7 @@ e2e-test:
 ##@ Build
 
 .PHONY: build
-build: manifests generate fmt vet ## Build manager binary.
+build: manifests generate fmt vet goreleaser ## Build manager binary.
 	GOOS=linux $(GORELEASER) build --single-target --snapshot --clean --config=.goreleaser.yaml
 
 .PHONY: build-multi-arch
