@@ -69,7 +69,7 @@ spec:
           type: RuntimeDefault
       containers:
       - command:
-        - /manager
+        - /kube-green
         args:
         - --leader-elect
         - --health-probe-bind-address=:8081

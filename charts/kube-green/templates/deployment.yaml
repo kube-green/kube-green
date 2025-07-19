@@ -44,7 +44,7 @@ spec:
         - --leader-elect
         - --webhook-cert-path=/tmp/k8s-webhook-server/serving-certs
         command:
-        - /manager
+        - /kube-green
         image: {{ include "image" .Values.manager.image }}
         imagePullPolicy: {{ .Values.manager.image.pullPolicy }}
         livenessProbe:

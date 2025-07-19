@@ -76,7 +76,11 @@ func TestMain(m *testing.M) {
 func buildDockerImage(image string) env.Func {
 	return func(ctx context.Context, c *envconf.Config) (context.Context, error) {
 		e := gexe.New()
-		p := e.RunProc(fmt.Sprintf(`docker build -t %s ../../`, image))
+		p := e.NewProc("make build").SetWorkDir("../..").Run()
+		if p.Err() != nil {
+			return ctx, fmt.Errorf("make build: %s", p.Result())
+		}
+		p = e.RunProc(fmt.Sprintf(`docker build -t %s ../../`, image))
 		if p.Err() != nil {
 			return ctx, fmt.Errorf("docker: build %s: %s", p.Err(), p.Result())
 		}

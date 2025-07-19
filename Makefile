@@ -3,10 +3,14 @@
 # To re-generate a bundle for another specific version without changing the standard setup, you can:
 # - use the VERSION as arg of the bundle target (e.g make bundle VERSION=0.0.2)
 # - use environment variables to overwrite this value (e.g export VERSION=0.0.2)
-VERSION ?= 0.7.1
+VERSION           ?= 0.7.1
 DOCKER_IMAGE_NAME ?= docker.io/kubegreen/kube-green
-OS=$(shell go env GOOS)
-ARCH=$(shell go env GOARCH)
+OS                =$(shell go env GOOS)
+ARCH              =$(shell go env GOARCH)
+GIT_SHA           =$(shell git rev-parse HEAD)
+BUILD_PATH        := cmd/main.go
+
+.EXPORT_ALL_VARIABLES:
 
 # CHANNELS define the bundle channels used in the bundle.
 # Add a new line here if you would like to change its default config. (E.g CHANNELS = "preview,fast,stable")
@@ -152,7 +156,11 @@ e2e-test:
 
 .PHONY: build
 build: manifests generate fmt vet ## Build manager binary.
-	go build -o bin/manager cmd/main.go
+	GOOS=linux $(GORELEASER) build --single-target --snapshot --clean --config=.goreleaser.yaml
+
+.PHONY: build-multi-arch
+build-multi-arch: goreleaser ## Build manager binary for multiple architectures.
+	$(GORELEASER) build --snapshot --clean --config=.goreleaser.yaml
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
@@ -241,6 +249,7 @@ ENVTEST ?= $(LOCALBIN)/setup-envtest
 GOTESTSUM ?= $(LOCALBIN)/gotestsum
 GOLANGCI_LINT = $(LOCALBIN)/golangci-lint
 OPERATOR_SDK ?= $(LOCALBIN)/operator-sdk
+GORELEASER ?= $(LOCALBIN)/goreleaser
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v5.7.0
@@ -250,6 +259,7 @@ ENVTEST_VERSION ?= $(shell go list -m -f "{{ .Version }}" sigs.k8s.io/controller
 GOTESTSUM_VERSION ?= v1.12.3
 GOLANGCI_LINT_VERSION ?= v2.1.6
 OPERATOR_SDK_VERSION ?= v1.40.0
+GORELEASER_VERSION ?= v2.11.0
 
 .PHONY: kustomize
 kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
@@ -275,6 +285,11 @@ $(GOLANGCI_LINT): $(LOCALBIN)
 envtest: $(ENVTEST) ## Download setup-envtest locally if necessary.
 $(ENVTEST): $(LOCALBIN)
 	$(call go-install-tool,$(ENVTEST),sigs.k8s.io/controller-runtime/tools/setup-envtest,$(ENVTEST_VERSION))
+
+.PHONY: goreleaser
+goreleaser: $(GORELEASER) ## Download goreleaser locally if necessary.
+$(GORELEASER): $(LOCALBIN)
+	$(call go-install-tool,$(GORELEASER),github.com/goreleaser/goreleaser/v2,$(GORELEASER_VERSION))
 
 # go-install-tool will 'go install' any package with custom target and name of binary, if it doesn't exist
 # $1 - target path with name of binary
