@@ -1,0 +1,16 @@
+# This file contains values to test chart features with the snapshot
+
+rbac:
+  customClusterRole:
+    enabled: true
+    rules:
+      - apiGroups:
+        - "traefik.io"
+        resources:
+        - ingressroute
+        verbs:
+        - get
+        - list
+        - patch
+        - update
+        - watch

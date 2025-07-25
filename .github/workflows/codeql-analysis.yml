@@ -1,16 +1,4 @@
-# For most projects, this workflow file will not need changing; you simply need
-# to commit it to your repository.
-#
-# You may wish to alter this file to override the set of languages analyzed,
-# or to provide custom queries or build logic.
-#
-# ******** NOTE ********
-# We have attempted to detect the languages in your repository. Please check
-# the `language` matrix defined below to confirm you have the correct set of
-# supported CodeQL languages.
-#
-name: "CodeQL"
-
+name: CodeQL
 on:
   push:
     branches: [ main ]
@@ -36,16 +24,15 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
-
+      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+    - name: Setup Go with bin cache
+      uses: ./.github/actions/setup-go-with-cache
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
-      uses: github/codeql-action/init@v3
+      uses: github/codeql-action/init@4e828ff8d448a8a6e532957b1811f387a63867e8 # v3.29.4
       with:
         languages: ${{ matrix.language }}
-
-    - name: Autobuild
-      uses: github/codeql-action/autobuild@v3
-
+    - name: Run Build
+      run: make build
     - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v3
+      uses: github/codeql-action/analyze@4e828ff8d448a8a6e532957b1811f387a63867e8 # v3.29.4

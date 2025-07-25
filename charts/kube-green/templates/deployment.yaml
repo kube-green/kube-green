@@ -1,0 +1,140 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: kube-green
+    control-plane: controller-manager
+    {{- include "kube-green.labels" . | nindent 4 }}
+  name: kube-green-controller-manager
+  namespace: {{ .Release.Namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kube-green
+      control-plane: controller-manager
+      {{- include "kube-green.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: manager
+        {{- with .Values.podAnnotations }}
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        app: kube-green
+        control-plane: controller-manager
+        {{- with .Values.podLabels }}
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- include "kube-green.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+      - args:
+        {{ with .Values.manager.metrics -}}
+        {{ if .enabled -}}
+        - --metrics-bind-address={{ printf ":%d" (int64 .port) }}
+        - --metrics-secure={{ .secure }}
+        {{ if and $.Values.manager.metrics.enabled $.Values.manager.metrics.secure -}}
+        - --metrics-cert-path=/tmp/k8s-metrics-server/metrics-certs
+        {{ end }}
+        {{- end }}
+        {{- end -}}
+        - --health-probe-bind-address=:8081
+        - --leader-elect
+        - --webhook-cert-path=/tmp/k8s-webhook-server/serving-certs
+        command:
+        - /kube-green
+        image: {{ include "image" .Values.manager.image }}
+        imagePullPolicy: {{ .Values.manager.image.pullPolicy }}
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        name: manager
+        ports:
+        - containerPort: 9443
+          name: webhook-server
+          protocol: TCP
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        {{- if .Values.manager.resources }}
+        resources:
+        {{ toYaml .Values.manager.resources | nindent 10 }}
+        {{- else }}
+        resources: {}
+        {{- end }}
+        {{- if .Values.manager.securityContext }}
+        securityContext:
+        {{ toYaml .Values.manager.securityContext | nindent 10 }}
+        {{- else }}
+        securityContext: {}
+        {{- end }}
+        volumeMounts:
+        - mountPath: /tmp/k8s-webhook-server/serving-certs
+          name: cert
+          readOnly: true
+        {{- if and $.Values.manager.metrics.enabled $.Values.manager.metrics.secure }}
+        - mountPath: /tmp/k8s-metrics-server/metrics-certs
+          name: metrics-cert
+          readOnly: true
+        {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      terminationGracePeriodSeconds: 10
+      volumes:
+      - name: cert
+        secret:
+          defaultMode: 420
+          secretName: {{ include "kube-green.webhook.secret.name" . }}
+      {{ if and $.Values.manager.metrics.enabled $.Values.manager.metrics.secure -}}
+      - name: metrics-cert
+        secret:
+          secretName: {{ include "kube-green.metrics.secret.name" . }}
+          items:
+            {{- if .Values.certManager.enabled }}
+            - key: ca.crt
+            {{- else if .Values.jobsCert.enabled }}
+            - key: ca
+            {{- end }}
+              path: ca.crt
+            - key: tls.crt
+              path: tls.crt
+            - key: tls.key
+              path: tls.key
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.priorityClassName }}
+      priorityClassName: {{ . }}
+      {{- end }}
+      {{- with .Values.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.manager.hostNetwork }}
+      hostNetwork: true
+      {{- end }}

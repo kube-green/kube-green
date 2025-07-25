@@ -6,64 +6,66 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/vladimirvivien/gexe"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	"sigs.k8s.io/e2e-framework/klient"
-	"sigs.k8s.io/e2e-framework/pkg/env"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 )
 
 const (
-	localBinRelativePath = "../../bin"
-	envtestBin           = "setup-envtest"
+	kindVersionVariableName = "KIND_K8S_VERSION"
+	localBinRelativePath    = "../../bin"
+	envtestBin              = "setup-envtest"
 )
 
-type testEnvKey struct{}
+var (
+	_, b, _, _ = runtime.Caller(0)
+	basepath   = filepath.Dir(b)
+)
 
-func SetupEnvTest() env.Func {
-	return func(ctx context.Context, c *envconf.Config) (context.Context, error) {
-		testEnv := &envtest.Environment{}
-
-		e := gexe.New()
-		version := getK8sVersionForEnvtest()
-		assetsPath, err := findOrInstallTestEnv(e, version)
-		if err != nil {
-			return ctx, err
-		}
-
-		if err := os.Setenv("KUBEBUILDER_ASSETS", assetsPath); err != nil {
-			return ctx, err
-		}
-
-		cfg, err := testEnv.Start()
-		if err != nil {
-			return ctx, err
-		}
-		client, err := klient.New(cfg)
-		if err != nil {
-			return ctx, err
-		}
-		c.WithClient(client)
-
-		ctx = context.WithValue(ctx, testEnvKey{}, testEnv)
-
-		return ctx, nil
+func StartEnvTest(config *envconf.Config, crdDirPaths []string) (*envtest.Environment, error) {
+	testEnv := &envtest.Environment{
+		CRDDirectoryPaths: crdDirPaths,
 	}
+
+	e := gexe.New()
+	version := getK8sVersionForEnvtest()
+	assetsPath, err := findOrInstallTestEnv(e, version)
+	if err != nil {
+		return testEnv, err
+	}
+
+	if err := os.Setenv("KUBEBUILDER_ASSETS", assetsPath); err != nil {
+		return testEnv, err
+	}
+
+	cfg, err := testEnv.Start()
+	if err != nil {
+		return testEnv, err
+	}
+
+	client, err := klient.New(cfg)
+	if err != nil {
+		return testEnv, err
+	}
+	config.WithClient(client)
+
+	_, err = GetClusterVersion()(context.TODO(), config)
+	if err != nil {
+		return nil, err
+	}
+
+	return testEnv, nil
 }
 
-func StopEnvTest() env.Func {
-	return func(ctx context.Context, c *envconf.Config) (context.Context, error) {
-		if err := os.Unsetenv("KUBEBUILDER_ASSETS"); err != nil {
-			return ctx, err
-		}
-		testEnv, ok := ctx.Value(testEnvKey{}).(*envtest.Environment)
-		if !ok {
-			return ctx, fmt.Errorf("invalid environment in context")
-		}
-		return ctx, testEnv.Stop()
+func StopEnvTest(testEnv *envtest.Environment) error {
+	if err := os.Unsetenv("KUBEBUILDER_ASSETS"); err != nil {
+		return err
 	}
+	return testEnv.Stop()
 }
 
 func findOrInstallTestEnv(e *gexe.Echo, k8sVersion string) (string, error) {
@@ -75,26 +77,17 @@ func findOrInstallTestEnv(e *gexe.Echo, k8sVersion string) (string, error) {
 		}
 	}
 
-	localBin, err := getLocalBin()
-	if err != nil {
-		return "", err
-	}
-
-	p := e.RunProc(fmt.Sprintf("%s use -p path --bin-dir %s %s", setupEnvCommand, localBin, k8sVersion))
+	cmd := fmt.Sprintf("%s use -p path --bin-dir %s %s", setupEnvCommand, getLocalBin(), k8sVersion)
+	p := e.RunProc(cmd)
 	if p.Err() != nil {
-		return "", fmt.Errorf("failed to use envtest at version %s: %s", k8sVersion, p.Err())
+		return "", fmt.Errorf("failed to use envtest at version %s: %s. Command: %s", k8sVersion, p.Err(), cmd)
 	}
 	return p.Result(), nil
 }
 
 func installTestEnv(e *gexe.Echo) (string, error) {
-	localBin, err := getLocalBin()
-	if err != nil {
-		return "", err
-	}
-
 	p := e.
-		SetEnv("GOBIN", localBin).
+		SetEnv("GOBIN", getLocalBin()).
 		RunProc("go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest")
 	if p.Err() != nil {
 		return "", fmt.Errorf("failed to install setup-envtest: %s", p.Err())
@@ -108,19 +101,13 @@ func installTestEnv(e *gexe.Echo) (string, error) {
 	return "", fmt.Errorf("setup-envtest not available even after installation")
 }
 
-func getLocalBin() (string, error) {
-	localPath, err := filepath.Abs(localBinRelativePath)
-	if err != nil {
-		return "", err
-	}
-	return localPath, nil
+func getLocalBin() string {
+	localPath := filepath.Join(basepath, localBinRelativePath)
+	return localPath
 }
 
 func getSetupEnvPath() string {
-	localBin, err := getLocalBin()
-	if err != nil {
-		return ""
-	}
+	localBin := getLocalBin()
 	envtestBinPath := path.Join(localBin, envtestBin)
 	if _, err := os.Stat(envtestBinPath); err == nil {
 		return envtestBinPath

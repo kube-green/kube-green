@@ -1,0 +1,119 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kube-green-manager-role-aggregate
+  labels: {{- include "kube-green.rbac.aggregationSelector.label" . | nindent 4 }}
+rules:
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  - statefulsets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - batch
+  resources:
+  - cronjobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - kube-green.com
+  resources:
+  - sleepinfos
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - kube-green.com
+  resources:
+  - sleepinfos/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - kube-green.com
+  resources:
+  - sleepinfos/status
+  verbs:
+  - get
+  - patch
+  - update
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kube-green-manager-role
+aggregationRule:
+  clusterRoleSelectors:
+  - matchLabels: {{- include "kube-green.rbac.aggregationSelector.label" . | nindent 6 }}
+rules: [] # The control plane automatically fills in the rules
+{{- if .Values.rbac.customClusterRole.enabled }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ .Values.rbac.customClusterRole.name }}
+  labels: {{- include "kube-green.rbac.aggregationSelector.label" . | nindent 4 }}
+rules:
+  {{- toYaml .Values.rbac.customClusterRole.rules | nindent 2 -}}
+{{ end -}}
+{{- if and .Values.manager.metrics.enabled .Values.manager.metrics.secure }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kube-green-metrics-reader
+rules:
+- nonResourceURLs:
+  - /metrics
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kube-green-metrics-auth-role
+rules:
+- apiGroups:
+  - authentication.k8s.io
+  resources:
+  - tokenreviews
+  verbs:
+  - create
+- apiGroups:
+  - authorization.k8s.io
+  resources:
+  - subjectaccessreviews
+  verbs:
+  - create
+{{ end -}}

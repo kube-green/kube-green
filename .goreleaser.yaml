@@ -1,0 +1,38 @@
+version: 2
+dist: dist
+
+builds:
+- main: "{{ .Env.BUILD_PATH }}"
+  binary: >-
+    {{ .Os }}/
+    {{- .Arch }}/
+    {{- with .Arm }}v{{ . }}/{{ end }}
+    {{- .ProjectName }}
+  no_unique_dist_dir: true
+  env:
+  - CGO_ENABLED=0
+  flags:
+  - -trimpath
+  ldflags:
+  - -s
+  - -w
+  goos:
+  - linux
+  goarch:
+  - amd64
+  - arm64
+  - arm
+  goarm:
+    - '7'
+
+checksum:
+  name_template: checksums.txt
+
+snapshot:
+  version_template: "{{ .ShortCommit }}"
+
+changelog:
+  use: github-native
+
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+# vim: set ts=2 sw=2 tw=0 fo=cnqoj

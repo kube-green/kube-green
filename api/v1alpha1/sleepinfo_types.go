@@ -8,16 +8,21 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/kube-green/kube-green/internal/patcher"
+
+	"github.com/robfig/cron/v3"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-type ExcludeRef struct {
+// Define a resource to filter, used to include or exclude resources from the sleep.
+type FilterRef struct {
 	// ApiVersion of the kubernetes resources.
-	// Supported api version is "apps/v1".
+	// +optional
 	APIVersion string `json:"apiVersion,omitempty"`
 	// Kind of the kubernetes resources of the specific version.
-	// Supported kind are "Deployment" and "CronJob".
+	// +optional
 	Kind string `json:"kind,omitempty"`
 	// Name which identify the kubernetes resource.
 	// +optional
@@ -42,13 +47,13 @@ type SleepInfoSpec struct {
 	// Weekdays are in cron notation.
 	//
 	// For example, to configure a schedule from monday to friday, set it to "1-5"
-	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Weekdays string `json:"weekdays,omitempty"`
 	// Hours:Minutes
 	//
 	// Accept cron schedule for both hour and minute.
 	// For example, *:*/2 is set to configure a run every even minute.
-	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	SleepTime string `json:"sleepAt,omitempty"`
 	// Hours:Minutes
 	//
@@ -56,29 +61,39 @@ type SleepInfoSpec struct {
 	// For example, *:*/2 is set to configure a run every even minute.
 	// It is not required.
 	// +optional
-	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	WakeUpTime string `json:"wakeUpAt,omitempty"`
 	// Time zone to set the schedule, in IANA time zone identifier.
 	// It is not required, default to UTC.
 	// For example, for the Italy time zone set Europe/Rome.
 	// +optional
-	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	TimeZone string `json:"timeZone,omitempty"`
 	// ExcludeRef define the resource to exclude from the sleep.
+	// Exclusion rules are evaluated in AND condition.
 	// +optional
-	//+operator-sdk:csv:customresourcedefinitions:type=spec
-	ExcludeRef []ExcludeRef `json:"excludeRef,omitempty"`
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	ExcludeRef []FilterRef `json:"excludeRef,omitempty"`
+	// IncludeRef define the resource to include from the sleep.
+	// Inclusion rules are evaluated in AND condition.
+	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	IncludeRef []FilterRef `json:"includeRef,omitempty"`
 	// If SuspendCronjobs is set to true, on sleep the cronjobs of the namespace will be suspended.
 	// +optional
-	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	SuspendCronjobs bool `json:"suspendCronJobs,omitempty"`
 	// If SuspendDeployments is set to false, on sleep the deployment of the namespace will not be suspended. By default Deployment will be suspended.
 	// +optional
-	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	SuspendDeployments *bool `json:"suspendDeployments,omitempty"`
+	// If SuspendStatefulSets is set to false, on sleep the statefulset of the namespace will not be suspended. By default StatefulSet will be suspended.
+	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	SuspendStatefulSets *bool `json:"suspendStatefulSets,omitempty"`
 	// Patches is a list of json 6902 patches to apply to the target resources.
 	// +optional
-	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Patches []Patch `json:"patches,omitempty"`
 	// ScheduleException define the exceptions to the schedule.
 	// +optional
@@ -103,19 +118,19 @@ type ScheduleException struct {
 
 type Patch struct {
 	// Target is the target resource to patch.
-	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Target PatchTarget `json:"target"`
 	// Patch is the json6902 patch to apply to the target resource.
-	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Patch string `json:"patch"`
 }
 
 type PatchTarget struct {
 	// Group of the Kubernetes resources.
-	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Group string `json:"group"`
 	// Kind of the Kubernetes resources.
-	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Kind string `json:"kind"`
 }
 
@@ -134,19 +149,19 @@ func (p PatchTarget) GroupKind() schema.GroupKind {
 type SleepInfoStatus struct {
 	// Information when was the last time the run was successfully scheduled.
 	// +optional
-	//+operator-sdk:csv:customresourcedefinitions:type=status,displayName="Last Schedule Time"
+	// +operator-sdk:csv:customresourcedefinitions:type=status,displayName="Last Schedule Time"
 	LastScheduleTime metav1.Time `json:"lastScheduleTime,omitempty"`
 	// The operation type handled in last schedule. SLEEP or WAKE_UP are the
 	// possibilities
 	// +optional
-	//+operator-sdk:csv:customresourcedefinitions:type=status,displayName="Operation Type"
+	// +operator-sdk:csv:customresourcedefinitions:type=status,displayName="Operation Type"
 	OperationType string `json:"operation,omitempty"`
 }
 
-//+kubebuilder:object:root=true
-//+kubebuilder:subresource:status
-//+kubebuilder:resource:path=sleepinfos
-//+operator-sdk:csv:customresourcedefinitions:displayName="SleepInfo",resources={{Secret,v1,sleepinfo}}
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +kubebuilder:resource:path=sleepinfos
+// +operator-sdk:csv:customresourcedefinitions:displayName="SleepInfo",resources={{Secret,v1,sleepinfo}}
 // +genclient - this is required for auto generated docs
 
 // SleepInfo is the Schema for the sleepinfos API
@@ -169,7 +184,11 @@ func (s SleepInfo) GetWakeUpSchedule() (string, error) {
 	return s.getScheduleFromWeekdayAndTime(s.Spec.WeekDayWakeUp, s.Spec.WakeUpTime)
 }
 
-func (s SleepInfo) GetExcludeRef() []ExcludeRef {
+func (s SleepInfo) GetIncludeRef() []FilterRef {
+	return s.Spec.IncludeRef
+}
+
+func (s SleepInfo) GetExcludeRef() []FilterRef {
 	return s.Spec.ExcludeRef
 }
 
@@ -200,12 +219,12 @@ func (s SleepInfo) getScheduleFromWeekdayAndTime(weekday string, hourAndMinute s
 	if weekday == "" {
 		weekday = s.Spec.Weekdays
 		if weekday == "" {
-			return "", fmt.Errorf("empty weekdays and weekdaysleep or weekdaywakeup from SleepInfo configuration")
+			return "", fmt.Errorf("empty weekdays and weekdaySleep or weekdayWakeUp from SleepInfo configuration")
 		}
 	}
 
 	splittedTime := strings.Split(hourAndMinute, ":")
-	//nolint:gomnd
+	//nolint:mnd
 	if len(splittedTime) != 2 {
 		return "", fmt.Errorf("time should be of format HH:mm, actual: %s", hourAndMinute)
 	}
@@ -227,11 +246,81 @@ func (s SleepInfo) IsDeploymentsToSuspend() bool {
 	return *s.Spec.SuspendDeployments
 }
 
-func (s SleepInfo) GetPatches() []Patch {
-	return s.Spec.Patches
+func (s SleepInfo) IsStatefulSetsToSuspend() bool {
+	if s.Spec.SuspendStatefulSets == nil {
+		return true
+	}
+	return *s.Spec.SuspendStatefulSets
 }
 
-//+kubebuilder:object:root=true
+func (s SleepInfo) GetPatches() []Patch {
+	patches := []Patch{}
+	if s.IsDeploymentsToSuspend() {
+		patches = append(patches, deploymentPatch)
+	}
+	if s.IsStatefulSetsToSuspend() {
+		patches = append(patches, statefulSetPatch)
+	}
+	if s.IsCronjobsToSuspend() {
+		patches = append(patches, cronjobPatch)
+	}
+	return append(patches, s.Spec.Patches...)
+}
+
+func (s SleepInfo) Validate(cl client.Client) ([]string, error) {
+	schedule, err := s.GetSleepSchedule()
+	if err != nil {
+		return nil, err
+	}
+	if _, err = cron.ParseStandard(schedule); err != nil {
+		return nil, err
+	}
+
+	schedule, err = s.GetWakeUpSchedule()
+	if err != nil {
+		return nil, err
+	}
+	if schedule != "" {
+		if _, err = cron.ParseStandard(schedule); err != nil {
+			return nil, err
+		}
+	}
+
+	for _, excludeRef := range s.GetExcludeRef() {
+		if err := isExcludeRefValid(excludeRef); err != nil {
+			return nil, err
+		}
+	}
+
+	return s.validatePatches(cl)
+}
+
+func isExcludeRefValid(excludeRef FilterRef) error {
+	if excludeRef.Name == "" && excludeRef.APIVersion == "" && excludeRef.Kind == "" && len(excludeRef.MatchLabels) > 0 {
+		return nil
+	}
+	if len(excludeRef.MatchLabels) == 0 && excludeRef.Name != "" && excludeRef.APIVersion != "" && excludeRef.Kind != "" {
+		return nil
+	}
+	return fmt.Errorf(`excludeRef is invalid. Must have set: matchLabels or name,apiVersion and kind fields`)
+}
+
+func (s *SleepInfo) validatePatches(cl client.Client) ([]string, error) {
+	warnings := []string{}
+	for _, patch := range s.GetPatches() {
+		if _, err := cl.RESTMapper().RESTMapping(patch.Target.GroupKind()); err != nil {
+			warnings = append(warnings, fmt.Sprintf("SleepInfo patch target is invalid: %s", err))
+		}
+
+		if _, err := patcher.New([]byte(patch.Patch)); err != nil {
+			return nil, fmt.Errorf("patch is invalid for target %s: %w", patch.Target, err)
+		}
+	}
+
+	return warnings, nil
+}
+
+// +kubebuilder:object:root=true
 
 // SleepInfoList contains a list of SleepInfo
 type SleepInfoList struct {

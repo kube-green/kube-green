@@ -4,6 +4,8 @@ metadata:
   creationTimestamp: null
   labels:
     app: kube-green
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: kube-green
   name: kube-green-webhook-service
 spec:
   ports:

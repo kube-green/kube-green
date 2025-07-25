@@ -1,4 +1,4 @@
-name: Test and build
+name: "Test and build"
 on:
   push:
     branches:
@@ -10,126 +10,161 @@ on:
       - "main"
 jobs:
   tests:
-    name: Test k8s ${{ matrix.k8s_version }} on os ${{matrix.os}} - go version ${{ matrix.go_version }}
+    name: Test k8s ${{ matrix.k8s_version }} on os ${{matrix.os}}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        go_version: ['1.21']
         os: [ubuntu-latest]
         k8s_version:
-          - 'v1.29.0'
-          - 'v1.28.0'
-          - 'v1.27.3'
-          - 'v1.26.6'
-          - 'v1.25.11'
-          - 'v1.24.15'
-          - 'v1.23.17'
-          - 'v1.22.17'
-          - 'v1.21.14'
-          - 'v1.20.15'
-          - 'v1.19.16'
+          - 'v1.33.1'
+          - 'v1.32.5'
+          - 'v1.31.9'
+          - 'v1.30.13'
+          - 'v1.29.14'
+          - 'v1.28.15'
+          - 'v1.27.16'
     env:
       KIND_K8S_VERSION: ${{matrix.k8s_version}}
     steps:
-      - uses: actions/checkout@v4
-      - name: Use golang ${{ matrix.go_version }}
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ matrix.go_version }}
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Setup Go with bin cache
+        uses: ./.github/actions/setup-go-with-cache
       - name: docker version
         run: docker version
       - name: Go version
         run: go version
       - name: Go get dependencies
-        run: go get -v -t -d ./...
+        run: go mod download
+      - name: Run lint
+        run: make lint
       - name: Run tests with coverage
-        run: make coverage
+        run: make ci-coverage
       - name: Vet and Build
         run: make
       - name: Send the coverage output
-        uses: shogo82148/actions-goveralls@v1
+        uses: shogo82148/actions-goveralls@e6875f831db61e6abffbd8df91a2eb6cd24b46c9 # v1.9.1
         with:
           path-to-profile: cover.out
-          flag-name: go-${{matrix.go}}-k8s-${{matrix.k8s_version}}
+          flag-name: k8s-${{matrix.k8s_version}}
           parallel: true
   finish:
     needs: tests
     runs-on: ubuntu-latest
     steps:
-      - uses: shogo82148/actions-goveralls@v1
+      - uses: shogo82148/actions-goveralls@e6875f831db61e6abffbd8df91a2eb6cd24b46c9 # v1.9.1
         with:
           parallel-finished: true
 
-  e2e:
-    name: e2e test with kind
+  e2e-kustomize:
+    name: e2e test with kustomize in kind cluster
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Use golang
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.21'
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Setup Go with bin cache
+        uses: ./.github/actions/setup-go-with-cache
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
+      - name: Run tests
+        run: make e2e-test-kustomize
+      - name: 'Upload Log Artifact'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: ${{ failure() }}
+        with:
+          name: e2e-logs-kustomize-${{ github.run_id }}
+          path: ./tests/integration/tests-logs/
+          retention-days: 1
+
+  e2e-helm:
+    name: e2e test with helm in kind cluster
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Setup Go with bin cache
+        uses: ./.github/actions/setup-go-with-cache
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
+      - name: Set up Helm
+        uses: azure/setup-helm@b9e51907a09c216f16ebe8536097933489208112 # v4.3.0
       - name: Run tests
         run: make e2e-test
+      - name: 'Upload Log Artifact'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: ${{ failure() }}
+        with:
+          name: e2e-logs-helm-${{ github.run_id }}
+          path: ./tests/integration/tests-logs/
+          retention-days: 1
 
   docker-build:
     name: Build docker
-    needs: [tests, e2e]
+    needs: [tests, e2e-kustomize, e2e-helm]
     runs-on: ubuntu-latest
     if: ${{ startsWith(github.ref, 'refs/tags/') || github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
-
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Setup Go with bin cache
+        uses: ./.github/actions/setup-go-with-cache
+      - name: Run Trivy (repo mode)
+        uses: aquasecurity/trivy-action@dc5a429b52fcf669ce959baa2c2dd26090d2a6c4 # v0.32.0
+        with:
+          scan-type: 'fs'
+          ignore-unfixed: true
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+      - name: Build multi-arch
+        run: make build-multi-arch
       - name: Docker meta
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@902fa8ec7d6ecbf8d84d538b9b233a880e428804 # v5.7.0
         with:
           images: |
             ghcr.io/kube-green/kube-green
             docker.io/kubegreen/kube-green
           tags: |
-            type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+            type=raw,value=latest,enable={{is_default_branch}}
             type=semver,pattern={{version}}
           flavor: |
             latest=false
-
+          annotations: |
+            org.opencontainers.image.authors=The kube-green team
+            org.opencontainers.image.source=github.com/kube-green/kube-green/commit/${{ github.sha }}
+          labels: |
+            org.opencontainers.image.authors=The kube-green team
+            org.opencontainers.image.source=github.com/kube-green/kube-green/commit/${{ github.sha }}
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392 # v3.6.0
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        id: buildx
+        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
+        with:
+          platforms: linux/amd64,linux/arm64,linux/arm/v7
 
       - name: Docker Login to ghcr.io
-        uses: docker/login-action@v3
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Login to DockerHub
-        uses: docker/login-action@v3
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_TOKEN }}
-
-      - name: Cache build
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.context }}build
-          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-build-${{ env.cache-name }}
       - name: Build and push
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
         with:
-          context: '${{ env.context }}'
-          platforms: linux/amd64,linux/arm64,linux/arm/v7
+          context: .
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          annotations: ${{ steps.meta.outputs.annotations }}
+          platforms: ${{ steps.buildx.outputs.platforms }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   release-community-operators:
     name: Release community operator
@@ -139,7 +174,7 @@ jobs:
       community-operator-fork: kube-green/community-operators
       community-operator-repo: k8s-operatorhub/community-operators
     secrets:
-      PERSONAL_ACCESS_TOKEN: ${{ secrets.PAT_UPDATE_OPERATORS }}
+      PERSONAL_ACCESS_TOKEN: ${{ secrets.KUBE_GREEN_OPERATOR_FORK_PR }}
 
   release-community-operators-prod:
     name: Release community operator prod
@@ -149,4 +184,13 @@ jobs:
       community-operator-fork: kube-green/community-operators-prod
       community-operator-repo: redhat-openshift-ecosystem/community-operators-prod
     secrets:
-      PERSONAL_ACCESS_TOKEN: ${{ secrets.PAT_UPDATE_OPERATORS }}
+      PERSONAL_ACCESS_TOKEN: ${{ secrets.KUBE_GREEN_OPERATOR_FORK_PR }}
+
+  release-helm:
+    name: Release Helm Chart
+    uses: ./.github/workflows/helm.yaml
+    needs: docker-build
+    with:
+      release: true
+    secrets:
+      GH_PAT_UPDATE_CONTENTS: ${{ secrets.GH_PAT_UPDATE_CONTENTS }}

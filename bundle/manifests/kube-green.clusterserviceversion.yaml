@@ -31,17 +31,17 @@ metadata:
       ]
     capabilities: Seamless Upgrades
     categories: Developer Tools
-    containerImage: docker.io/kubegreen/kube-green:0.5.2
-    createdAt: "2023-10-08T09:36:50Z"
+    containerImage: docker.io/kubegreen/kube-green:0.7.1
+    createdAt: "2025-06-29T15:45:17Z"
     description: Suspend your pods when no-one's using them to save energy and restore
       when necessary
-    operators.operatorframework.io/builder: operator-sdk-v1.29.0
-    operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
+    operators.operatorframework.io/builder: operator-sdk-v1.40.0
+    operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
     repository: https://github.com/kube-green/kube-green
     support: kube-green Community
   labels:
     app: kube-green
-  name: kube-green.v0.5.2
+  name: kube-green.v0.7.1
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -56,11 +56,37 @@ spec:
         name: sleepinfo
         version: v1
       specDescriptors:
-      - description: ExcludeRef define the resource to exclude from the sleep.
+      - description: |-
+          ExcludeRef define the resource to exclude from the sleep.
+          Exclusion rules are evaluated in AND condition.
         displayName: Exclude Ref
         path: excludeRef
-      - description: "Hours:Minutes \n Accept cron schedule for both hour and minute.
-          For example, *:*/2 is set to configure a run every even minute."
+      - description: |-
+          IncludeRef define the resource to include from the sleep.
+          Inclusion rules are evaluated in AND condition.
+        displayName: Include Ref
+        path: includeRef
+      - description: Patches is a list of json 6902 patches to apply to the target
+          resources.
+        displayName: Patches
+        path: patches
+      - description: Patch is the json6902 patch to apply to the target resource.
+        displayName: Patch
+        path: patches[0].patch
+      - description: Target is the target resource to patch.
+        displayName: Target
+        path: patches[0].target
+      - description: Group of the Kubernetes resources.
+        displayName: Group
+        path: patches[0].target.group
+      - description: Kind of the Kubernetes resources.
+        displayName: Kind
+        path: patches[0].target.kind
+      - description: |-
+          Hours:Minutes
+
+          Accept cron schedule for both hour and minute.
+          For example, *:*/2 is set to configure a run every even minute.
         displayName: Sleep Time
         path: sleepAt
       - description: If SuspendCronjobs is set to true, on sleep the cronjobs of the
@@ -71,26 +97,37 @@ spec:
           of the namespace will not be suspended. By default Deployment will be suspended.
         displayName: Suspend Deployments
         path: suspendDeployments
-      - description: Time zone to set the schedule, in IANA time zone identifier.
-          It is not required, default to UTC. For example, for the Italy time zone
-          set Europe/Rome.
+      - description: If SuspendStatefulSets is set to false, on sleep the statefulset
+          of the namespace will not be suspended. By default StatefulSet will be suspended.
+        displayName: Suspend Stateful Sets
+        path: suspendStatefulSets
+      - description: |-
+          Time zone to set the schedule, in IANA time zone identifier.
+          It is not required, default to UTC.
+          For example, for the Italy time zone set Europe/Rome.
         displayName: Time Zone
         path: timeZone
-      - description: "Hours:Minutes \n Accept cron schedule for both hour and minute.
-          For example, *:*/2 is set to configure a run every even minute. It is not
-          required."
+      - description: |-
+          Hours:Minutes
+
+          Accept cron schedule for both hour and minute.
+          For example, *:*/2 is set to configure a run every even minute.
+          It is not required.
         displayName: Wake Up Time
         path: wakeUpAt
-      - description: "Weekdays are in cron notation. \n For example, to configure
-          a schedule from monday to friday, set it to \"1-5\""
+      - description: |-
+          Weekdays are in cron notation.
+
+          For example, to configure a schedule from monday to friday, set it to "1-5"
         displayName: Weekdays
         path: weekdays
       statusDescriptors:
       - description: Information when was the last time the run was successfully scheduled.
         displayName: Last Schedule Time
         path: lastScheduleTime
-      - description: The operation type handled in last schedule. SLEEP or WAKE_UP
-          are the possibilities
+      - description: |-
+          The operation type handled in last schedule. SLEEP or WAKE_UP are the
+          possibilities
         displayName: Operation Type
         path: operation
       version: v1alpha1
@@ -128,12 +165,23 @@ spec:
       clusterPermissions:
       - rules:
         - apiGroups:
-          - apps
+          - ""
           resources:
-          - deployments
+          - secrets
           verbs:
           - create
           - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - apps
+          resources:
+          - deployments
+          - statefulsets
+          verbs:
           - get
           - list
           - patch
@@ -144,20 +192,6 @@ spec:
           resources:
           - cronjobs
           verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - ""
-          resources:
-          - secrets
-          verbs:
-          - create
-          - delete
           - get
           - list
           - patch
@@ -205,6 +239,12 @@ spec:
       deployments:
       - label:
           app: kube-green
+          app.kubernetes.io/component: manager
+          app.kubernetes.io/created-by: kube-green
+          app.kubernetes.io/instance: controller-manager
+          app.kubernetes.io/managed-by: kustomize
+          app.kubernetes.io/name: deployment
+          app.kubernetes.io/part-of: kube-green
           control-plane: controller-manager
         name: kube-green-controller-manager
         spec:
@@ -224,12 +264,12 @@ spec:
             spec:
               containers:
               - args:
-                - --health-probe-bind-address=:8081
-                - --metrics-bind-address=127.0.0.1:8080
+                - --metrics-bind-address=:8443
                 - --leader-elect
+                - --health-probe-bind-address=:8081
                 command:
                 - /manager
-                image: docker.io/kubegreen/kube-green:0.5.2
+                image: docker.io/kubegreen/kube-green:0.7.1
                 livenessProbe:
                   httpGet:
                     path: /healthz
@@ -254,29 +294,6 @@ spec:
                   requests:
                     cpu: 100m
                     memory: 50Mi
-                securityContext:
-                  allowPrivilegeEscalation: false
-                  capabilities:
-                    drop:
-                    - ALL
-              - args:
-                - --secure-listen-address=0.0.0.0:8443
-                - --upstream=http://127.0.0.1:8080/
-                - --logtostderr=true
-                - --v=0
-                image: gcr.io/kubebuilder/kube-rbac-proxy:v0.15.0
-                name: kube-rbac-proxy
-                ports:
-                - containerPort: 8443
-                  name: https
-                  protocol: TCP
-                resources:
-                  limits:
-                    cpu: 500m
-                    memory: 128Mi
-                  requests:
-                    cpu: 5m
-                    memory: 64Mi
                 securityContext:
                   allowPrivilegeEscalation: false
                   capabilities:
@@ -346,12 +363,12 @@ spec:
   - email: bianchidavide12+kubegreen@gmail.com
     name: Davide
   maturity: alpha
-  minKubeVersion: 1.19.0
+  minKubeVersion: 1.27.0
   provider:
     name: kube-green Community
     url: https://kube-green.dev
-  replaces: kube-green.v0.5.1
-  version: 0.5.2
+  replaces: kube-green.v0.7.0
+  version: 0.7.1
   webhookdefinitions:
   - admissionReviewVersions:
     - v1

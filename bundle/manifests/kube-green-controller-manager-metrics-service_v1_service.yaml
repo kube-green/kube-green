@@ -4,6 +4,8 @@ metadata:
   creationTimestamp: null
   labels:
     app: kube-green
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: kube-green
     control-plane: controller-manager
   name: kube-green-controller-manager-metrics-service
 spec:
@@ -11,7 +13,7 @@ spec:
   - name: https
     port: 8443
     protocol: TCP
-    targetPort: https
+    targetPort: 8443
   selector:
     app: kube-green
     control-plane: controller-manager

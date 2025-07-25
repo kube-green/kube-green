@@ -8,19 +8,19 @@ spec:
   wakeUpAt: "08:00"
   timeZone: "Europe/Rome"
   suspendCronJobs: true
-  patchesJson6902:
+  patches:
     - target:
         group: apps
         kind: Deployment
         # labelSelector: "env=dev"
-      patches: |-
+      patch: |-
         - path: /spec/replicas
           op: replace
           value: 0
     - target:
         group: batch
         kind: CronJob
-      patches: |-
+      patch: |-
         - path: /spec/suspend
           op: replace
           value: true

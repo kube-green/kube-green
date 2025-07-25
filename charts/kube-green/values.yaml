@@ -1,0 +1,125 @@
+# Default values for kube-green.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+nameOverride: ""
+fullnameOverride: ""
+
+manager:
+  image:
+    # -- The Docker image repository for the kube-green manager application.
+    repository: kubegreen/kube-green
+    # -- Defines the image pull policy. Avoids pulling the image if it's already present.
+    pullPolicy: IfNotPresent
+    # -- The specific image tag of the kube-green manager to use.
+    tag: "0.7.1"
+  securityContext:
+    # -- Prevents the pod from gaining additional privileges. Set to false for security.
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        # -- Drops all Linux capabilities for the pod, enhancing security.
+        - ALL
+  # -- run the manager in the host network. Required when using a custom CNI on EKS.
+  hostNetwork: false
+  resources:
+    limits:
+      # -- Maximum CPU allowed.
+      cpu: 400m
+      # -- Maximum memory allowed.
+      memory: 400Mi
+    requests:
+      # -- Requested CPU to guarantee for the pod.
+      cpu: 100m
+      # -- Requested memory to guarantee for the pod.
+      memory: 50Mi
+  metrics:
+    # -- If enabled, the manager will expose metrics.
+    enabled: true
+    # -- The address to bind the metrics server.
+    port: 8443
+    # -- If true, the metrics server will use a secure connection via HTTPS. Set it to false to use HTTP instead. The certificate will be created in a secret called "metrics-server-cert".
+    secure: true
+    serviceMonitor:
+      # -- Enable a Prometheus ServiceMonitor
+      enabled: false
+      # -- Prometheus ServiceMonitor labels
+      additionalLabels: {}
+        # release: prometheus
+      # -- Prometheus ServiceMonitor selector
+      selector: {}
+        # prometheus: kube-prometheus
+      # -- Prometheus ServiceMonitor interval
+      interval: 30s
+      # -- Prometheus ServiceMonitor namespace
+      namespace: ""
+      # -- Prometheus [MetricRelabelConfigs] to apply to samples before ingestion
+      metricRelabelings: []
+      # -- Prometheus [RelabelConfigs] to apply to samples before scraping
+      relabelings: []
+
+# -- List of secrets used to access private image repositories.
+imagePullSecrets: []
+
+serviceAccount:
+  # -- Specifies whether a service account should be created for the application.
+  create: true
+  # -- Annotations to add to the service account if created.
+  annotations: {}
+  # -- The name of the service account to use. If not set and create is true, a name is generated using the fullname template.
+  name: "kube-green-controller-manager"
+
+# -- Annotations to add to each pod.
+podAnnotations: {}
+
+# -- Labels to add to each pod.
+podLabels: {}
+
+# -- Security settings that apply to all containers in the pod.
+podSecurityContext: {}
+
+# -- Node labels for pod assignment.
+nodeSelector: {}
+
+# -- Tolerations for pod scheduling.
+tolerations: []
+
+# -- Affinity rules for pod assignment.
+affinity: {}
+
+# -- Priority class name for the pods.
+priorityClassName: ""
+
+# -- Topology spread constraints for pod placement.
+topologySpreadConstraints: []
+
+certManager:
+  # -- If cert-manager is enabled, the configurations will use it to manage the needed certificates.
+  enabled: true
+
+jobsCert:
+  # -- If enabled, the certificates will be managed by a custom Job, without the integration with the cert-manager.
+  enabled: false
+  image:
+    registry: registry.k8s.io
+    repository: ingress-nginx/kube-webhook-certgen
+    tag: "v20221220-controller-v1.5.1-58-g787ea74b6"
+    pullPolicy: IfNotPresent
+
+rbac:
+  customClusterRole:
+    # -- If true, the custom ClusterRole is enabled.
+    enabled: false
+    # -- The name of the custom ClusterRole to aggregate with the default role managed by the chart.
+    name: kube-green-manager-role-custom-aggregate
+    # -- Rules to add to the custom ClusterRole.
+    rules: []
+
+crds:
+  # This option decides if the CRDs should be installed as part of the Helm installation.
+  enabled: true
+
+  # This option add the "helm.sh/resource-policy": keep annotation to the CRD.
+  # This will prevent Helm from uninstalling the CRD when the Helm release is uninstalled.
+  # WARNING: when the CRDs are removed, all custom resources (SleepInfo) will
+  # be removed too by the garbage collector.
+  keep: true

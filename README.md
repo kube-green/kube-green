@@ -4,10 +4,11 @@
 [![Coverage Status][coverage-badge]][coverage]
 [![Documentations][website-badge]][website]
 [![Adopters][adopters-badge]][adopters]
+[![CNCF Landscape][cncf-badge]][cncf-landscape]
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/kube-green/kube-green/main/logo/logo-dark.svg">
-  <img alt="Dark kube-green logo" src="https://raw.githubusercontent.com/kube-green/kube-green/main/logo/logo.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/kube-green/kube-green/main/logo/logo-horizontal-dark.svg">
+  <img alt="Dark kube-green logo" src="https://raw.githubusercontent.com/kube-green/kube-green/main/logo/logo-horizontal.svg">
 </picture>
 
 How many of your dev/preview pods stay on during weekends? Or at night? It's a waste of resources! And money! But fear not, *kube-green* is here to the rescue.
@@ -18,7 +19,7 @@ If you already use *kube-green*, add you as an [adopter][add-adopters]!
 
 ## Getting Started
 
-These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See how to install the project on a live system in our [docs](https://kube-green.dev/docs/install/).
+These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See how to install the project on a live system in our [docs](https://kube-green.dev/docs/installation/).
 
 ### Prerequisites
 
@@ -42,15 +43,27 @@ It is possible to run all the unit tests with
 make test
 ```
 
-To run integration tests:
+To run integration tests installing kube-green with kustomize, run:
+
+```sh
+make e2e-test-kustomize
+```
+
+otherwise, to run integration tests installing kube-green with helm, run:
 
 ```sh
 make e2e-test
 ```
 
+It is possible to run only a specific harness integration test, running e2e-test with the OPTION variable:
+
+```sh
+make e2e-test OPTION="-run=TestSleepInfoE2E/kuttl/run_e2e_tests/harness/{TEST_NAME}"
+```
+
 ## Deployment
 
-To deploy *kube-green* in live systems, follow the [docs](https://kube-green.dev/docs/install/).
+To deploy *kube-green* in live systems, follow the [docs](https://kube-green.dev/docs/installation/).
 
 To run kube-green for development purpose, you can use [ko](https://ko.build/) to deploy
 in a KinD cluster.
@@ -153,3 +166,5 @@ If you already use *kube-green*, add you as an [adopter][add-adopters]!
 [adopters-badge]: https://img.shields.io/static/v1?label=ADOPTERS&color=blue&message=docs&style=flat
 [adopters]: https://kube-green.dev/docs/adopters/
 [add-adopters]: https://github.com/kube-green/kube-green.github.io/blob/main/CONTRIBUTING.md#add-your-organization-to-adopters
+[cncf-badge]: https://img.shields.io/badge/CNCF%20Landscape-5699C6
+[cncf-landscape]: https://landscape.cncf.io/?item=orchestration-management--scheduling-orchestration--kube-green

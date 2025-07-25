@@ -8,15 +8,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Install kubectl
-        uses: azure/setup-kubectl@v3.2
+        uses: azure/setup-kubectl@776406bce94f63e41d621b960d78ee25c8b76ede # v4.0.1
         id: install
       - name: Generate file config
-        run: kubectl kustomize ./config/default -o kube-green.yaml
+        shell: bash
+        run: |
+          kubectl kustomize ./config/default -o kube-green.yaml
+          cat kube-green.yaml | yq -r -e 'select(.kind == "CustomResourceDefinition")' - | yq eval 'del(.metadata.annotations."cert-manager.io/inject-ca-from")' - > crds.yaml
       - name: Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@72f2c25fcb47643c292f7107632f7a47c1df5cd8 # v2.3.2
         with:
           generate_release_notes: true
-          files: kube-green.yaml
+          files: |
+            kube-green.yaml
+            crds.yaml
           prerelease: ${{ startsWith(github.ref, 'refs/tags/') && contains(github.ref, '-rc.') }}

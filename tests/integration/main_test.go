@@ -19,6 +19,8 @@ import (
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/envfuncs"
 	"sigs.k8s.io/e2e-framework/pkg/features"
+	"sigs.k8s.io/e2e-framework/support/kind"
+	"sigs.k8s.io/e2e-framework/third_party/helm"
 )
 
 var (
@@ -26,8 +28,13 @@ var (
 )
 
 const (
-	kindClusterName    = "kube-green-e2e"
-	kubegreenTestImage = "kubegreen/kube-green:e2e-test"
+	kindClusterName                  = "kube-green-e2e"
+	kubegreenTestImage               = "kubegreen/kube-green:e2e-test"
+	kindVersionVariableName          = "KIND_K8S_VERSION"
+	kindNodeImage                    = "kindest/node"
+	disableDeleteClusterVariableName = "DISABLE_DELETE_CLUSTER"
+	installationModeVariableName     = "INSTALLATION_MODE"
+	kubeGreenInstallationMode        = "helm"
 )
 
 func TestMain(m *testing.M) {
@@ -48,9 +55,9 @@ func TestMain(m *testing.M) {
 	})
 
 	testenv.Setup(
-		testutil.CreateKindClusterWithVersion(kindClusterName, "testdata/kind-config.test.yaml"),
+		createKindClusterWithVersion(kindClusterName, "testdata/kind-config.test.yaml"),
+		setContextOrPanic(kindClusterName),
 		testutil.GetClusterVersion(),
-		installCertManager(),
 		buildDockerImage(kubegreenTestImage),
 		envfuncs.LoadDockerImageToCluster(kindClusterName, kubegreenTestImage),
 		installKubeGreen(),
@@ -59,7 +66,7 @@ func TestMain(m *testing.M) {
 	testenv.Finish(
 		envfuncs.ExportClusterLogs(kindClusterName, fmt.Sprintf("./tests-logs/kube-green-e2e-%s", runID)),
 		envfuncs.TeardownCRDs("/tmp", "kube-green-e2e-test.yaml"),
-		testutil.DestroyKindCluster(kindClusterName),
+		destroyKindCluster(kindClusterName),
 	)
 
 	// launch package tests
@@ -69,7 +76,11 @@ func TestMain(m *testing.M) {
 func buildDockerImage(image string) env.Func {
 	return func(ctx context.Context, c *envconf.Config) (context.Context, error) {
 		e := gexe.New()
-		p := e.RunProc(fmt.Sprintf(`docker build -t %s ../../`, image))
+		p := e.NewProc("make build").SetWorkDir("../..").Run()
+		if p.Err() != nil {
+			return ctx, fmt.Errorf("make build: %s", p.Result())
+		}
+		p = e.RunProc(fmt.Sprintf(`docker build -t %s ../../`, image))
 		if p.Err() != nil {
 			return ctx, fmt.Errorf("docker: build %s: %s", p.Err(), p.Result())
 		}
@@ -104,18 +115,103 @@ func installCertManager() env.Func {
 
 func installKubeGreen() env.Func {
 	return func(ctx context.Context, c *envconf.Config) (context.Context, error) {
-		ctx, err := envfuncs.SetupCRDs("/tmp", "kube-green-e2e-test.yaml")(ctx, c)
+		mode, ok := os.LookupEnv(installationModeVariableName)
+		if !ok {
+			mode = kubeGreenInstallationMode
+		}
+		switch mode {
+		case "kustomize":
+			fmt.Println("installing kube-green with kustomize")
+			return installKubeGreenWithKustomize()(ctx, c)
+		case "helm":
+			fmt.Println("installing kube-green with helm")
+			return installWithHelmChart()(ctx, c)
+		default:
+			return ctx, fmt.Errorf("installation mode %s not supported", mode)
+		}
+	}
+}
+
+func installKubeGreenWithKustomize() env.Func {
+	return func(ctx context.Context, c *envconf.Config) (context.Context, error) {
+		ctx, err := installCertManager()(ctx, c)
+		if err != nil {
+			return ctx, err
+		}
+
+		ctx, err = envfuncs.SetupCRDs("/tmp", "kube-green-e2e-test.yaml")(ctx, c)
 		if err != nil {
 			return ctx, err
 		}
 		e := gexe.New()
-		if p := e.RunProc("kubectl wait --for=condition=ready --timeout=120s pod -l app=kube-green -n kube-green"); p.Err() != nil {
+		if p := e.RunProc("kubectl wait --for=condition=ready --timeout=160s pod -l app=kube-green -n kube-green"); p.Err() != nil {
 			return ctx, fmt.Errorf("kubectl wait kube-green webhook %s: %s", p.Err(), p.Result())
 		}
-		// TODO: this sleep is because sometimes kube-green is flag as ready but webhook
+		// TODO: this sleep is because sometimes kube-green is flagged as ready but webhook
 		// is not ready. We should investigate about it.
 		time.Sleep(2 * time.Second)
-		fmt.Printf("kube-green running\n")
+		fmt.Println("kube-green running")
+		return ctx, nil
+	}
+}
+
+func installWithHelmChart() env.Func {
+	return func(ctx context.Context, c *envconf.Config) (context.Context, error) {
+		manager := helm.New(c.KubeconfigFile())
+		err := manager.RunInstall(
+			helm.WithChart("../../charts/kube-green"),
+			helm.WithNamespace("kube-green-system"),
+			helm.WithArgs(
+				"--set", "manager.image.tag=e2e-test",
+				"--set", "certManager.enabled=false",
+				"--set", "jobsCert.enabled=true",
+
+				"--generate-name",
+				"--create-namespace",
+				"--wait",
+			),
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		return ctx, nil
+	}
+}
+
+// createKindClusterWithVersion create KinD cluster with a specific version
+func createKindClusterWithVersion(clusterName, configPath string) env.Func {
+	version, ok := os.LookupEnv(kindVersionVariableName)
+	if !ok {
+		return envfuncs.CreateCluster(kind.NewProvider(), clusterName)
+	}
+	fmt.Printf("kind use version %s\n", version)
+
+	image := fmt.Sprintf("%s:%s", kindNodeImage, version)
+	return envfuncs.CreateClusterWithConfig(kind.NewProvider(), clusterName, configPath, kind.WithImage(image))
+}
+
+// destroyKindCluster destroy KinD cluster with cluster name.
+// If skipDeleteClusterFlag is set, it avoid the delete of the cluster
+// (useful when running tests locally various times).
+func destroyKindCluster(clusterName string) env.Func {
+	if _, ok := os.LookupEnv(disableDeleteClusterVariableName); ok {
+		return func(ctx context.Context, c *envconf.Config) (context.Context, error) {
+			return ctx, nil
+		}
+	}
+	return envfuncs.DestroyCluster(clusterName)
+}
+
+func setContextOrPanic(kindClusterName string) env.Func {
+	return func(ctx context.Context, c *envconf.Config) (context.Context, error) {
+		e := gexe.New()
+		if p := e.RunProc(fmt.Sprintf("kubectl config use-context kind-%s", kindClusterName)); p.Err() != nil {
+			// If the context is not found, we should exit as kind cluster setup is not correct.
+			os.Exit(1)
+			return ctx, fmt.Errorf("invalid context kind-%s set %s: %s", kindClusterName, p.Err(), p.Result())
+		}
+
 		return ctx, nil
 	}
 }

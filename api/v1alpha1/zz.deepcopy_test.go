@@ -23,7 +23,7 @@ func TestDeepCopy(t *testing.T) {
 				WakeUpTime:         "*:20", // at minute 20
 				SuspendCronjobs:    true,
 				SuspendDeployments: getPtr(false),
-				ExcludeRef: []ExcludeRef{
+				ExcludeRef: []FilterRef{
 					{
 						Name: "",
 					},
@@ -68,7 +68,7 @@ func TestDeepCopy(t *testing.T) {
 						WakeUpTime:         "*:20", // at minute 20
 						SuspendCronjobs:    true,
 						SuspendDeployments: getPtr(false),
-						ExcludeRef:         []ExcludeRef{},
+						ExcludeRef:         []FilterRef{},
 					},
 					Status: SleepInfoStatus{
 						OperationType:    "sleep",
@@ -84,7 +84,7 @@ func TestDeepCopy(t *testing.T) {
 
 	t.Run("nil", func(t *testing.T) {
 		t.Run("exclude ref", func(t *testing.T) {
-			var excludeRef *ExcludeRef = nil
+			var excludeRef *FilterRef = nil
 
 			require.Nil(t, excludeRef.DeepCopy())
 		})
