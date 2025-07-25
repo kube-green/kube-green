@@ -37,12 +37,12 @@ type SleepInfoSpec struct {
 	// WeekdaySleep are in cron notation.
 	//
 	// For example, to configure a schedule from monday to friday, set it to "1-5"
-	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	WeekDaySleep string `json:"weekdaySleep,omitempty"`
 	// WeekDayWakeUp are in cron notation.
 	//
 	// For example, to configure a schedule from monday to friday, set it to "1-5"
-	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	WeekDayWakeUp string `json:"weekdayWakeUp,omitempty"`
 	// Weekdays are in cron notation.
 	//
@@ -97,7 +97,7 @@ type SleepInfoSpec struct {
 	Patches []Patch `json:"patches,omitempty"`
 	// ScheduleException define the exceptions to the schedule.
 	// +optional
-	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	ScheduleException []ScheduleException `json:"scheduleException,omitempty"`
 }
 
@@ -106,13 +106,13 @@ type ScheduleException struct {
 	//
 	// Accept cron schedule for both day and month.
 	// For example, *-*/2 is set to configure a run every even month.
-	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Date string `json:"date"`
 	// Hours:Minutes
 	//
 	// Accept cron schedule for both hour and minute.
 	// For example, *:*/2 is set to configure a run every even minute.
-	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	SleepAt string `json:"sleepAt"`
 }
 
@@ -196,12 +196,12 @@ func (s SleepInfo) GetScheduleException() ([]string, error) {
 	scheduleExceptions := []string{}
 	for _, exception := range s.Spec.ScheduleException {
 		splittedDate := strings.Split(exception.Date, "-")
-		//nolint:gomnd
+		//nolint:mnd
 		if len(splittedDate) != 2 {
 			return nil, fmt.Errorf("date should be of format MM-DD, actual: '%s'", exception.Date)
 		}
 		splittedTime := strings.Split(exception.SleepAt, ":")
-		//nolint:gomnd
+		//nolint:mnd
 		if len(splittedTime) != 2 {
 			return nil, fmt.Errorf("time should be of format HH:mm, actual: '%s'", exception.SleepAt)
 		}
