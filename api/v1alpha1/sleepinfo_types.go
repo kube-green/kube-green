@@ -34,17 +34,27 @@ type FilterRef struct {
 
 // SleepInfoSpec defines the desired state of SleepInfo
 type SleepInfoSpec struct {
-	// Weekdays are in cron notation.
+	// WeekdaySleep are in cron notation.
 	//
 	// For example, to configure a schedule from monday to friday, set it to "1-5"
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	Weekdays string `json:"weekdays"`
+	WeekDaySleep string `json:"weekdaySleep,omitempty"`
+	// WeekDayWakeUp are in cron notation.
+	//
+	// For example, to configure a schedule from monday to friday, set it to "1-5"
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	WeekDayWakeUp string `json:"weekdayWakeUp,omitempty"`
+	// Weekdays are in cron notation. Deprecated: use weekdaySleep and weekdayWakeUp instead.
+	//
+	// For example, to configure a schedule from monday to friday, set it to "1-5"
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	Weekdays string `json:"weekdays,omitempty"`
 	// Hours:Minutes
 	//
 	// Accept cron schedule for both hour and minute.
 	// For example, *:*/2 is set to configure a run every even minute.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	SleepTime string `json:"sleepAt"`
+	SleepTime string `json:"sleepAt,omitempty"`
 	// Hours:Minutes
 	//
 	// Accept cron schedule for both hour and minute.
@@ -85,6 +95,25 @@ type SleepInfoSpec struct {
 	// +optional
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Patches []Patch `json:"patches,omitempty"`
+	// ScheduleException define the exceptions to the schedule.
+	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	ScheduleException []ScheduleException `json:"scheduleException,omitempty"`
+}
+
+type ScheduleException struct {
+	// Day-Month
+	//
+	// Accept cron schedule for both day and month.
+	// For example, *-*/2 is set to configure a run every even month.
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	Date string `json:"date"`
+	// Hours:Minutes
+	//
+	// Accept cron schedule for both hour and minute.
+	// For example, *:*/2 is set to configure a run every even minute.
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	SleepAt string `json:"sleepAt"`
 }
 
 type Patch struct {
@@ -145,14 +174,14 @@ type SleepInfo struct {
 }
 
 func (s SleepInfo) GetSleepSchedule() (string, error) {
-	return s.getScheduleFromWeekdayAndTime(s.Spec.SleepTime)
+	return s.getScheduleFromWeekdayAndTime(s.Spec.WeekDaySleep, s.Spec.SleepTime)
 }
 
 func (s SleepInfo) GetWakeUpSchedule() (string, error) {
 	if s.Spec.WakeUpTime == "" {
 		return "", nil
 	}
-	return s.getScheduleFromWeekdayAndTime(s.Spec.WakeUpTime)
+	return s.getScheduleFromWeekdayAndTime(s.Spec.WeekDayWakeUp, s.Spec.WakeUpTime)
 }
 
 func (s SleepInfo) GetIncludeRef() []FilterRef {
@@ -163,10 +192,35 @@ func (s SleepInfo) GetExcludeRef() []FilterRef {
 	return s.Spec.ExcludeRef
 }
 
-func (s SleepInfo) getScheduleFromWeekdayAndTime(hourAndMinute string) (string, error) {
-	weekday := s.Spec.Weekdays
+func (s SleepInfo) GetScheduleException() ([]string, error) {
+	scheduleExceptions := []string{}
+	for _, exception := range s.Spec.ScheduleException {
+		splittedDate := strings.Split(exception.Date, "-")
+		//nolint:mnd
+		if len(splittedDate) != 2 {
+			return nil, fmt.Errorf("date should be of format MM-DD, actual: '%s'", exception.Date)
+		}
+		splittedTime := strings.Split(exception.SleepAt, ":")
+		//nolint:mnd
+		if len(splittedTime) != 2 {
+			return nil, fmt.Errorf("time should be of format HH:mm, actual: '%s'", exception.SleepAt)
+		}
+		schedule := fmt.Sprintf("%s %s %s %s *", splittedTime[1], splittedTime[0], splittedDate[0], splittedDate[1])
+		if s.Spec.TimeZone != "" {
+			schedule = fmt.Sprintf("CRON_TZ=%s %s", s.Spec.TimeZone, schedule)
+		}
+
+		scheduleExceptions = append(scheduleExceptions, schedule)
+	}
+	return scheduleExceptions, nil
+}
+
+func (s SleepInfo) getScheduleFromWeekdayAndTime(weekday string, hourAndMinute string) (string, error) {
 	if weekday == "" {
-		return "", fmt.Errorf("empty weekdays from SleepInfo configuration")
+		weekday = s.Spec.Weekdays
+		if weekday == "" {
+			return "", fmt.Errorf("empty weekdays and weekdaySleep or weekdayWakeUp from SleepInfo configuration")
+		}
 	}
 
 	splittedTime := strings.Split(hourAndMinute, ":")

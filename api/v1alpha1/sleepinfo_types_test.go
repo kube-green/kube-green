@@ -221,6 +221,27 @@ func TestSleepInfo(t *testing.T) {
 		})
 	})
 
+	t.Run("missing Weekdays, WeekdaySleep, and WeekdayWakeUp", func(t *testing.T) {
+		sleepInfo := SleepInfo{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "SleepInfo",
+				APIVersion: "v1alpha1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "sleep-test-1",
+				Namespace: "namespace",
+			},
+			Spec: SleepInfoSpec{
+				SleepTime:  "20:00",
+				WakeUpTime: "8:00",
+			},
+		}
+		_, err := sleepInfo.GetSleepSchedule()
+		require.Error(t, err)
+		_, err = sleepInfo.GetWakeUpSchedule()
+		require.Error(t, err)
+	})
+
 	t.Run("cronjob to suspend", func(t *testing.T) {
 		sleepInfo := SleepInfo{
 			TypeMeta: metav1.TypeMeta{
@@ -480,7 +501,7 @@ func TestSleepInfo(t *testing.T) {
 
 		t.Run("get sleep schedule", func(t *testing.T) {
 			schedule, err := sleepInfo.GetSleepSchedule()
-			require.EqualError(t, err, "empty weekdays from SleepInfo configuration")
+			require.EqualError(t, err, "empty weekdays and weekdaySleep or weekdayWakeUp from SleepInfo configuration")
 			require.Empty(t, schedule)
 		})
 	})
@@ -640,6 +661,77 @@ func TestSleepInfo(t *testing.T) {
 			}, target.GroupKind())
 		})
 	})
+
+	t.Run("ScheduleException", func(t *testing.T) {
+		sleepinfo := SleepInfo{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "SleepInfo",
+				APIVersion: "v1alpha1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "sleep-test-1",
+				Namespace: "namespace",
+			},
+			Spec: SleepInfoSpec{
+				ScheduleException: []ScheduleException{
+					{
+						Date:    "25-12",
+						SleepAt: "08:00",
+					},
+				},
+			},
+		}
+		res, err := sleepinfo.GetScheduleException()
+		require.NoError(t, err)
+		require.Len(t, res, 1)
+		require.Equal(t, "00 08 25 12 *", res[0])
+	})
+
+	t.Run("ScheduleException - invalid date", func(t *testing.T) {
+		sleepinfo := SleepInfo{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "SleepInfo",
+				APIVersion: "v1alpha1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "sleep-test-1",
+				Namespace: "namespace",
+			},
+			Spec: SleepInfoSpec{
+				ScheduleException: []ScheduleException{
+					{
+						Date:    "25:12",
+						SleepAt: "08:00",
+					},
+				},
+			},
+		}
+		_, err := sleepinfo.GetScheduleException()
+		require.EqualError(t, err, "date should be of format MM-DD, actual: '25:12'")
+	})
+
+	t.Run("ScheduleException - invalid sleepAt", func(t *testing.T) {
+		sleepinfo := SleepInfo{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "SleepInfo",
+				APIVersion: "v1alpha1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "sleep-test-1",
+				Namespace: "namespace",
+			},
+			Spec: SleepInfoSpec{
+				ScheduleException: []ScheduleException{
+					{
+						Date:    "25-12",
+						SleepAt: "08-00",
+					},
+				},
+			},
+		}
+		_, err := sleepinfo.GetScheduleException()
+		require.EqualError(t, err, "time should be of format HH:mm, actual: '08-00'")
+	})
 }
 
 func TestValidateSleepInfo(t *testing.T) {
@@ -662,7 +754,7 @@ func TestValidateSleepInfo(t *testing.T) {
 	}{
 		{
 			name:          "fails - without weekdays",
-			expectedError: "empty weekdays from SleepInfo configuration",
+			expectedError: "empty weekdays and weekdaySleep or weekdayWakeUp from SleepInfo configuration",
 		},
 		{
 			name:          "fails - without sleep",
