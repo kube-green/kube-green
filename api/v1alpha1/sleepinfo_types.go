@@ -44,7 +44,7 @@ type SleepInfoSpec struct {
 	// For example, to configure a schedule from monday to friday, set it to "1-5"
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	WeekDayWakeUp string `json:"weekdayWakeUp,omitempty"`
-	// Weekdays are in cron notation.
+	// Weekdays are in cron notation. Deprecated: use weekdaySleep and weekdayWakeUp instead.
 	//
 	// For example, to configure a schedule from monday to friday, set it to "1-5"
 	// +operator-sdk:csv:customresourcedefinitions:type=spec

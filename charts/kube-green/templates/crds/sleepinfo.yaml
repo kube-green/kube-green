@@ -124,10 +124,32 @@ spec:
                   - target
                   type: object
                 type: array
+              scheduleException:
+                description: ScheduleException define the exceptions to the schedule.
+                items:
+                  properties:
+                    date:
+                      description: |-
+                        Day-Month
+
+                        Accept cron schedule for both day and month.
+                        For example, *-*/2 is set to configure a run every even month.
+                      type: string
+                    sleepAt:
+                      description: |-
+                        Hours:Minutes
+
+                        Accept cron schedule for both hour and minute.
+                        For example, *:*/2 is set to configure a run every even minute.
+                      type: string
+                  required:
+                  - date
+                  - sleepAt
+                  type: object
+                type: array
               sleepAt:
                 description: |-
                   Hours:Minutes
-
 
                   Accept cron schedule for both hour and minute.
                   For example, *:*/2 is set to configure a run every even minute.
@@ -156,21 +178,28 @@ spec:
                 description: |-
                   Hours:Minutes
 
-
                   Accept cron schedule for both hour and minute.
                   For example, *:*/2 is set to configure a run every even minute.
                   It is not required.
                 type: string
-              weekdays:
+              weekdaySleep:
                 description: |-
-                  Weekdays are in cron notation.
-
+                  WeekdaySleep are in cron notation.
 
                   For example, to configure a schedule from monday to friday, set it to "1-5"
                 type: string
-            required:
-            - sleepAt
-            - weekdays
+              weekdayWakeUp:
+                description: |-
+                  WeekDayWakeUp are in cron notation.
+
+                  For example, to configure a schedule from monday to friday, set it to "1-5"
+                type: string
+              weekdays:
+                description: |-
+                  Weekdays are in cron notation. Deprecated: use weekdaySleep and weekdayWakeUp instead.
+
+                  For example, to configure a schedule from monday to friday, set it to "1-5"
+                type: string
             type: object
           status:
             description: SleepInfoStatus defines the observed state of SleepInfo
