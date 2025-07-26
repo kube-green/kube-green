@@ -30,7 +30,6 @@ spec:
     singular: sleepinfo
   scope: Namespaced
   versions:
-  versions:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
@@ -207,7 +206,7 @@ spec:
                 type: string
               weekdays:
                 description: |-
-                  Weekdays are in cron notation.
+                  Weekdays are in cron notation. Deprecated: use weekdaySleep and weekdayWakeUp instead.
 
                   For example, to configure a schedule from monday to friday, set it to "1-5"
                 type: string
