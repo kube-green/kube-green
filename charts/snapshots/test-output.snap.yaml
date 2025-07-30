@@ -6,7 +6,7 @@ metadata:
   name: kube-green-controller-manager
   namespace: default
   labels:
-    HELM_CHART_VERSION_REDACTED
+    helm.sh/chart: HELM_CHART_VERSION_REDACTED
     app.kubernetes.io/name: kube-green
     app.kubernetes.io/instance: release-test
     app.kubernetes.io/version: "0.7.1"
@@ -423,7 +423,7 @@ metadata:
   labels:
     app: kube-green
     control-plane: controller-manager
-    HELM_CHART_VERSION_REDACTED
+    helm.sh/chart: HELM_CHART_VERSION_REDACTED
     app.kubernetes.io/name: kube-green
     app.kubernetes.io/instance: release-test
     app.kubernetes.io/version: "0.7.1"
@@ -460,7 +460,7 @@ metadata:
   labels:
     app: kube-green
     control-plane: controller-manager
-    HELM_CHART_VERSION_REDACTED
+    helm.sh/chart: HELM_CHART_VERSION_REDACTED
     app.kubernetes.io/name: kube-green
     app.kubernetes.io/instance: release-test
     app.kubernetes.io/version: "0.7.1"
