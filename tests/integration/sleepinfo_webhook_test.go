@@ -123,7 +123,7 @@ func TestValidationWebhook(t *testing.T) {
 					Spec: kubegreenv1alpha1.SleepInfoSpec{},
 				}
 				err := k8sClient.Create(ctx, sleepInfo)
-				require.EqualError(t, err, "admission webhook \"vsleepinfo.kb.io\" denied the request: empty weekdays from SleepInfo configuration")
+				require.EqualError(t, err, "admission webhook \"vsleepinfo.kb.io\" denied the request: empty weekdays and weekdaySleep or weekdayWakeUp from SleepInfo configuration")
 				return ctx
 			},
 		},
@@ -151,7 +151,7 @@ func TestValidationWebhook(t *testing.T) {
 
 				k8sClient := c.Client().Resources(c.Namespace()).GetControllerRuntimeClient()
 				err := k8sClient.Patch(ctx, sleepInfo, patch)
-				require.EqualError(t, err, "admission webhook \"vsleepinfo.kb.io\" denied the request: empty weekdays from SleepInfo configuration")
+				require.EqualError(t, err, "admission webhook \"vsleepinfo.kb.io\" denied the request: empty weekdays and weekdaySleep or weekdayWakeUp from SleepInfo configuration")
 				return ctx
 			},
 		},
@@ -177,7 +177,7 @@ func TestValidationWebhook(t *testing.T) {
 
 				sleepInfo.Spec.Weekdays = ""
 				err := k8sClient.Update(ctx, sleepInfo)
-				require.EqualError(t, err, "admission webhook \"vsleepinfo.kb.io\" denied the request: empty weekdays from SleepInfo configuration")
+				require.EqualError(t, err, "admission webhook \"vsleepinfo.kb.io\" denied the request: empty weekdays and weekdaySleep or weekdayWakeUp from SleepInfo configuration")
 
 				return ctx
 			},
