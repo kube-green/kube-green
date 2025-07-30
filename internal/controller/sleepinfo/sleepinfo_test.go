@@ -939,7 +939,7 @@ func TestInvalidResource(t *testing.T) {
 				sleepInfoReconciler := getSleepInfoReconciler(t, c, testLogger, mockNow)
 
 				result, err := sleepInfoReconciler.Reconcile(ctx, req)
-				require.EqualError(t, err, "time should be of format HH:mm, actual: ")
+				require.EqualError(t, err, "time should be of format HH:mm, actual: ''")
 				require.Empty(t, result)
 
 				return ctx
@@ -966,7 +966,7 @@ func TestInvalidResource(t *testing.T) {
 					},
 				}
 				result, err := sleepInfoReconciler.Reconcile(ctx, req)
-				require.EqualError(t, err, "time should be of format HH:mm, actual: *")
+				require.EqualError(t, err, "time should be of format HH:mm, actual: '*'")
 				require.Empty(t, result)
 
 				return ctx

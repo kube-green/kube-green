@@ -524,7 +524,7 @@ func TestSleepInfo(t *testing.T) {
 
 		t.Run("get sleep schedule", func(t *testing.T) {
 			schedule, err := sleepInfo.GetSleepSchedule()
-			require.EqualError(t, err, "time should be of format HH:mm, actual: 20")
+			require.EqualError(t, err, "time should be of format HH:mm, actual: '20'")
 			require.Empty(t, schedule)
 		})
 	})
@@ -663,75 +663,115 @@ func TestSleepInfo(t *testing.T) {
 	})
 
 	t.Run("ScheduleException", func(t *testing.T) {
-		sleepinfo := SleepInfo{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "SleepInfo",
-				APIVersion: "v1alpha1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "sleep-test-1",
-				Namespace: "namespace",
-			},
-			Spec: SleepInfoSpec{
-				ScheduleException: []ScheduleException{
-					{
-						Date:    "25-12",
-						SleepAt: "08:00",
+		t.Run("valid", func(t *testing.T) {
+
+			sleepinfo := SleepInfo{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "SleepInfo",
+					APIVersion: "v1alpha1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "sleep-test-1",
+					Namespace: "namespace",
+				},
+				Spec: SleepInfoSpec{
+					ScheduleException: []ScheduleException{
+						{
+							Type:       Override,
+							Dates:      []string{"07-12"},
+							SleepTime:  "08:00",
+							WakeUpTime: "20:00",
+						},
+						{
+							Type:  Disable,
+							Dates: []string{"25-12"},
+						},
 					},
 				},
-			},
-		}
-		res, err := sleepinfo.GetScheduleException()
-		require.NoError(t, err)
-		require.Len(t, res, 1)
-		require.Equal(t, "00 08 25 12 *", res[0])
+			}
+			res, err := sleepinfo.GetScheduleException()
+			require.NoError(t, err)
+			require.Len(t, res, 2)
+			require.Equal(t, ParsedExceptionSchedule{
+				SleepAt:  "00 08 07 12 *",
+				WakeUpAt: "00 20 07 12 *",
+			}, res[0])
+			require.Equal(t, ParsedExceptionSchedule{
+				DisableDate: "25-12",
+			}, res[1])
+		})
+
+		t.Run("multiple dates", func(t *testing.T) {
+
+			sleepinfo := SleepInfo{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "SleepInfo",
+					APIVersion: "v1alpha1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "sleep-test-1",
+					Namespace: "namespace",
+				},
+				Spec: SleepInfoSpec{
+					ScheduleException: []ScheduleException{
+						{
+							Type:       Override,
+							Dates:      []string{"07-12", "08-12"},
+							SleepTime:  "08:00",
+							WakeUpTime: "20:00",
+						},
+						{
+							Type:  Disable,
+							Dates: []string{"25-12", "01-01"},
+						},
+					},
+				},
+			}
+			res, err := sleepinfo.GetScheduleException()
+			require.NoError(t, err)
+			require.Len(t, res, 4)
+			require.Equal(t, []ParsedExceptionSchedule{
+				{
+					SleepAt:  "00 08 07 12 *",
+					WakeUpAt: "00 20 07 12 *",
+				},
+				{
+					SleepAt:  "00 08 08 12 *",
+					WakeUpAt: "00 20 08 12 *",
+				},
+				{
+					DisableDate: "25-12",
+				},
+				{
+					DisableDate: "01-01",
+				},
+			}, res)
+		})
+
+		t.Run("fails if invalid", func(t *testing.T) {
+			sleepinfo := SleepInfo{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "SleepInfo",
+					APIVersion: "v1alpha1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "sleep-test-1",
+					Namespace: "namespace",
+				},
+				Spec: SleepInfoSpec{
+					ScheduleException: []ScheduleException{
+						{
+							Dates:     []string{"25-12"},
+							SleepTime: "08:00",
+						},
+					},
+				},
+			}
+			_, err := sleepinfo.GetScheduleException()
+			require.EqualError(t, err, "invalid exception type: ''")
+		})
 	})
 
-	t.Run("ScheduleException - invalid date", func(t *testing.T) {
-		sleepinfo := SleepInfo{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "SleepInfo",
-				APIVersion: "v1alpha1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "sleep-test-1",
-				Namespace: "namespace",
-			},
-			Spec: SleepInfoSpec{
-				ScheduleException: []ScheduleException{
-					{
-						Date:    "25:12",
-						SleepAt: "08:00",
-					},
-				},
-			},
-		}
-		_, err := sleepinfo.GetScheduleException()
-		require.EqualError(t, err, "date should be of format MM-DD, actual: '25:12'")
-	})
-
-	t.Run("ScheduleException - invalid sleepAt", func(t *testing.T) {
-		sleepinfo := SleepInfo{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "SleepInfo",
-				APIVersion: "v1alpha1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "sleep-test-1",
-				Namespace: "namespace",
-			},
-			Spec: SleepInfoSpec{
-				ScheduleException: []ScheduleException{
-					{
-						Date:    "25-12",
-						SleepAt: "08-00",
-					},
-				},
-			},
-		}
-		_, err := sleepinfo.GetScheduleException()
-		require.EqualError(t, err, "time should be of format HH:mm, actual: '08-00'")
-	})
 }
 
 func TestValidateSleepInfo(t *testing.T) {
@@ -758,7 +798,7 @@ func TestValidateSleepInfo(t *testing.T) {
 		},
 		{
 			name:          "fails - without sleep",
-			expectedError: "time should be of format HH:mm, actual: ",
+			expectedError: "time should be of format HH:mm, actual: ''",
 			sleepInfoSpec: SleepInfoSpec{
 				Weekdays: "1-5",
 			},
@@ -781,7 +821,7 @@ func TestValidateSleepInfo(t *testing.T) {
 		},
 		{
 			name:          "fails - sleep time without `:`",
-			expectedError: "time should be of format HH:mm, actual: 130",
+			expectedError: "time should be of format HH:mm, actual: '130'",
 			sleepInfoSpec: SleepInfoSpec{
 				Weekdays:  "1-5",
 				SleepTime: "130",
@@ -789,7 +829,7 @@ func TestValidateSleepInfo(t *testing.T) {
 		},
 		{
 			name:          "fails - sleep time with double `:`",
-			expectedError: "time should be of format HH:mm, actual: 1:3:0",
+			expectedError: "time should be of format HH:mm, actual: '1:3:0'",
 			sleepInfoSpec: SleepInfoSpec{
 				Weekdays:  "1-5",
 				SleepTime: "1:3:0",
@@ -831,7 +871,7 @@ func TestValidateSleepInfo(t *testing.T) {
 		},
 		{
 			name:          "fails - wake up time without `:`",
-			expectedError: "time should be of format HH:mm, actual: 11",
+			expectedError: "time should be of format HH:mm, actual: '11'",
 			sleepInfoSpec: SleepInfoSpec{
 				Weekdays:   "1-5",
 				SleepTime:  "13:00",
@@ -840,7 +880,7 @@ func TestValidateSleepInfo(t *testing.T) {
 		},
 		{
 			name:          "fails - wake up time with double `:`",
-			expectedError: "time should be of format HH:mm, actual: 1:3:0",
+			expectedError: "time should be of format HH:mm, actual: '1:3:0'",
 			sleepInfoSpec: SleepInfoSpec{
 				Weekdays:   "1-5",
 				SleepTime:  "13:0",
@@ -984,6 +1024,175 @@ func TestValidateSleepInfo(t *testing.T) {
 			},
 			expectedError: "patch is invalid for target StatefulSet.apps: invalid operation {\"op\":\"invalid\"}: unsupported operation",
 		},
+		{
+			name: "ok with correct exceptions",
+			sleepInfoSpec: SleepInfoSpec{
+				WeekDayWakeUp: "1-5",
+				WeekDaySleep:  "1-5",
+				WakeUpTime:    "08:00",
+				SleepTime:     "19:00",
+				ScheduleException: []ScheduleException{
+					{
+						Type:  Disable,
+						Dates: []string{"25-12", "14-*"},
+					},
+					{
+						Type:       Override,
+						Dates:      []string{"07-12"},
+						WakeUpTime: "09:00",
+						SleepTime:  "20:00",
+					},
+				},
+			},
+		},
+		{
+			name: "invalid schedule exception - dates nil",
+			sleepInfoSpec: SleepInfoSpec{
+				WeekDayWakeUp: "1-5",
+				WeekDaySleep:  "1-5",
+				WakeUpTime:    "08:00",
+				SleepTime:     "19:00",
+				ScheduleException: []ScheduleException{
+					{
+						Type: Disable,
+					},
+				},
+			},
+			expectedError: "field Dates must not be empty",
+		},
+		{
+			name: "invalid schedule exception - empty dates",
+			sleepInfoSpec: SleepInfoSpec{
+				WeekDayWakeUp: "1-5",
+				WeekDaySleep:  "1-5",
+				WakeUpTime:    "08:00",
+				SleepTime:     "19:00",
+				ScheduleException: []ScheduleException{
+					{
+						Type:  Disable,
+						Dates: []string{},
+					},
+				},
+			},
+			expectedError: "field Dates must not be empty",
+		},
+		{
+			name: "invalid schedule exception - type invalid",
+			sleepInfoSpec: SleepInfoSpec{
+				WeekDayWakeUp: "1-5",
+				WeekDaySleep:  "1-5",
+				WakeUpTime:    "08:00",
+				SleepTime:     "19:00",
+				ScheduleException: []ScheduleException{
+					{
+						Type:  "not-valid",
+						Dates: []string{"25-12"},
+					},
+				},
+			},
+			expectedError: "invalid exception type: 'not-valid'",
+		},
+		{
+			name: "invalid schedule exception - type override - no wakeUpTime",
+			sleepInfoSpec: SleepInfoSpec{
+				WeekDayWakeUp: "1-5",
+				WeekDaySleep:  "1-5",
+				WakeUpTime:    "08:00",
+				SleepTime:     "19:00",
+				ScheduleException: []ScheduleException{
+					{
+						Type:      Override,
+						Dates:     []string{"07-12"},
+						SleepTime: "08:00",
+					},
+				},
+			},
+			expectedError: "time should be of format HH:mm, actual: ''",
+		},
+		{
+			name: "invalid schedule exception - invalid sleepAt time",
+			sleepInfoSpec: SleepInfoSpec{
+				WeekDayWakeUp: "1-5",
+				WeekDaySleep:  "1-5",
+				WakeUpTime:    "08:00",
+				SleepTime:     "19:00",
+				ScheduleException: []ScheduleException{
+					{
+						Type:       Override,
+						Dates:      []string{"07-12"},
+						SleepTime:  "08:/",
+						WakeUpTime: "20:00",
+					},
+				},
+			},
+			expectedError: "invalid sleepAt schedule: invalid cron schedule:",
+		},
+		{
+			name: "invalid schedule exception - invalid wakeUp time",
+			sleepInfoSpec: SleepInfoSpec{
+				WeekDayWakeUp: "1-5",
+				WeekDaySleep:  "1-5",
+				WakeUpTime:    "08:00",
+				SleepTime:     "19:00",
+				ScheduleException: []ScheduleException{
+					{
+						Type:       Override,
+						Dates:      []string{"07-12"},
+						SleepTime:  "08:00",
+						WakeUpTime: "20:/",
+					},
+				},
+			},
+			expectedError: "invalid wakeUpAt schedule: invalid cron schedule:",
+		},
+		{
+			name: "invalid schedule exception - invalid DisableDate",
+			sleepInfoSpec: SleepInfoSpec{
+				WeekDayWakeUp: "1-5",
+				WeekDaySleep:  "1-5",
+				WakeUpTime:    "08:00",
+				SleepTime:     "19:00",
+				ScheduleException: []ScheduleException{
+					{
+						Type:  Disable,
+						Dates: []string{"07"},
+					},
+				},
+			},
+			expectedError: "date should be of format dd-MM, actual: '07'",
+		},
+		{
+			name: "invalid schedule exception - invalid DisableDate format",
+			sleepInfoSpec: SleepInfoSpec{
+				WeekDayWakeUp: "1-5",
+				WeekDaySleep:  "1-5",
+				WakeUpTime:    "08:00",
+				SleepTime:     "19:00",
+				ScheduleException: []ScheduleException{
+					{
+						Type:  Disable,
+						Dates: []string{"07"},
+					},
+				},
+			},
+			expectedError: "date should be of format dd-MM, actual: '07'",
+		},
+		{
+			name: "invalid schedule exception - DisableDate with * not valid",
+			sleepInfoSpec: SleepInfoSpec{
+				WeekDayWakeUp: "1-5",
+				WeekDaySleep:  "1-5",
+				WakeUpTime:    "08:00",
+				SleepTime:     "19:00",
+				ScheduleException: []ScheduleException{
+					{
+						Type:  Disable,
+						Dates: []string{"07-/"},
+					},
+				},
+			},
+			expectedError: "invalid date 07-/: invalid cron schedule:",
+		},
 	}
 
 	groupVersion := []schema.GroupVersion{
@@ -1014,7 +1223,7 @@ func TestValidateSleepInfo(t *testing.T) {
 			client := fake.NewClientBuilder().WithRESTMapper(restMapper).Build()
 			warn, err := s.Validate(client)
 			if test.expectedError != "" {
-				require.EqualError(t, err, test.expectedError)
+				require.ErrorContains(t, err, test.expectedError)
 			} else {
 				require.NoError(t, err)
 			}
