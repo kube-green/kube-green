@@ -664,7 +664,6 @@ func TestSleepInfo(t *testing.T) {
 
 	t.Run("ScheduleException", func(t *testing.T) {
 		t.Run("valid", func(t *testing.T) {
-
 			sleepinfo := SleepInfo{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "SleepInfo",
@@ -702,7 +701,6 @@ func TestSleepInfo(t *testing.T) {
 		})
 
 		t.Run("multiple dates", func(t *testing.T) {
-
 			sleepinfo := SleepInfo{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "SleepInfo",
@@ -771,7 +769,6 @@ func TestSleepInfo(t *testing.T) {
 			require.EqualError(t, err, "invalid exception type: ''")
 		})
 	})
-
 }
 
 func TestValidateSleepInfo(t *testing.T) {
