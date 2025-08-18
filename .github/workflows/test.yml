@@ -42,7 +42,7 @@ jobs:
       - name: Vet and Build
         run: make
       - name: Send the coverage output
-        uses: shogo82148/actions-goveralls@e6875f831db61e6abffbd8df91a2eb6cd24b46c9 # v1.9.1
+        uses: shogo82148/actions-goveralls@25f5320d970fb565100cf1993ada29be1bb196a1 # v1.10.0
         with:
           path-to-profile: cover.out
           flag-name: k8s-${{matrix.k8s_version}}
@@ -51,7 +51,7 @@ jobs:
     needs: tests
     runs-on: ubuntu-latest
     steps:
-      - uses: shogo82148/actions-goveralls@e6875f831db61e6abffbd8df91a2eb6cd24b46c9 # v1.9.1
+      - uses: shogo82148/actions-goveralls@25f5320d970fb565100cf1993ada29be1bb196a1 # v1.10.0
         with:
           parallel-finished: true
 
