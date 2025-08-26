@@ -8,7 +8,7 @@ require (
 	github.com/kudobuilder/kuttl v0.22.0
 	github.com/prometheus/client_golang v1.23.0
 	github.com/robfig/cron/v3 v3.0.1
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.0
 	github.com/vladimirvivien/gexe v0.5.0
 	k8s.io/api v0.33.3
 	k8s.io/apimachinery v0.33.3
