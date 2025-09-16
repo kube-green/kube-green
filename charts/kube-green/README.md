@@ -19,6 +19,7 @@ kube-green helm chart
 | jobsCert.image.registry | string | `"registry.k8s.io"` |  |
 | jobsCert.image.repository | string | `"ingress-nginx/kube-webhook-certgen"` |  |
 | jobsCert.image.tag | string | `"v20221220-controller-v1.5.1-58-g787ea74b6"` |  |
+| manager.extraArgs | list | `[]` | Extra arguments to pass to the manager container. |
 | manager.hostNetwork | bool | `false` | run the manager in the host network. Required when using a custom CNI on EKS. |
 | manager.image.pullPolicy | string | `"IfNotPresent"` | Defines the image pull policy. Avoids pulling the image if it's already present. |
 | manager.image.repository | string | `"kubegreen/kube-green"` | The Docker image repository for the kube-green manager application. |

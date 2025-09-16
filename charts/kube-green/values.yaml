@@ -12,6 +12,10 @@ manager:
     pullPolicy: IfNotPresent
     # -- The specific image tag of the kube-green manager to use.
     tag: "0.7.1"
+  # -- Extra arguments to pass to the manager container.
+  extraArgs: []
+    # - --sleep-delta=60
+    # - --max-concurrent-reconciles=20
   securityContext:
     # -- Prevents the pod from gaining additional privileges. Set to false for security.
     allowPrivilegeEscalation: false
