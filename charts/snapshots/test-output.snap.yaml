@@ -493,6 +493,8 @@ spec:
         - --health-probe-bind-address=:8081
         - --leader-elect
         - --webhook-cert-path=/tmp/k8s-webhook-server/serving-certs
+        - --sleep-delta=60
+        - --max-concurrent-reconciles=20
         command:
         - /kube-green
         image: kubegreen/kube-green:0.7.1

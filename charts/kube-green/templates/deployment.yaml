@@ -43,6 +43,9 @@ spec:
         - --health-probe-bind-address=:8081
         - --leader-elect
         - --webhook-cert-path=/tmp/k8s-webhook-server/serving-certs
+        {{- with .Values.manager.extraArgs }}
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
         command:
         - /kube-green
         image: {{ include "image" .Values.manager.image }}

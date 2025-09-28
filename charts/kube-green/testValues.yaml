@@ -14,3 +14,8 @@ rbac:
         - patch
         - update
         - watch
+
+manager:
+  extraArgs:
+    - --sleep-delta=60
+    - --max-concurrent-reconciles=20
