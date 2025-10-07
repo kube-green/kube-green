@@ -18,7 +18,7 @@ jobs:
           kubectl kustomize ./config/default -o kube-green.yaml
           cat kube-green.yaml | yq -r -e 'select(.kind == "CustomResourceDefinition")' - | yq eval 'del(.metadata.annotations."cert-manager.io/inject-ca-from")' - > crds.yaml
       - name: Release
-        uses: softprops/action-gh-release@6cbd405e2c4e67a21c47fa9e383d020e4e28b836 # v2.3.3
+        uses: softprops/action-gh-release@aec2ec56f94eb8180ceec724245f64ef008b89f5 # v2.4.0
         with:
           generate_release_notes: true
           files: |
