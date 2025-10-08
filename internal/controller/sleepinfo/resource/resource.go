@@ -50,10 +50,7 @@ func (r ResourceClient) SSAPatch(ctx context.Context, newObj client.Object) erro
 	}
 	newObj.SetManagedFields(nil)
 	newObj.SetResourceVersion("")
-	if err := r.Client.Patch(ctx, newObj, client.Apply, &client.PatchOptions{
-		FieldManager: r.FieldManagerName,
-		Force:        &forceTrue,
-	}); err != nil {
+	if err := r.Client.Patch(ctx, newObj, client.Apply, client.FieldOwner(r.FieldManagerName), client.ForceOwnership); err != nil {
 		if client.IgnoreNotFound(err) == nil {
 			return nil
 		}

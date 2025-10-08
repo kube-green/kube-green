@@ -12,14 +12,22 @@ import (
 	"github.com/kube-green/kube-green/internal/testutil"
 
 	"github.com/stretchr/testify/require"
+	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+)
+
+const (
+	testFieldManagerName = "fake-test-manager"
 )
 
 var (
@@ -436,11 +444,7 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 		}
 
 		scaledObject := &unstructured.Unstructured{}
-		scaledObject.SetGroupVersionKind(schema.GroupVersionKind{
-			Group:   "keda.sh",
-			Version: "v1alpha1",
-			Kind:    "ScaledObject",
-		})
+		scaledObject.SetGroupVersionKind(getScaledObjectGvk())
 		scaledObject.SetName("test-scaledobject-1")
 		scaledObject.SetNamespace(namespace)
 
@@ -448,11 +452,7 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 		scaledObject2.SetAnnotations(map[string]string{
 			"some": "field",
 		})
-		scaledObject2.SetGroupVersionKind(schema.GroupVersionKind{
-			Group:   "keda.sh",
-			Version: "v1alpha1",
-			Kind:    "ScaledObject",
-		})
+		scaledObject2.SetGroupVersionKind(getScaledObjectGvk())
 		scaledObject2.SetName("test-scaledobject-2")
 		scaledObject2.SetNamespace(namespace)
 
@@ -799,12 +799,12 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 			// add a new deployment
 			deployClient := deployRes.Client
 
-			deployToAdd := mocks.Deployment(mocks.DeploymentOptions{
+			deployToAddBuilder := mocks.Deployment(mocks.DeploymentOptions{
 				Name:      "new-deploy",
 				Namespace: namespace,
 				Replicas:  getPtr(int32(2)),
-			}).Resource()
-			require.NoError(t, deployClient.Create(ctx, deployToAdd))
+			})
+			require.NoError(t, deployClient.Create(ctx, deployToAddBuilder.Resource()))
 
 			t.Run("wake up", func(t *testing.T) {
 				require.NoError(t, res.WakeUp(ctx))
@@ -815,12 +815,10 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 
 					require.Len(t, resList, 3)
 
-					unstructuredCronJob, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&deployToAdd)
-					require.NoError(t, err)
 					expectedDeployments := []unstructured.Unstructured{
 						originalDeployments[0],
 						originalDeployments[1],
-						{Object: unstructuredCronJob},
+						deployToAddBuilder.Unstructured(),
 					}
 
 					requireEqualResources(t, expectedDeployments, resList)
@@ -1007,15 +1005,26 @@ func getFakeClient() *fake.ClientBuilder {
 		Version: "v1",
 		Kind:    "CronJob",
 	}, meta.RESTScopeNamespace)
-	restMapper.Add(schema.GroupVersionKind{
-		Group:   "keda.sh",
-		Version: "v1alpha1",
-		Kind:    "ScaledObject",
-	}, meta.RESTScopeNamespace)
+	scaledObjectGvk := getScaledObjectGvk()
+	restMapper.Add(scaledObjectGvk, meta.RESTScopeNamespace)
+
+	scheme := runtime.NewScheme()
+	scheme.AddKnownTypeWithName(scaledObjectGvk, &unstructured.Unstructured{})
+	utilruntime.Must(appsv1.AddToScheme(scheme))
+	utilruntime.Must(corev1.AddToScheme(scheme))
+	utilruntime.Must(batchv1.AddToScheme(scheme))
 
 	return fake.
 		NewClientBuilder().
-		WithRESTMapper(restMapper)
+		WithRESTMapper(restMapper).WithScheme(scheme)
+}
+
+func getScaledObjectGvk() schema.GroupVersionKind {
+	return schema.GroupVersionKind{
+		Group:   "keda.sh",
+		Version: "v1alpha1",
+		Kind:    "ScaledObject",
+	}
 }
 
 func getPtr[T any](v T) *T {
@@ -1057,9 +1066,10 @@ func getNewResourceWithPatchToRestore(t *testing.T, client client.Client, sleepI
 	t.Helper()
 
 	resource, err := NewResources(context.Background(), resource.ResourceClient{
-		Client:    client,
-		Log:       testLogger,
-		SleepInfo: sleepInfo,
+		Client:           client,
+		Log:              testLogger,
+		SleepInfo:        sleepInfo,
+		FieldManagerName: testFieldManagerName,
 	}, namespace, patchToRestore)
 	require.NoError(t, err)
 
