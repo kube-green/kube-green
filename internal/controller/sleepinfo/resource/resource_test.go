@@ -185,10 +185,10 @@ func TestResource(t *testing.T) {
 				Client:    k8sClient,
 			}
 
-			newD1 := deployment.DeepCopy()
-			newD1.Spec.Template.Spec.Containers[0].Image = newImageName
+			newDeploy := deployment.DeepCopy()
+			newDeploy.Spec.Template.Spec.Containers[0].Image = newImageName
 
-			require.EqualError(t, c.SSAPatch(context.Background(), &deployment), "error during patch")
+			require.EqualError(t, c.SSAPatch(context.Background(), newDeploy), "error during patch")
 		})
 	})
 }
