@@ -41,8 +41,6 @@ func (r ResourceClient) Patch(ctx context.Context, oldObj, newObj client.Object)
 	return nil
 }
 
-var forceTrue = true
-
 // Server Side Apply patch. Reference: https://kubernetes.io/docs/reference/using-api/server-side-apply/
 func (r ResourceClient) SSAPatch(ctx context.Context, newObj client.Object) error {
 	if err := r.IsClientValid(); err != nil {
