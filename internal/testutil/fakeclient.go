@@ -18,6 +18,7 @@ const (
 	Create
 	Update
 	Patch
+	Apply
 )
 
 type PossiblyErroringFakeCtrlRuntimeClient struct {
@@ -88,6 +89,14 @@ func (p PossiblyErroringFakeCtrlRuntimeClient) Patch(ctx context.Context, obj cl
 	}
 
 	return p.Client.Patch(ctx, obj, patch, opts...)
+}
+
+func (p PossiblyErroringFakeCtrlRuntimeClient) Apply(ctx context.Context, obj runtime.ApplyConfiguration, opts ...client.ApplyOption) error {
+	if p.ShouldError != nil && p.ShouldError(Apply, nil) {
+		return errors.New("error during apply")
+	}
+
+	return p.Client.Apply(ctx, obj, opts...)
 }
 
 func convertSecretStringData(secret *v1.Secret) {

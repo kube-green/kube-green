@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	kubegreenv1alpha1 "github.com/kube-green/kube-green/api/v1alpha1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/go-logr/logr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -42,13 +43,17 @@ func (r ResourceClient) Patch(ctx context.Context, oldObj, newObj client.Object)
 }
 
 // Server Side Apply patch. Reference: https://kubernetes.io/docs/reference/using-api/server-side-apply/
-func (r ResourceClient) SSAPatch(ctx context.Context, newObj client.Object) error {
+func (r ResourceClient) SSAPatch(ctx context.Context, newObj *unstructured.Unstructured) error {
 	if err := r.IsClientValid(); err != nil {
 		return err
 	}
 	newObj.SetManagedFields(nil)
 	newObj.SetResourceVersion("")
-	if err := r.Client.Patch(ctx, newObj, client.Apply, client.FieldOwner(r.FieldManagerName), client.ForceOwnership); err != nil {
+	if err := r.Client.Apply(ctx,
+		client.ApplyConfigurationFromUnstructured(newObj),
+		client.FieldOwner(r.FieldManagerName),
+		client.ForceOwnership,
+	); err != nil {
 		if client.IgnoreNotFound(err) == nil {
 			return nil
 		}

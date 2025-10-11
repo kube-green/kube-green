@@ -6,14 +6,13 @@ import (
 	"testing"
 
 	kubegreenv1alpha1 "github.com/kube-green/kube-green/api/v1alpha1"
+	"github.com/kube-green/kube-green/internal/controller/sleepinfo/internal/mocks"
 	"github.com/kube-green/kube-green/internal/testutil"
 
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
-	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -22,23 +21,10 @@ import (
 func TestResource(t *testing.T) {
 	const newImageName = "new-image"
 
-	deployment := appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "my-name",
-			Namespace: "test-namespace",
-		},
-		Spec: appsv1.DeploymentSpec{
-			Template: v1.PodTemplateSpec{
-				Spec: v1.PodSpec{
-					Containers: []v1.Container{
-						{
-							Image: "my-image",
-						},
-					},
-				},
-			},
-		},
-	}
+	deployment := mocks.Deployment(mocks.DeploymentOptions{
+		Name:      "my-name",
+		Namespace: "test-namespace",
+	})
 
 	t.Run("IsClientValid", func(t *testing.T) {
 		t.Run("without any field", func(t *testing.T) {
@@ -77,6 +63,8 @@ func TestResource(t *testing.T) {
 	})
 
 	t.Run("Patch", func(t *testing.T) {
+		deployRes := deployment.Resource()
+
 		t.Run("fails if client is not valid", func(t *testing.T) {
 			c := ResourceClient{}
 
@@ -84,44 +72,44 @@ func TestResource(t *testing.T) {
 		})
 
 		t.Run("correctly patch resource", func(t *testing.T) {
-			k8sClient := fake.NewClientBuilder().WithRuntimeObjects(&deployment).Build()
+			k8sClient := fake.NewClientBuilder().WithRuntimeObjects(deployRes).Build()
 			c := ResourceClient{
 				SleepInfo: &kubegreenv1alpha1.SleepInfo{},
 				Log:       logr.Discard(),
 				Client:    k8sClient,
 			}
 
-			newD1 := deployment.DeepCopy()
+			newD1 := deployRes.DeepCopy()
 			newD1.Spec.Template.Spec.Containers[0].Image = newImageName
 
-			require.NoError(t, c.Patch(context.Background(), &deployment, newD1))
+			require.NoError(t, c.Patch(context.Background(), deployRes, newD1))
 
 			actualDeployment := &appsv1.Deployment{}
 			err := k8sClient.Get(context.Background(), types.NamespacedName{
-				Name:      deployment.Name,
-				Namespace: deployment.Namespace,
+				Name:      deployRes.Name,
+				Namespace: deployRes.Namespace,
 			}, actualDeployment)
 			require.NoError(t, err)
 			require.Equal(t, newD1, actualDeployment)
 		})
 
 		t.Run("correctly patch the same resource", func(t *testing.T) {
-			k8sClient := fake.NewClientBuilder().WithRuntimeObjects(&deployment).Build()
+			k8sClient := fake.NewClientBuilder().WithRuntimeObjects(deployRes).Build()
 			c := ResourceClient{
 				SleepInfo: &kubegreenv1alpha1.SleepInfo{},
 				Log:       logr.Discard(),
 				Client:    k8sClient,
 			}
 
-			require.NoError(t, c.Patch(context.Background(), &deployment, &deployment))
+			require.NoError(t, c.Patch(context.Background(), deployRes, deployRes))
 
 			actualDeployment := &appsv1.Deployment{}
 			err := k8sClient.Get(context.Background(), types.NamespacedName{
-				Name:      deployment.Name,
-				Namespace: deployment.Namespace,
+				Name:      deployRes.Name,
+				Namespace: deployRes.Namespace,
 			}, actualDeployment)
 			require.NoError(t, err)
-			require.Equal(t, &deployment, actualDeployment)
+			require.Equal(t, deployRes, actualDeployment)
 		})
 
 		t.Run("does not throw if resource not found", func(t *testing.T) {
@@ -132,15 +120,15 @@ func TestResource(t *testing.T) {
 				Client:    k8sClient,
 			}
 
-			newD1 := deployment.DeepCopy()
+			newD1 := deployRes.DeepCopy()
 			newD1.Spec.Template.Spec.Containers[0].Image = newImageName
 
-			require.NoError(t, c.Patch(context.Background(), &deployment, newD1))
+			require.NoError(t, c.Patch(context.Background(), deployRes, newD1))
 
 			actualDeployment := &appsv1.Deployment{}
 			err := k8sClient.Get(context.Background(), types.NamespacedName{
-				Name:      deployment.Name,
-				Namespace: deployment.Namespace,
+				Name:      deployRes.Name,
+				Namespace: deployRes.Namespace,
 			}, actualDeployment)
 			require.True(t, apierrors.IsNotFound(err))
 		})
@@ -158,10 +146,10 @@ func TestResource(t *testing.T) {
 				Client:    k8sClient,
 			}
 
-			newD1 := deployment.DeepCopy()
+			newD1 := deployRes.DeepCopy()
 			newD1.Spec.Template.Spec.Containers[0].Image = newImageName
 
-			require.EqualError(t, c.Patch(context.Background(), &deployment, newD1), "error during patch")
+			require.EqualError(t, c.Patch(context.Background(), deployRes, newD1), "error during patch")
 		})
 	})
 
@@ -180,15 +168,15 @@ func TestResource(t *testing.T) {
 				},
 			}
 			c := ResourceClient{
-				SleepInfo: &kubegreenv1alpha1.SleepInfo{},
-				Log:       logr.Discard(),
-				Client:    k8sClient,
+				SleepInfo:        &kubegreenv1alpha1.SleepInfo{},
+				Log:              logr.Discard(),
+				Client:           k8sClient,
+				FieldManagerName: "mock-field-manager-name",
 			}
 
-			newDeploy := deployment.DeepCopy()
-			newDeploy.Spec.Template.Spec.Containers[0].Image = newImageName
+			deploy := deployment.Unstructured()
 
-			require.EqualError(t, c.SSAPatch(context.Background(), newDeploy), "error during patch")
+			require.EqualError(t, c.SSAPatch(context.Background(), &deploy), "error during apply")
 		})
 	})
 }
