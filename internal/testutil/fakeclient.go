@@ -87,14 +87,6 @@ func (p PossiblyErroringFakeCtrlRuntimeClient) Patch(ctx context.Context, obj cl
 		convertSecretStringData(secret)
 	}
 
-	if patch == client.Apply {
-		// This is a huge workaround of a limitation of fake client.
-		// Fake client do not know how to update resource with the Server Side Apply strategy.
-		// This is the issue open on kubernetes repository: https://github.com/kubernetes/kubernetes/issues/99953
-		patch = client.MergeFrom(nil)
-		return p.Client.Patch(ctx, obj, patch, opts...)
-	}
-
 	return p.Client.Patch(ctx, obj, patch, opts...)
 }
 

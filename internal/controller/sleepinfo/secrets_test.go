@@ -22,6 +22,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
+const (
+	testFieldManagerName = "mock-manager-name"
+)
+
 func TestGetSecret(t *testing.T) {
 	testLogger := zap.New(zap.UseDevMode(true))
 	secretName := "secret-name"
@@ -53,10 +57,6 @@ func TestGetSecret(t *testing.T) {
 		secret, err := r.getSecret(context.Background(), secretName, namespace)
 		require.NoError(t, err)
 		require.Equal(t, &v1.Secret{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "Secret",
-				APIVersion: "v1",
-			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:            secretName,
 				Namespace:       namespace,
@@ -141,9 +141,10 @@ func TestUpsertSecrets(t *testing.T) {
 			CurrentOperationType: sleepOperation,
 		}
 		resources, err := jsonpatch.NewResources(context.Background(), resource.ResourceClient{
-			Client:    client,
-			Log:       testLogger,
-			SleepInfo: sleepInfo,
+			Client:           client,
+			Log:              testLogger,
+			SleepInfo:        sleepInfo,
+			FieldManagerName: testFieldManagerName,
 		}, namespace, nil)
 		require.NoError(t, err)
 
@@ -156,10 +157,6 @@ func TestUpsertSecrets(t *testing.T) {
 		secret, err := r.getSecret(context.Background(), secretName, namespace)
 		require.NoError(t, err)
 		require.Equal(t, &v1.Secret{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "Secret",
-				APIVersion: "v1",
-			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:            secretName,
 				Namespace:       namespace,
@@ -191,10 +188,6 @@ func TestUpsertSecrets(t *testing.T) {
 			secret, err := r.getSecret(context.Background(), secretName, namespace)
 			require.NoError(t, err)
 			require.Equal(t, &v1.Secret{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "Secret",
-					APIVersion: "v1",
-				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:            secretName,
 					Namespace:       namespace,
@@ -226,9 +219,10 @@ func TestUpsertSecrets(t *testing.T) {
 			CurrentOperationType: sleepOperation,
 		}
 		resources, err := jsonpatch.NewResources(context.Background(), resource.ResourceClient{
-			Client:    client,
-			Log:       testLogger,
-			SleepInfo: sleepInfo,
+			Client:           client,
+			Log:              testLogger,
+			SleepInfo:        sleepInfo,
+			FieldManagerName: testFieldManagerName,
 		}, namespace, nil)
 		require.NoError(t, err)
 
@@ -241,10 +235,6 @@ func TestUpsertSecrets(t *testing.T) {
 		secret, err := r.getSecret(context.Background(), secretName, namespace)
 		require.NoError(t, err)
 		require.Equal(t, &v1.Secret{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "Secret",
-				APIVersion: "v1",
-			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:            secretName,
 				Namespace:       namespace,
@@ -281,9 +271,10 @@ func TestUpsertSecrets(t *testing.T) {
 			client := fakeDeploymentClient(&d1, &d2, &d3, &d4)
 
 			resources, err := jsonpatch.NewResources(context.Background(), resource.ResourceClient{
-				Client:    client,
-				Log:       testLogger,
-				SleepInfo: sleepInfo,
+				Client:           client,
+				Log:              testLogger,
+				SleepInfo:        sleepInfo,
+				FieldManagerName: testFieldManagerName,
 			}, namespace, sleepInfoData.OriginalGenericResourceInfo)
 			require.NoError(t, err)
 
@@ -296,10 +287,6 @@ func TestUpsertSecrets(t *testing.T) {
 			secret, err := r.getSecret(context.Background(), secretName, namespace)
 			require.NoError(t, err)
 			require.Equal(t, &v1.Secret{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "Secret",
-					APIVersion: "v1",
-				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:            secretName,
 					Namespace:       namespace,
@@ -345,10 +332,6 @@ func TestUpsertSecrets(t *testing.T) {
 		secret, err := r.getSecret(context.Background(), secretName, namespace)
 		require.NoError(t, err)
 		require.Equal(t, &v1.Secret{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "Secret",
-				APIVersion: "v1",
-			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:            secretName,
 				Namespace:       namespace,
@@ -401,10 +384,6 @@ func TestUpsertSecrets(t *testing.T) {
 		secret, err := r.getSecret(context.Background(), secretName, namespace)
 		require.NoError(t, err)
 		require.Equal(t, &v1.Secret{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "Secret",
-				APIVersion: "v1",
-			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:            secretName,
 				Namespace:       namespace,
@@ -439,9 +418,10 @@ func TestUpsertSecrets(t *testing.T) {
 			CurrentOperationType: sleepOperation,
 		}
 		resources, err := jsonpatch.NewResources(context.Background(), resource.ResourceClient{
-			Client:    fakeDeploymentClient(&d1, &d2, &d3),
-			Log:       testLogger,
-			SleepInfo: sleepInfo,
+			Client:           fakeDeploymentClient(&d1, &d2, &d3),
+			Log:              testLogger,
+			SleepInfo:        sleepInfo,
+			FieldManagerName: testFieldManagerName,
 		}, namespace, sleepInfoData.OriginalGenericResourceInfo)
 		require.NoError(t, err)
 
@@ -481,9 +461,10 @@ func TestUpsertSecrets(t *testing.T) {
 			CurrentOperationType: sleepOperation,
 		}
 		resources, err := jsonpatch.NewResources(context.Background(), resource.ResourceClient{
-			Client:    fakeDeploymentClient(&d1, &d2, &d3),
-			Log:       testLogger,
-			SleepInfo: sleepInfo,
+			Client:           fakeDeploymentClient(&d1, &d2, &d3),
+			Log:              testLogger,
+			SleepInfo:        sleepInfo,
+			FieldManagerName: testFieldManagerName,
 		}, namespace, sleepInfoData.OriginalGenericResourceInfo)
 		require.NoError(t, err)
 
@@ -507,10 +488,6 @@ func getSecret(opts mockSecretSpec) *v1.Secret {
 		opts.resourceVersion = "1"
 	}
 	return &v1.Secret{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Secret",
-			APIVersion: "v1",
-		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            opts.name,
 			Namespace:       opts.namespace,
