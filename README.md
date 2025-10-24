@@ -15,7 +15,7 @@ How many of your dev/preview pods stay on during weekends? Or at night? It's a w
 
 *kube-green* is a simple **k8s addon** that automatically **shuts down** (some of) your **resources** when you don't need them.
 
-If you already use *kube-green*, add you as an [adopter][add-adopters]!
+If you already use *kube-green*, add yourself as an [adopter][add-adopters]!
 
 ## Getting Started
 
@@ -118,7 +118,7 @@ To see other examples, go to [our docs](https://kube-green.dev/docs/configuratio
 
 ## Contributing
 
-Please read [CONTRIBUTING.md](https://gist.github.com/PurpleBooth/b24679402957c63ec426) for details on our code of conduct, and the process for submitting pull requests to us.
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct, and the process for submitting pull requests to us.
 
 ## Versioning
 
@@ -151,7 +151,7 @@ If you like or are using this project, please give it a star. Thanks!
 
 [Here](https://kube-green.dev/docs/adopters/) the list of adopters of *kube-green*.
 
-If you already use *kube-green*, add you as an [adopter][add-adopters]!
+If you already use *kube-green*, add yourself as an [adopter][add-adopters]!
 
 [go-report-svg]: https://goreportcard.com/badge/github.com/kube-green/kube-green
 [go-report-card]: https://goreportcard.com/report/github.com/kube-green/kube-green
