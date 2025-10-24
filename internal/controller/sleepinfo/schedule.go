@@ -17,6 +17,8 @@ func (r *SleepInfoReconciler) getNextSchedule(log logr.Logger, data SleepInfoDat
 
 	lastSchedule := data.LastSchedule
 
+	// TODO: Check for schedule exceptions
+
 	// subtract delta seconds because if now is after current schedule we skip
 	// the current schedule
 	var earliestTime = now.Add(-scheduleDelta)
