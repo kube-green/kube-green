@@ -10,22 +10,36 @@ linters:
     - copyloopvar
     - decorder
     - dupword
+    - dupl
+    - embeddedstructfieldcheck
+    - errcheck
     - errname
+    - exptostd
     - goconst
     - gocritic
     - gocyclo
     - goprintffuncname
     - gosec
+    - govet
+    - ineffassign
+    - iotamixing
+    - lll
     - maintidx
     - misspell
     - mnd
+    - nakedret
+    - nilnesserr
     - noctx
     - nolintlint
     - nosprintfhostport
+    - prealloc
     - revive
+    - staticcheck
     - tagliatelle
     - unconvert
     - unparam
+    - unused
+    - usetesting
     - whitespace
   settings:
     mnd:
@@ -41,6 +55,8 @@ linters:
           arguments:
             - allowTypesBefore: '*testing.T'
         - name: comment-spacings
+    embeddedstructfieldcheck:
+      empty-line: false
   exclusions:
     generated: lax
     presets:
@@ -56,8 +72,14 @@ linters:
       - linters:
           - goconst
         path: (.+)_test\.go
+      - linters:
+          - lll
+        path: api/*
+      - linters:
+          - dupl
+          - lll
+        path: internal/*
     paths:
-      - zz.deepcopy
       - third_party$
       - builtin$
       - examples$
@@ -68,7 +90,6 @@ formatters:
   exclusions:
     generated: lax
     paths:
-      - zz.deepcopy
       - third_party$
       - builtin$
       - examples$

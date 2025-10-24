@@ -32,10 +32,10 @@ metadata:
     capabilities: Seamless Upgrades
     categories: Developer Tools
     containerImage: docker.io/kubegreen/kube-green:0.7.1
-    createdAt: "2025-06-29T15:45:17Z"
+    createdAt: "2025-10-24T20:14:48Z"
     description: Suspend your pods when no-one's using them to save energy and restore
       when necessary
-    operators.operatorframework.io/builder: operator-sdk-v1.40.0
+    operators.operatorframework.io/builder: operator-sdk-v1.41.1
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
     repository: https://github.com/kube-green/kube-green
     support: kube-green Community
@@ -268,7 +268,7 @@ spec:
                 - --leader-elect
                 - --health-probe-bind-address=:8081
                 command:
-                - /manager
+                - /kube-green
                 image: docker.io/kubegreen/kube-green:0.7.1
                 livenessProbe:
                   httpGet:

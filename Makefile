@@ -252,14 +252,14 @@ OPERATOR_SDK ?= $(LOCALBIN)/operator-sdk
 GORELEASER ?= $(LOCALBIN)/goreleaser
 
 ## Tool Versions
-KUSTOMIZE_VERSION ?= v5.7.0
+KUSTOMIZE_VERSION ?= v5.7.1
 HELM_DOCS_VERSION ?= v1.14.2
-CONTROLLER_TOOLS_VERSION ?= v0.18.0
+CONTROLLER_TOOLS_VERSION ?= v0.19.0
 ENVTEST_VERSION ?= $(shell go list -m -f "{{ .Version }}" sigs.k8s.io/controller-runtime | awk -F'[v.]' '{printf "release-%d.%d", $$2, $$3}')
-GOTESTSUM_VERSION ?= v1.12.3
-GOLANGCI_LINT_VERSION ?= v2.1.6
-OPERATOR_SDK_VERSION ?= v1.40.0
-GORELEASER_VERSION ?= v2.11.0
+GOTESTSUM_VERSION ?= v1.13.0
+GOLANGCI_LINT_VERSION ?= v2.5.0
+OPERATOR_SDK_VERSION ?= v1.41.1
+GORELEASER_VERSION ?= v2.12.6
 
 .PHONY: kustomize
 kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.

@@ -38,9 +38,9 @@ const (
 // SleepInfoReconciler reconciles a SleepInfo object
 type SleepInfoReconciler struct {
 	client.Client
-	Log    logr.Logger
-	Scheme *runtime.Scheme
 	Clock
+	Log                     logr.Logger
+	Scheme                  *runtime.Scheme
 	Metrics                 metrics.Metrics
 	SleepDelta              int64
 	ManagerName             string
@@ -53,7 +53,7 @@ func (realClock) Now() time.Time {
 	return time.Now()
 }
 
-// clock knows how to get the current time.
+// Clock knows how to get the current time.
 // It can be used to fake out timing for testing.
 type Clock interface {
 	Now() time.Time

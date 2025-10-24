@@ -314,155 +314,93 @@ func TestSleepInfo(t *testing.T) {
 	})
 
 	t.Run("suspend deployment options", func(t *testing.T) {
-		t.Run("true", func(t *testing.T) {
-			sleepInfo := SleepInfo{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "SleepInfo",
-					APIVersion: "v1alpha1",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "sleep-test-1",
-					Namespace: "namespace",
-				},
-				Spec: SleepInfoSpec{
-					SuspendDeployments: getPtr(true),
-				},
-			}
+		tests := []struct {
+			name               string
+			suspendDeployments *bool
+			expected           bool
+		}{
+			{
+				name:               "true",
+				suspendDeployments: getPtr(true),
+				expected:           true,
+			},
+			{
+				name:               "false",
+				suspendDeployments: getPtr(false),
+				expected:           false,
+			},
+			{
+				name:               "nil - default to true",
+				suspendDeployments: nil,
+				expected:           true,
+			},
+		}
 
-			isDeploymentToSuspend := sleepInfo.IsDeploymentsToSuspend()
-			require.True(t, isDeploymentToSuspend)
-		})
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				sleepInfo := SleepInfo{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "SleepInfo",
+						APIVersion: "v1alpha1",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "sleep-test-1",
+						Namespace: "namespace",
+					},
+					Spec: SleepInfoSpec{
+						SuspendDeployments: tt.suspendDeployments,
+					},
+				}
 
-		t.Run("false", func(t *testing.T) {
-			sleepInfo := SleepInfo{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "SleepInfo",
-					APIVersion: "v1alpha1",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "sleep-test-1",
-					Namespace: "namespace",
-				},
-				Spec: SleepInfoSpec{
-					SuspendDeployments: getPtr(false),
-				},
-			}
-
-			isDeploymentToSuspend := sleepInfo.IsDeploymentsToSuspend()
-			require.False(t, isDeploymentToSuspend)
-		})
-
-		t.Run("empty - default to true", func(t *testing.T) {
-			sleepInfo := SleepInfo{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "SleepInfo",
-					APIVersion: "v1alpha1",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "sleep-test-1",
-					Namespace: "namespace",
-				},
-				Spec: SleepInfoSpec{},
-			}
-
-			isDeploymentToSuspend := sleepInfo.IsDeploymentsToSuspend()
-			require.True(t, isDeploymentToSuspend)
-		})
-
-		t.Run("nil - default to true", func(t *testing.T) {
-			sleepInfo := SleepInfo{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "SleepInfo",
-					APIVersion: "v1alpha1",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "sleep-test-1",
-					Namespace: "namespace",
-				},
-				Spec: SleepInfoSpec{
-					SuspendDeployments: nil,
-				},
-			}
-
-			isDeploymentToSuspend := sleepInfo.IsDeploymentsToSuspend()
-			require.True(t, isDeploymentToSuspend)
-		})
+				isDeploymentToSuspend := sleepInfo.IsDeploymentsToSuspend()
+				require.Equal(t, tt.expected, isDeploymentToSuspend)
+			})
+		}
 	})
 
 	t.Run("suspend statefulsets options", func(t *testing.T) {
-		t.Run("true", func(t *testing.T) {
-			sleepInfo := SleepInfo{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "SleepInfo",
-					APIVersion: "v1alpha1",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "sleep-test-1",
-					Namespace: "namespace",
-				},
-				Spec: SleepInfoSpec{
-					SuspendStatefulSets: getPtr(true),
-				},
-			}
+		tests := []struct {
+			name                string
+			suspendStatefulSets *bool
+			expected            bool
+		}{
+			{
+				name:                "true",
+				suspendStatefulSets: getPtr(true),
+				expected:            true,
+			},
+			{
+				name:                "false",
+				suspendStatefulSets: getPtr(false),
+				expected:            false,
+			},
+			{
+				name:                "nil - default to true",
+				suspendStatefulSets: nil,
+				expected:            true,
+			},
+		}
 
-			isStatefulSetsToSuspend := sleepInfo.IsStatefulSetsToSuspend()
-			require.True(t, isStatefulSetsToSuspend)
-		})
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				sleepInfo := SleepInfo{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "SleepInfo",
+						APIVersion: "v1alpha1",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "sleep-test-1",
+						Namespace: "namespace",
+					},
+					Spec: SleepInfoSpec{
+						SuspendStatefulSets: tt.suspendStatefulSets,
+					},
+				}
 
-		t.Run("false", func(t *testing.T) {
-			sleepInfo := SleepInfo{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "SleepInfo",
-					APIVersion: "v1alpha1",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "sleep-test-1",
-					Namespace: "namespace",
-				},
-				Spec: SleepInfoSpec{
-					SuspendStatefulSets: getPtr(false),
-				},
-			}
-
-			isStatefulSetToSuspend := sleepInfo.IsStatefulSetsToSuspend()
-			require.False(t, isStatefulSetToSuspend)
-		})
-
-		t.Run("empty - default to true", func(t *testing.T) {
-			sleepInfo := SleepInfo{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "SleepInfo",
-					APIVersion: "v1alpha1",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "sleep-test-1",
-					Namespace: "namespace",
-				},
-				Spec: SleepInfoSpec{},
-			}
-
-			isStatefulSetToSuspend := sleepInfo.IsStatefulSetsToSuspend()
-			require.True(t, isStatefulSetToSuspend)
-		})
-
-		t.Run("nil - default to true", func(t *testing.T) {
-			sleepInfo := SleepInfo{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "SleepInfo",
-					APIVersion: "v1alpha1",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "sleep-test-1",
-					Namespace: "namespace",
-				},
-				Spec: SleepInfoSpec{
-					SuspendStatefulSets: nil,
-				},
-			}
-
-			isStatefulSetToSuspend := sleepInfo.IsStatefulSetsToSuspend()
-			require.True(t, isStatefulSetToSuspend)
-		})
+				isStatefulSetToSuspend := sleepInfo.IsStatefulSetsToSuspend()
+				require.Equal(t, tt.expected, isStatefulSetToSuspend)
+			})
+		}
 	})
 
 	t.Run("fails if weekday is empty", func(t *testing.T) {
