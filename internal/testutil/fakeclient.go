@@ -35,7 +35,7 @@ func (p PossiblyErroringFakeCtrlRuntimeClient) List(ctx context.Context, dpl cli
 
 	fieldSelector := listOpts.FieldSelector
 	// TODO: we use != operator, which is not supported by fake client because it
-	// does not use indexes: https://github.com/kubernetes-sigs/controller-runtime/blob/master/pkg/client/fake/client.go#L521
+	// does not use indexes: https://github.com/kubernetes-sigs/controller-runtime/blob/b8f11375258f85190ec46d20726d96c2e74d95a1/pkg/client/fake/client.go#L553
 	listOpts.FieldSelector = nil
 
 	err := p.Client.List(ctx, dpl, &listOpts)

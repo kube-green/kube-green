@@ -10,7 +10,7 @@ By default, this chart is configured to use the cert-manager to manage the certi
 ## Install with kube-green chart
 
 To successfully install kube-green, in the cluster must be installed a cert-manager.
-If it is not already installed installed, [check the cert-manager installation guide](https://cert-manager.io/docs/installation/).
+If it is not already installed, [check the cert-manager installation guide](https://cert-manager.io/docs/installation/).
 
 To install kube-green using the helm-chart (inside the `kube-green` namespace), clone the kube-green repository and run this command:
 
@@ -18,7 +18,7 @@ To install kube-green using the helm-chart (inside the `kube-green` namespace), 
 helm upgrade kube-green \
 --namespace=kube-green \
 --create-namespace=true \
-./charts/kube-green --install 
+./charts/kube-green --install
 ```
 
 ## Deploy Kube-Green Helm Chart with Terraform
