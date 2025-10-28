@@ -120,7 +120,9 @@ func TestValidationWebhook(t *testing.T) {
 						Name:      testutil.RandString(8),
 						Namespace: c.Namespace(),
 					},
-					Spec: kubegreenv1alpha1.SleepInfoSpec{},
+					Spec: kubegreenv1alpha1.SleepInfoSpec{
+						SleepTime: "20:00",
+					},
 				}
 				err := k8sClient.Create(ctx, sleepInfo)
 				require.EqualError(t, err, "admission webhook \"vsleepinfo.kb.io\" denied the request: empty weekdays from SleepInfo configuration")
