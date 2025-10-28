@@ -10,7 +10,11 @@ ARCH              =$(shell go env GOARCH)
 GIT_SHA           =$(shell git rev-parse HEAD)
 BUILD_PATH        := cmd/main.go
 
-.EXPORT_ALL_VARIABLES:
+# Export only the variables needed by external tools like goreleaser
+export BUILD_PATH
+export GIT_SHA
+export OS
+export ARCH
 
 # CHANNELS define the bundle channels used in the bundle.
 # Add a new line here if you would like to change its default config. (E.g CHANNELS = "preview,fast,stable")
