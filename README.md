@@ -82,6 +82,8 @@ See [here](https://kube-green.dev/docs/configuration/) the documentation about t
 
 ### CRD Examples
 
+**Note:** The `timeZone` field uses IANA time zone identifiers. If not set, it defaults to UTC. You can set it to any valid timezone such as `Europe/Rome`, `America/New_York`, etc.
+
 Pods running during working hours with Europe/Rome timezone, suspend CronJobs and exclude a deployment named `api-gateway`:
 
 ```yaml
