@@ -573,6 +573,13 @@ spec:
     kind: Issuer
     name: kube-green-selfsigned-issuer
   secretName: webhook-server-cert
+  # Explicitly set privateKey.rotationPolicy to Never to maintain backward compatibility
+  # with cert-manager <1.18. In 1.18+, the default changed from Never to Always.
+  privateKey:
+    rotationPolicy: Never
+  # Explicitly set revisionHistoryLimit to preserve previous behavior.
+  # In cert-manager 1.18+, the default changed from unlimited to 1.
+  revisionHistoryLimit: 1
 ---
 # Source: kube-green/templates/cert-manager.yaml
 apiVersion: cert-manager.io/v1
@@ -588,6 +595,13 @@ spec:
     kind: Issuer
     name: kube-green-selfsigned-issuer
   secretName: metrics-server-cert
+  # Explicitly set privateKey.rotationPolicy to Never to maintain backward compatibility
+  # with cert-manager <1.18. In 1.18+, the default changed from Never to Always.
+  privateKey:
+    rotationPolicy: Never
+  # Explicitly set revisionHistoryLimit to preserve previous behavior.
+  # In cert-manager 1.18+, the default changed from unlimited to 1.
+  revisionHistoryLimit: 1
 ---
 # Source: kube-green/templates/cert-manager.yaml
 apiVersion: cert-manager.io/v1

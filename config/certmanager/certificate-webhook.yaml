@@ -18,3 +18,10 @@ spec:
     kind: Issuer
     name: selfsigned-issuer
   secretName: webhook-server-cert
+  # Explicitly set privateKey.rotationPolicy to Never to maintain backward compatibility
+  # with cert-manager <1.18. In 1.18+, the default changed from Never to Always.
+  privateKey:
+    rotationPolicy: Never
+  # Explicitly set revisionHistoryLimit to preserve previous behavior.
+  # In cert-manager 1.18+, the default changed from unlimited to 1.
+  revisionHistoryLimit: 1
