@@ -43,7 +43,7 @@ func TestSleepInfoData(t *testing.T) {
 						SleepTime: "19",
 					},
 				},
-				expectedErr: "time should be of format HH:mm, actual: 19",
+				expectedErr: "time should be of format HH:mm, actual: '19'",
 			},
 			{
 				name: "if wake up schedule not correct",
@@ -54,7 +54,7 @@ func TestSleepInfoData(t *testing.T) {
 						WakeUpTime: "09",
 					},
 				},
-				expectedErr: "time should be of format HH:mm, actual: 09",
+				expectedErr: "time should be of format HH:mm, actual: '09'",
 			},
 			{
 				name: "if wake up not set, next operation schedule should be next sleep operation",

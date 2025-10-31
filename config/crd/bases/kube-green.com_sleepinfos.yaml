@@ -118,6 +118,48 @@ spec:
                   - target
                   type: object
                 type: array
+              scheduleException:
+                description: ScheduleException define the exceptions to the schedule.
+                items:
+                  properties:
+                    dates:
+                      description: |-
+                        List of Day-Month dates.
+
+                        Accept cron schedule for both day and month.
+                        For example, *-*/2 is set to configure a run every even month.
+                      items:
+                        type: string
+                      type: array
+                    description:
+                      description: Description provides a human-readable explanation
+                        for the exception.
+                      type: string
+                    sleepAt:
+                      description: |-
+                        Hours:Minutes
+
+                        Accept cron schedule for both hour and minute.
+                        For example, *:*/2 is set to configure a run every even minute.
+                      type: string
+                    type:
+                      description: |-
+                        Type of the schedule exception. Valid values are "override" and "disable".
+                        "override" allows custom sleep/wake times for specific dates.
+                        "disable" completely disables kube-green operations for specific dates.
+                      type: string
+                    wakeUpAt:
+                      description: |-
+                        Hours:Minutes for wake up time on override exceptions.
+
+                        Accept cron schedule for both hour and minute.
+                        For example, *:*/2 is set to configure a run every even minute.
+                        Only used when Type is "override".
+                      type: string
+                  required:
+                  - dates
+                  type: object
+                type: array
               sleepAt:
                 description: |-
                   Hours:Minutes
@@ -153,15 +195,24 @@ spec:
                   For example, *:*/2 is set to configure a run every even minute.
                   It is not required.
                 type: string
-              weekdays:
+              weekdaySleep:
                 description: |-
-                  Weekdays are in cron notation.
+                  WeekdaySleep are in cron notation.
 
                   For example, to configure a schedule from monday to friday, set it to "1-5"
                 type: string
-            required:
-            - sleepAt
-            - weekdays
+              weekdayWakeUp:
+                description: |-
+                  WeekDayWakeUp are in cron notation.
+
+                  For example, to configure a schedule from monday to friday, set it to "1-5"
+                type: string
+              weekdays:
+                description: |-
+                  Weekdays are in cron notation. Deprecated: use weekdaySleep and weekdayWakeUp instead.
+
+                  For example, to configure a schedule from monday to friday, set it to "1-5"
+                type: string
             type: object
           status:
             description: SleepInfoStatus defines the observed state of SleepInfo
