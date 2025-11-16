@@ -912,10 +912,6 @@ func TestDifferentSleepInfoConfiguration(t *testing.T) {
 }
 
 func TestInvalidResource(t *testing.T) {
-	const (
-		mockNow = "2021-03-23T20:01:20.555Z"
-	)
-	testLogger := zap.New(zap.UseDevMode(true))
 	testenv := testenvSetup(t)
 
 	invalid := features.Table{
@@ -928,19 +924,8 @@ func TestInvalidResource(t *testing.T) {
 					Weekdays:  "1",
 					SleepTime: "",
 				}
-				createSleepInfoCRD(t, ctx, c, sleepInfo)
-
-				req := reconcile.Request{
-					NamespacedName: types.NamespacedName{
-						Name:      sleepInfoName,
-						Namespace: c.Namespace(),
-					},
-				}
-				sleepInfoReconciler := getSleepInfoReconciler(t, c, testLogger, mockNow)
-
-				result, err := sleepInfoReconciler.Reconcile(ctx, req)
-				require.EqualError(t, err, "time should be of format HH:mm, actual: ")
-				require.Empty(t, result)
+				// CEL validation in the CRD, creation should fail at the API server level
+				expectSleepInfoCreationToFail(t, ctx, c, sleepInfo, "spec.sleepAt")
 
 				return ctx
 			},
@@ -955,19 +940,8 @@ func TestInvalidResource(t *testing.T) {
 					SleepTime:  "*:*",
 					WakeUpTime: "*",
 				}
-				createSleepInfoCRD(t, ctx, c, sleepInfo)
-
-				sleepInfoReconciler := getSleepInfoReconciler(t, c, testLogger, mockNow)
-
-				req := reconcile.Request{
-					NamespacedName: types.NamespacedName{
-						Name:      sleepInfoName,
-						Namespace: c.Namespace(),
-					},
-				}
-				result, err := sleepInfoReconciler.Reconcile(ctx, req)
-				require.EqualError(t, err, "time should be of format HH:mm, actual: *")
-				require.Empty(t, result)
+				// CEL validation in the CRD, creation should fail at the API server level
+				expectSleepInfoCreationToFail(t, ctx, c, sleepInfo, "spec.wakeUpAt")
 
 				return ctx
 			},
@@ -978,21 +952,11 @@ func TestInvalidResource(t *testing.T) {
 				sleepInfoName := envconf.RandomName("sleepinfo", 16)
 				sleepInfo := getDefaultSleepInfo(sleepInfoName, c.Namespace())
 				sleepInfo.Spec = kubegreenv1alpha1.SleepInfoSpec{
-					Weekdays: "",
+					Weekdays:  "",
+					SleepTime: "20:00",
 				}
-				createSleepInfoCRD(t, ctx, c, sleepInfo)
-
-				req := reconcile.Request{
-					NamespacedName: types.NamespacedName{
-						Name:      sleepInfoName,
-						Namespace: c.Namespace(),
-					},
-				}
-				sleepInfoReconciler := getSleepInfoReconciler(t, c, testLogger, mockNow)
-
-				result, err := sleepInfoReconciler.Reconcile(ctx, req)
-				require.EqualError(t, err, "empty weekdays from SleepInfo configuration")
-				require.Empty(t, result)
+				// With CEL validation in the CRD, creation should fail at the API server level
+				expectSleepInfoCreationToFail(t, ctx, c, sleepInfo, "spec.weekdays")
 
 				return ctx
 			},
