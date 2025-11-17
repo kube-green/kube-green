@@ -34,17 +34,27 @@ type FilterRef struct {
 
 // SleepInfoSpec defines the desired state of SleepInfo
 type SleepInfoSpec struct {
-	// Weekdays are in cron notation.
+	// WeekdaySleep are in cron notation.
 	//
 	// For example, to configure a schedule from monday to friday, set it to "1-5"
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	Weekdays string `json:"weekdays"`
+	WeekDaySleep string `json:"weekdaySleep,omitempty"`
+	// WeekDayWakeUp are in cron notation.
+	//
+	// For example, to configure a schedule from monday to friday, set it to "1-5"
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	WeekDayWakeUp string `json:"weekdayWakeUp,omitempty"`
+	// Weekdays are in cron notation. Deprecated: use weekdaySleep and weekdayWakeUp instead.
+	//
+	// For example, to configure a schedule from monday to friday, set it to "1-5"
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	Weekdays string `json:"weekdays,omitempty"`
 	// Hours:Minutes
 	//
 	// Accept cron schedule for both hour and minute.
 	// For example, *:*/2 is set to configure a run every even minute.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	SleepTime string `json:"sleepAt"`
+	SleepTime string `json:"sleepAt,omitempty"`
 	// Hours:Minutes
 	//
 	// Accept cron schedule for both hour and minute.
@@ -85,6 +95,44 @@ type SleepInfoSpec struct {
 	// +optional
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Patches []Patch `json:"patches,omitempty"`
+	// ScheduleException define the exceptions to the schedule.
+	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	ScheduleException []ScheduleException `json:"scheduleException,omitempty"`
+}
+
+type ScheduleException struct {
+	// Type of the schedule exception. Valid values are "override" and "disable".
+	// "override" allows custom sleep/wake times for specific dates.
+	// "disable" completely disables kube-green operations for specific dates.
+	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	Type ScheduleExceptionType `json:"type,omitempty"`
+	// List of Day-Month dates.
+	//
+	// Accept cron schedule for both day and month.
+	// For example, *-*/2 is set to configure a run every even month.
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	Dates []string `json:"dates"`
+	// Description provides a human-readable explanation for the exception.
+	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	Description string `json:"description,omitempty"`
+	// Hours:Minutes
+	//
+	// Accept cron schedule for both hour and minute.
+	// For example, *:*/2 is set to configure a run every even minute.
+	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	SleepTime string `json:"sleepAt"`
+	// Hours:Minutes for wake up time on override exceptions.
+	//
+	// Accept cron schedule for both hour and minute.
+	// For example, *:*/2 is set to configure a run every even minute.
+	// Only used when Type is "override".
+	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	WakeUpTime string `json:"wakeUpAt,omitempty"`
 }
 
 type Patch struct {
@@ -145,14 +193,14 @@ type SleepInfo struct {
 }
 
 func (s SleepInfo) GetSleepSchedule() (string, error) {
-	return s.getScheduleFromWeekdayAndTime(s.Spec.SleepTime)
+	return s.getScheduleFromWeekdayAndTime(s.Spec.WeekDaySleep, s.Spec.SleepTime)
 }
 
 func (s SleepInfo) GetWakeUpSchedule() (string, error) {
 	if s.Spec.WakeUpTime == "" {
 		return "", nil
 	}
-	return s.getScheduleFromWeekdayAndTime(s.Spec.WakeUpTime)
+	return s.getScheduleFromWeekdayAndTime(s.Spec.WeekDayWakeUp, s.Spec.WakeUpTime)
 }
 
 func (s SleepInfo) GetIncludeRef() []FilterRef {
@@ -163,22 +211,108 @@ func (s SleepInfo) GetExcludeRef() []FilterRef {
 	return s.Spec.ExcludeRef
 }
 
-func (s SleepInfo) getScheduleFromWeekdayAndTime(hourAndMinute string) (string, error) {
-	weekday := s.Spec.Weekdays
+type ScheduleExceptionType string
+
+const (
+	Override ScheduleExceptionType = "override"
+	Disable  ScheduleExceptionType = "disable"
+)
+
+type ParsedExceptionSchedule struct {
+	WakeUpAt    string
+	SleepAt     string
+	DisableDate string
+}
+
+func (p ParsedExceptionSchedule) IsValid() bool {
+	return (p.SleepAt != "" && p.WakeUpAt != "" && p.DisableDate == "") ||
+		(p.SleepAt == "" && p.WakeUpAt == "" && p.DisableDate != "")
+}
+
+func (s SleepInfo) GetScheduleException() ([]ParsedExceptionSchedule, error) {
+	scheduleExceptions := []ParsedExceptionSchedule{}
+	for _, exception := range s.Spec.ScheduleException {
+		if len(exception.Dates) == 0 {
+			return nil, fmt.Errorf("field Dates must not be empty")
+		}
+		for _, date := range exception.Dates {
+			switch exception.Type {
+			case Disable:
+				scheduleExceptions = append(scheduleExceptions, ParsedExceptionSchedule{
+					DisableDate: date,
+				})
+			case Override:
+				wakeUp, err := s.getSchedule(exception.WakeUpTime, "", date)
+				if err != nil {
+					return nil, err
+				}
+				sleepAt, err := s.getSchedule(exception.SleepTime, "", date)
+				if err != nil {
+					return nil, err
+				}
+				scheduleExceptions = append(scheduleExceptions, ParsedExceptionSchedule{
+					WakeUpAt: wakeUp,
+					SleepAt:  sleepAt,
+				})
+			default:
+				return nil, fmt.Errorf("invalid exception type: '%s'", exception.Type)
+			}
+		}
+	}
+	return scheduleExceptions, nil
+}
+
+func (s SleepInfo) getScheduleFromWeekdayAndTime(weekday string, hourAndMinute string) (string, error) {
 	if weekday == "" {
-		return "", fmt.Errorf("empty weekdays from SleepInfo configuration")
+		weekday = s.Spec.Weekdays
+	}
+	if weekday == "" {
+		return "", fmt.Errorf("empty weekdays and weekdaySleep or weekdayWakeUp from SleepInfo configuration")
 	}
 
-	splittedTime := strings.Split(hourAndMinute, ":")
-	//nolint:mnd
-	if len(splittedTime) != 2 {
-		return "", fmt.Errorf("time should be of format HH:mm, actual: %s", hourAndMinute)
+	return s.getSchedule(hourAndMinute, weekday, "")
+}
+
+func (s SleepInfo) getSchedule(hourAndMinute, weekday, date string) (string, error) {
+	day := "*"
+	month := "*"
+	if weekday == "" {
+		weekday = "*"
 	}
-	schedule := fmt.Sprintf("%s %s * * %s", splittedTime[1], splittedTime[0], weekday)
+
+	hour, minute, err := splitTime(hourAndMinute)
+	if err != nil {
+		return "", err
+	}
+	if date != "" {
+		if day, month, err = splitDate(date); err != nil {
+			return "", err
+		}
+	}
+	schedule := fmt.Sprintf("%s %s %s %s %s", minute, hour, day, month, weekday)
 	if s.Spec.TimeZone != "" {
 		schedule = fmt.Sprintf("CRON_TZ=%s %s", s.Spec.TimeZone, schedule)
 	}
+
 	return schedule, nil
+}
+
+func splitTime(hourAndMinute string) (string, string, error) {
+	splittedTime := strings.Split(hourAndMinute, ":")
+	//nolint:mnd
+	if len(splittedTime) != 2 {
+		return "", "", fmt.Errorf("time should be of format HH:mm, actual: '%s'", hourAndMinute)
+	}
+	return splittedTime[0], splittedTime[1], nil
+}
+
+func splitDate(date string) (string, string, error) {
+	splittedDate := strings.Split(date, "-")
+	//nolint:mnd
+	if len(splittedDate) != 2 {
+		return "", "", fmt.Errorf("date should be of format dd-MM, actual: '%s'", date)
+	}
+	return splittedDate[0], splittedDate[1], nil
 }
 
 func (s SleepInfo) IsCronjobsToSuspend() bool {
@@ -218,7 +352,7 @@ func (s SleepInfo) Validate(cl client.Client) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	if _, err = cron.ParseStandard(schedule); err != nil {
+	if err := validateSchedule(schedule); err != nil {
 		return nil, err
 	}
 
@@ -226,10 +360,12 @@ func (s SleepInfo) Validate(cl client.Client) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	if schedule != "" {
-		if _, err = cron.ParseStandard(schedule); err != nil {
-			return nil, err
-		}
+	if err := validateSchedule(schedule); err != nil {
+		return nil, err
+	}
+
+	if err := s.validateScheduleException(); err != nil {
+		return nil, err
 	}
 
 	for _, excludeRef := range s.GetExcludeRef() {
@@ -251,6 +387,35 @@ func isExcludeRefValid(excludeRef FilterRef) error {
 	return fmt.Errorf(`excludeRef is invalid. Must have set: matchLabels or name,apiVersion and kind fields`)
 }
 
+func (s SleepInfo) validateScheduleException() error {
+	exceptions, err := s.GetScheduleException()
+	if err != nil {
+		return err
+	}
+	for _, exception := range exceptions {
+		if !exception.IsValid() {
+			return fmt.Errorf("invalid schedule exception: %v", exception)
+		}
+		if err := validateSchedule(exception.SleepAt); err != nil {
+			return fmt.Errorf("invalid sleepAt schedule: %s", err)
+		}
+		if err := validateSchedule(exception.WakeUpAt); err != nil {
+			return fmt.Errorf("invalid wakeUpAt schedule: %s", err)
+		}
+		if exception.DisableDate != "" {
+			day, month, err := splitDate(exception.DisableDate)
+			if err != nil {
+				return err
+			}
+
+			if err := validateSchedule(fmt.Sprintf("* * %s %s *", day, month)); err != nil {
+				return fmt.Errorf("invalid date %s: %w", exception.DisableDate, err)
+			}
+		}
+	}
+	return nil
+}
+
 func (s *SleepInfo) validatePatches(cl client.Client) ([]string, error) {
 	warnings := []string{}
 	for _, patch := range s.GetPatches() {
@@ -264,6 +429,16 @@ func (s *SleepInfo) validatePatches(cl client.Client) ([]string, error) {
 	}
 
 	return warnings, nil
+}
+
+func validateSchedule(schedule string) error {
+	if schedule == "" {
+		return nil
+	}
+	if _, err := cron.ParseStandard(schedule); err != nil {
+		return fmt.Errorf("invalid cron schedule: %s", err)
+	}
+	return nil
 }
 
 // +kubebuilder:object:root=true
