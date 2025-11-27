@@ -9,7 +9,6 @@ metadata:
     {{ if .Values.crds.keep -}}
     helm.sh/resource-policy: keep
     {{ end -}}
-  creationTimestamp: null
   name: sleepinfos.kube-green.com
 spec:
   group: kube-green.com
