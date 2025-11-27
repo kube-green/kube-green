@@ -70,6 +70,7 @@ spec:
   # Required because the control plane automatically fills in the rules
   - group: rbac.authorization.k8s.io
     kind: ClusterRole
+    name: kube-green-manager-role
     jsonPointers:
     - /rules
 ```
