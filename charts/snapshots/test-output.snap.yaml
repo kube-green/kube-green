@@ -559,6 +559,35 @@ spec:
             - key: tls.key
               path: tls.key
 ---
+# Source: kube-green/templates/webhook.yaml
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  annotations:
+    cert-manager.io/inject-ca-from: default/kube-green-serving-cert
+  name: kube-green-validating-webhook-configuration
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: kube-green-webhook-service
+      namespace: default
+      path: /validate-kube-green-com-v1alpha1-sleepinfo
+  failurePolicy: Fail
+  name: vsleepinfo.kb.io
+  rules:
+  - apiGroups:
+    - kube-green.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - sleepinfos
+  sideEffects: None
+---
 # Source: kube-green/templates/cert-manager.yaml
 apiVersion: cert-manager.io/v1
 kind: Certificate
@@ -611,32 +640,3 @@ metadata:
   namespace: default
 spec:
   selfSigned: {}
----
-# Source: kube-green/templates/webhook.yaml
-apiVersion: admissionregistration.k8s.io/v1
-kind: ValidatingWebhookConfiguration
-metadata:
-  annotations:
-    cert-manager.io/inject-ca-from: default/kube-green-serving-cert
-  name: kube-green-validating-webhook-configuration
-webhooks:
-- admissionReviewVersions:
-  - v1
-  clientConfig:
-    service:
-      name: kube-green-webhook-service
-      namespace: default
-      path: /validate-kube-green-com-v1alpha1-sleepinfo
-  failurePolicy: Fail
-  name: vsleepinfo.kb.io
-  rules:
-  - apiGroups:
-    - kube-green.com
-    apiVersions:
-    - v1alpha1
-    operations:
-    - CREATE
-    - UPDATE
-    resources:
-    - sleepinfos
-  sideEffects: None
