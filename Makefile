@@ -57,6 +57,10 @@ ifeq ($(USE_IMAGE_DIGESTS), true)
     BUNDLE_GEN_FLAGS += --use-image-digests
 endif
 
+# OPENSHIFT_VERSIONS defines the OpenShift versions supported by the operator.
+# TODO: consider update support versions or move to fbc build.
+OPENSHIFT_VERSIONS ?= 4.15-4.20
+
 # Image URL to use all building/pushing image targets
 IMG ?= $(DOCKER_IMAGE_NAME):$(VERSION)
 # KIND_K8S_VERSION refers to the version of Kind to use.
@@ -72,7 +76,7 @@ endif
 # CONTAINER_TOOL defines the container tool to be used for building images.
 # Be aware that the target commands are only tested with Docker which is
 # scaffolded by default. However, you might want to replace it to use other
-# tools. (i.e. podman)
+# tools. (i.e. podman) in that case, test require updates as now hardcoded to docker.
 CONTAINER_TOOL ?= docker
 
 # Setting SHELL to bash allows bash commands to be executed by recipes.
@@ -350,9 +354,10 @@ bundle: manifests kustomize operator-sdk ## Generate bundle manifests and metada
 	$(OPERATOR_SDK) generate kustomize manifests --interactive=false -q
 	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
 	$(KUSTOMIZE) build config/manifests | $(OPERATOR_SDK) generate bundle $(BUNDLE_GEN_FLAGS)
-# This sed remove seccompProfile, since it not passes openshift 4.10 tests. Remove it when this version
-# will be unsupported
-	sed -i '' -e '/seccompProfile/,/RuntimeDefault/d' ./bundle/manifests/kube-green.clusterserviceversion.yaml
+# Add OpenShift annotations to bundle metadata
+	@echo "  # OpenShift annotations." >> ./bundle/metadata/annotations.yaml
+	@echo "  com.redhat.openshift.versions: $(OPENSHIFT_VERSIONS)" >> ./bundle/metadata/annotations.yaml
+	@echo "" >> ./bundle/metadata/annotations.yaml
 	$(OPERATOR_SDK) bundle validate ./bundle
 
 .PHONY: bundle-build
