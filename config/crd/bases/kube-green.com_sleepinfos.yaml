@@ -64,6 +64,13 @@ spec:
                       description: Name which identify the kubernetes resource.
                       type: string
                   type: object
+                  x-kubernetes-validations:
+                  - message: Must have either matchLabels (with empty name/apiVersion/kind)
+                      or name+apiVersion+kind (with empty matchLabels), but not both
+                    rule: 'has(self.matchLabels) ? (!has(self.name) && !has(self.apiVersion)
+                      && !has(self.kind)) : (has(self.name) && has(self.apiVersion)
+                      && has(self.kind))'
+                maxItems: 100
                 type: array
               includeRef:
                 description: |-
@@ -90,6 +97,13 @@ spec:
                       description: Name which identify the kubernetes resource.
                       type: string
                   type: object
+                  x-kubernetes-validations:
+                  - message: Must have either matchLabels (with empty name/apiVersion/kind)
+                      or name+apiVersion+kind (with empty matchLabels), but not both
+                    rule: 'has(self.matchLabels) ? (!has(self.name) && !has(self.apiVersion)
+                      && !has(self.kind)) : (has(self.name) && has(self.apiVersion)
+                      && has(self.kind))'
+                maxItems: 100
                 type: array
               patches:
                 description: Patches is a list of json 6902 patches to apply to the
@@ -124,6 +138,7 @@ spec:
 
                   Accept cron schedule for both hour and minute.
                   For example, *:*/2 is set to configure a run every even minute.
+                pattern: ^[0-9*,/-]+:[0-9*,/-]+$
                 type: string
               suspendCronJobs:
                 description: If SuspendCronjobs is set to true, on sleep the cronjobs
@@ -152,12 +167,14 @@ spec:
                   Accept cron schedule for both hour and minute.
                   For example, *:*/2 is set to configure a run every even minute.
                   It is not required.
+                pattern: ^[0-9*,/-]+:[0-9*,/-]+$
                 type: string
               weekdays:
                 description: |-
                   Weekdays are in cron notation.
 
                   For example, to configure a schedule from monday to friday, set it to "1-5"
+                pattern: ^[0-6*,/-]+$
                 type: string
             required:
             - sleepAt
