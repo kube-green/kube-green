@@ -24,7 +24,9 @@ import (
 func TestValidationWebhook(t *testing.T) {
 	const (
 		sleepInfoName = "name"
+		kind          = "SleepInfo"
 	)
+	apiVersion := kubegreenv1alpha1.GroupVersion.String()
 
 	validateWebhook := features.Table{
 		{
@@ -32,8 +34,8 @@ func TestValidationWebhook(t *testing.T) {
 			Assessment: func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 				sleepInfo := &kubegreenv1alpha1.SleepInfo{
 					TypeMeta: metav1.TypeMeta{
-						Kind:       "SleepInfo",
-						APIVersion: "kube-green.com/v1alpha1",
+						Kind:       kind,
+						APIVersion: apiVersion,
 					},
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      sleepInfoName,
@@ -88,7 +90,7 @@ func TestValidationWebhook(t *testing.T) {
 
 				result := client.
 					Post().
-					AbsPath("/apis/kube-green.com/v1alpha1/namespaces/" + c.Namespace() + "/sleepinfos").
+					AbsPath("/apis/" + apiVersion + "/namespaces/" + c.Namespace() + "/sleepinfos").
 					Body(sleepInfo.DeepCopyObject()).
 					Do(context.Background())
 				require.NoError(t, result.Error())
@@ -108,13 +110,13 @@ func TestValidationWebhook(t *testing.T) {
 			},
 		},
 		{
-			Name: "validate create ko - empty weekdays",
+			Name: "validate create ko - empty weekdays (done by webhook)",
 			Assessment: func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 				k8sClient := c.Client().Resources(c.Namespace()).GetControllerRuntimeClient()
 				sleepInfo := &kubegreenv1alpha1.SleepInfo{
 					TypeMeta: metav1.TypeMeta{
-						Kind:       "SleepInfo",
-						APIVersion: "kube-green.com/v1alpha1",
+						Kind:       kind,
+						APIVersion: apiVersion,
 					},
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      testutil.RandString(8),
@@ -128,6 +130,39 @@ func TestValidationWebhook(t *testing.T) {
 				require.Error(t, err)
 				require.Contains(t, err.Error(), "spec.weekdays")
 				require.Contains(t, err.Error(), "Invalid value")
+				return ctx
+			},
+		},
+		{
+			Name: "validate create ko - empty patch(done by webhook)",
+			Assessment: func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+				k8sClient := c.Client().Resources(c.Namespace()).GetControllerRuntimeClient()
+				sleepInfo := &kubegreenv1alpha1.SleepInfo{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       kind,
+						APIVersion: apiVersion,
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      testutil.RandString(8),
+						Namespace: c.Namespace(),
+					},
+					Spec: kubegreenv1alpha1.SleepInfoSpec{
+						Weekdays:  "1-5",
+						SleepTime: "20:00",
+						Patches: []kubegreenv1alpha1.Patch{
+							{
+								Target: kubegreenv1alpha1.PatchTarget{
+									Group: "apps",
+									Kind:  "Deployment",
+								},
+								Patch: `invalid yaml content`,
+							},
+						},
+					},
+				}
+				err := k8sClient.Create(ctx, sleepInfo)
+				require.Error(t, err)
+				require.Contains(t, err.Error(), "patch is invalid")
 				return ctx
 			},
 		},
