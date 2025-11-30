@@ -17,6 +17,7 @@ import (
 )
 
 // Define a resource to filter, used to include or exclude resources from the sleep.
+// +kubebuilder:validation:XValidation:rule="has(self.matchLabels) ? (!has(self.name) && !has(self.apiVersion) && !has(self.kind)) : (has(self.name) && has(self.apiVersion) && has(self.kind))",message="Must have either matchLabels (with empty name/apiVersion/kind) or name+apiVersion+kind (with empty matchLabels), but not both"
 type FilterRef struct {
 	// ApiVersion of the kubernetes resources.
 	// +optional
@@ -38,12 +39,14 @@ type SleepInfoSpec struct {
 	//
 	// For example, to configure a schedule from monday to friday, set it to "1-5"
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	// +kubebuilder:validation:Pattern=`^[0-6*,/-]+$`
 	Weekdays string `json:"weekdays"`
 	// Hours:Minutes
 	//
 	// Accept cron schedule for both hour and minute.
 	// For example, *:*/2 is set to configure a run every even minute.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	// +kubebuilder:validation:Pattern=`^[0-9*,/-]+:[0-9*,/-]+$`
 	SleepTime string `json:"sleepAt"`
 	// Hours:Minutes
 	//
@@ -52,6 +55,7 @@ type SleepInfoSpec struct {
 	// It is not required.
 	// +optional
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	// +kubebuilder:validation:Pattern=`^[0-9*,/-]+:[0-9*,/-]+$`
 	WakeUpTime string `json:"wakeUpAt,omitempty"`
 	// Time zone to set the schedule, in IANA time zone identifier.
 	// It is not required, default to UTC.
@@ -63,11 +67,13 @@ type SleepInfoSpec struct {
 	// Exclusion rules are evaluated in AND condition.
 	// +optional
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	// +kubebuilder:validation:MaxItems=100
 	ExcludeRef []FilterRef `json:"excludeRef,omitempty"`
 	// IncludeRef define the resource to include from the sleep.
 	// Inclusion rules are evaluated in AND condition.
 	// +optional
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	// +kubebuilder:validation:MaxItems=100
 	IncludeRef []FilterRef `json:"includeRef,omitempty"`
 	// If SuspendCronjobs is set to true, on sleep the cronjobs of the namespace will be suspended.
 	// +optional
@@ -232,23 +238,7 @@ func (s SleepInfo) Validate(cl client.Client) ([]string, error) {
 		}
 	}
 
-	for _, excludeRef := range s.GetExcludeRef() {
-		if err := isExcludeRefValid(excludeRef); err != nil {
-			return nil, err
-		}
-	}
-
 	return s.validatePatches(cl)
-}
-
-func isExcludeRefValid(excludeRef FilterRef) error {
-	if excludeRef.Name == "" && excludeRef.APIVersion == "" && excludeRef.Kind == "" && len(excludeRef.MatchLabels) > 0 {
-		return nil
-	}
-	if len(excludeRef.MatchLabels) == 0 && excludeRef.Name != "" && excludeRef.APIVersion != "" && excludeRef.Kind != "" {
-		return nil
-	}
-	return fmt.Errorf(`excludeRef is invalid. Must have set: matchLabels or name,apiVersion and kind fields`)
 }
 
 func (s *SleepInfo) validatePatches(cl client.Client) ([]string, error) {

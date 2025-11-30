@@ -66,6 +66,19 @@ func createSleepInfoCRD(t *testing.T, ctx context.Context, c *envconf.Config, sl
 	return *createdSleepInfo
 }
 
+func expectSleepInfoCreationToFail(t *testing.T, ctx context.Context, c *envconf.Config, sleepInfo *v1alpha1.SleepInfo, expectedErrorSubstring string) {
+	t.Helper()
+
+	r, err := resources.New(c.Client().RESTConfig())
+	require.NoError(t, err)
+	err = v1alpha1.AddToScheme(r.GetScheme())
+	require.NoError(t, err)
+
+	err = c.Client().Resources().Create(ctx, sleepInfo)
+	require.Error(t, err, "expected SleepInfo creation to fail")
+	require.Contains(t, err.Error(), expectedErrorSubstring, "error message should contain expected substring")
+}
+
 func setupNamespaceWithResources(t *testing.T, ctx context.Context, cfg *envconf.Config, sleepInfoToCreate *v1alpha1.SleepInfo, reconciler SleepInfoReconciler, opts setupOptions) (ctrl.Request, originalResources) {
 	t.Helper()
 
