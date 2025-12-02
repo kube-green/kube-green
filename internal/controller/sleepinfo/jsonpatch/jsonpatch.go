@@ -192,7 +192,12 @@ func (g managedResources) Sleep(ctx context.Context) error {
 			// Patch succeeded: create proper restore patch (from modified back to original)
 			restorePatch, err := jsonpatch.CreateMergePatch(modified, original)
 			if err != nil {
-				return fmt.Errorf("%w: %s", ErrJSONPatch, err)
+				g.logger.Error(err, "failed to create restore patch, skipping resource",
+					"resourceName", resource.GetName(),
+					"resourceKind", resource.GetKind(),
+				)
+				// Continue with next resource instead of stopping entire operation
+				continue
 			}
 			restorePatchString := string(restorePatch)
 
@@ -202,17 +207,42 @@ func (g managedResources) Sleep(ctx context.Context) error {
 				continue
 			}
 
-			// Save the restore patch (from modified to original)
+			// CRITICAL: Save the restore patch BEFORE attempting SSAPatch
+			// This ensures we always have the restore patch saved, even if SSAPatch fails
+			// This protects against losing replica information
 			resourceWrapper.restorePatches[resource.GetName()] = restorePatchString
+			g.logger.Info("saved restore patch before applying SSAPatch",
+				"resourceName", resource.GetName(),
+				"resourceKind", resource.GetKind(),
+			)
 
 			res := &unstructured.Unstructured{}
 			if err := json.Unmarshal(modified, &res.Object); err != nil {
-				return fmt.Errorf("%w: %s", ErrJSONPatch, err)
+				g.logger.Error(err, "failed to marshal modified resource, skipping",
+					"resourceName", resource.GetName(),
+					"resourceKind", resource.GetKind(),
+				)
+				// Restore patch already saved, continue with next resource
+				continue
 			}
 
+			// Attempt to apply SSAPatch
 			if err := resourceWrapper.SSAPatch(ctx, res); err != nil {
-				return fmt.Errorf("%w: %s", ErrJSONPatch, err)
+				// CRITICAL: If SSAPatch fails, log error but continue with other resources
+				// The restore patch is already saved, so we can restore later
+				// This ensures that one failing resource doesn't stop the entire sleep/wake operation
+				g.logger.Error(err, "failed to apply SSAPatch, but restore patch is saved - continuing with other resources",
+					"resourceName", resource.GetName(),
+					"resourceKind", resource.GetKind(),
+					"restorePatchSaved", true,
+				)
+				// Continue with next resource instead of stopping entire operation
+				continue
 			}
+			g.logger.Info("SSAPatch applied successfully",
+				"resourceName", resource.GetName(),
+				"resourceKind", resource.GetKind(),
+			)
 			resourceWrapper.isCacheInvalid = true
 		}
 	}
@@ -307,7 +337,13 @@ func (g managedResources) WakeUp(ctx context.Context) error {
 				}
 
 				if err := resourceWrapper.SSAPatch(ctx, res); err != nil {
-					return fmt.Errorf("%w: %s", ErrJSONPatch, err)
+					// CRITICAL: If SSAPatch fails, log error but continue with other resources
+					g.logger.Error(err, "failed to apply SSAPatch for CRD, continuing with other resources",
+						"resourceName", resource.GetName(),
+						"resourceKind", resourceKind,
+					)
+					// Continue with next resource instead of stopping entire operation
+					continue
 				}
 				g.logger.Info("dynamic patch applied successfully for wake",
 					"resourceName", resource.GetName(),
@@ -381,11 +417,22 @@ func (g managedResources) WakeUp(ctx context.Context) error {
 
 					res := &unstructured.Unstructured{}
 					if err := json.Unmarshal(modified, &res.Object); err != nil {
-						return fmt.Errorf("%w: %s", ErrJSONPatch, err)
+						g.logger.Error(err, "failed to unmarshal modified resource for wake, skipping",
+							"resourceName", resource.GetName(),
+							"resourceKind", resource.GetKind(),
+						)
+						// Continue with next resource instead of stopping entire operation
+						continue
 					}
 
 					if err := resourceWrapper.SSAPatch(ctx, res); err != nil {
-						return fmt.Errorf("%w: %s", ErrJSONPatch, err)
+						// CRITICAL: If SSAPatch fails, log error but continue with other resources
+						g.logger.Error(err, "failed to apply SSAPatch for wake, continuing with other resources",
+							"resourceName", resource.GetName(),
+							"resourceKind", resource.GetKind(),
+						)
+						// Continue with next resource instead of stopping entire operation
+						continue
 					}
 					g.logger.Info("patch applied successfully for wake (operator will restore replicas from spec)",
 						"resourceName", resource.GetName(),
@@ -424,12 +471,22 @@ func (g managedResources) WakeUp(ctx context.Context) error {
 
 			restored, err := jsonpatch.MergePatch(current, []byte(rawPatch))
 			if err != nil {
-				return fmt.Errorf("%w: %s", ErrJSONPatch, err)
+				g.logger.Error(err, "failed to merge restore patch, skipping resource",
+					"resourceName", resource.GetName(),
+					"resourceKind", resource.GetKind(),
+				)
+				// Continue with next resource instead of stopping entire operation
+				continue
 			}
 
 			res := &unstructured.Unstructured{}
 			if err := json.Unmarshal(restored, &res.Object); err != nil {
-				return fmt.Errorf("%w: %s", ErrJSONPatch, err)
+				g.logger.Error(err, "failed to unmarshal restored resource, skipping",
+					"resourceName", resource.GetName(),
+					"resourceKind", resource.GetKind(),
+				)
+				// Continue with next resource instead of stopping entire operation
+				continue
 			}
 
 			// Here we need to use Patch because SSA patch will not work for restore,
@@ -437,7 +494,13 @@ func (g managedResources) WakeUp(ctx context.Context) error {
 			// (the applied resources does not have the object removed, so SSA patch will not remove it.
 			// To work properly, the value of the object should be null)
 			if err := resourceWrapper.Patch(ctx, resource.DeepCopy(), res); err != nil {
-				return fmt.Errorf("%w: %s", ErrJSONPatch, err)
+				g.logger.Error(err, "failed to apply restore patch, but restore patch is saved - continuing with other resources",
+					"resourceName", resource.GetName(),
+					"resourceKind", resource.GetKind(),
+				)
+				// Continue with next resource instead of stopping entire operation
+				// The restore patch is already saved, so we can retry later
+				continue
 			}
 			resourceWrapper.isCacheInvalid = true
 		}
