@@ -376,15 +376,8 @@ func (s *ScheduleService) createNamespaceSleepInfoWithExclusions(ctx context.Con
 			},
 		}
 
-		// Add Virtualizer exclusion for apps
-		if suffix == "apps" {
-			virtualizerExclusion := kubegreenv1alpha1.FilterRef{
-				MatchLabels: map[string]string{
-					"cct.stratio.com/application_id": fmt.Sprintf("virtualizer.%s", namespace),
-				},
-			}
-			excludeRefs = append(excludeRefs, virtualizerExclusion)
-		}
+		// Virtualizer exclusion removed - can be configured manually from frontend if needed
+		// No automatic exclusion is applied
 
 		if len(excludeRefs) > 0 {
 			sleepInfo.Spec.ExcludeRef = excludeRefs
@@ -474,15 +467,8 @@ func (s *ScheduleService) createNamespaceSleepInfoWithExclusions(ctx context.Con
 			},
 		}
 
-		// Add Virtualizer exclusion for apps
-		if suffix == "apps" {
-			virtualizerExclusion := kubegreenv1alpha1.FilterRef{
-				MatchLabels: map[string]string{
-					"cct.stratio.com/application_id": fmt.Sprintf("virtualizer.%s", namespace),
-				},
-			}
-			excludeRefs = append(excludeRefs, virtualizerExclusion)
-		}
+		// Virtualizer exclusion removed - can be configured manually from frontend if needed
+		// No automatic exclusion is applied
 
 		if len(excludeRefs) > 0 {
 			sleepSleepInfo.Spec.ExcludeRef = excludeRefs
