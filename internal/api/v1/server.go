@@ -120,37 +120,41 @@ func (s *Server) setupRoutes() {
 	s.router.GET("/api/v1/info", s.handleInfo)
 
 	// Authentication endpoints (public, no auth required)
-	if s.authHandler != nil {
-		authGroup := s.router.Group("/api/v1/auth")
-		{
-			authGroup.POST("/login", s.authHandler.HandleLogin)
-			authGroup.POST("/refresh", s.authHandler.HandleRefresh)
-			authGroup.GET("/me", s.authHandler.HandleMe)
-		}
+	// Always register routes, handler will initialize auth if needed
+	authGroup := s.router.Group("/api/v1/auth")
+	{
+		authGroup.POST("/login", s.handleAuthLogin)
+		authGroup.POST("/refresh", s.handleAuthRefresh)
+		authGroup.GET("/me", s.handleAuthMe)
 	}
 
 	// Tenant discovery endpoints
-	s.router.GET("/api/v1/tenants", s.handleListTenants)
+	// TODO: Implement handleListTenants
+	// s.router.GET("/api/v1/tenants", s.handleListTenants)
 
 	// Namespace services endpoints
-	s.router.GET("/api/v1/namespaces/:tenant/services", s.handleGetNamespaceServices)
-	s.router.GET("/api/v1/namespaces/:tenant/resources", s.handleGetNamespaceResources)
+	// TODO: Implement handleGetNamespaceServices
+	// s.router.GET("/api/v1/namespaces/:tenant/services", s.handleGetNamespaceServices)
+	// TODO: Implement handleGetNamespaceResources
+	// s.router.GET("/api/v1/namespaces/:tenant/resources", s.handleGetNamespaceResources)
 
 	// Schedule management endpoints
 	v1 := s.router.Group("/api/v1/schedules")
 	{
 		v1.GET("", s.handleListSchedules)
 		v1.GET("/:tenant", s.handleGetSchedule)
-		v1.GET("/:tenant/suspended", s.handleGetSuspendedServices)
+		// TODO: Implement handleGetSuspendedServices
+		// v1.GET("/:tenant/suspended", s.handleGetSuspendedServices)
 		v1.POST("", s.handleCreateSchedule)
 		v1.PUT("/:tenant", s.handleUpdateSchedule)
 		v1.DELETE("/:tenant", s.handleDeleteSchedule)
 
 		// Namespace-specific schedule endpoints
-		v1.GET("/:tenant/:namespace", s.handleGetNamespaceSchedule)
-		v1.POST("/:tenant/:namespace", s.handleCreateNamespaceSchedule)
-		v1.PUT("/:tenant/:namespace", s.handleUpdateNamespaceSchedule)
-		v1.DELETE("/:tenant/:namespace", s.handleDeleteNamespaceSchedule)
+		// TODO: Implement namespace-specific handlers
+		// v1.GET("/:tenant/:namespace", s.handleGetNamespaceSchedule)
+		// v1.POST("/:tenant/:namespace", s.handleCreateNamespaceSchedule)
+		// v1.PUT("/:tenant/:namespace", s.handleUpdateNamespaceSchedule)
+		// v1.DELETE("/:tenant/:namespace", s.handleDeleteNamespaceSchedule)
 	}
 
 	// Swagger documentation
@@ -230,4 +234,74 @@ func corsMiddleware() gin.HandlerFunc {
 
 		c.Next()
 	}
+}
+
+// handleAuthLogin wraps the auth handler login with lazy initialization
+func (s *Server) handleAuthLogin(c *gin.Context) {
+	if s.authHandler == nil {
+		s.initializeAuth()
+	}
+	if s.authHandler == nil {
+		c.JSON(http.StatusServiceUnavailable, map[string]interface{}{
+			"success": false,
+			"error":   "Authentication is not configured",
+		})
+		return
+	}
+	s.authHandler.HandleLogin(c)
+}
+
+// handleAuthRefresh wraps the auth handler refresh with lazy initialization
+func (s *Server) handleAuthRefresh(c *gin.Context) {
+	if s.authHandler == nil {
+		s.initializeAuth()
+	}
+	if s.authHandler == nil {
+		c.JSON(http.StatusServiceUnavailable, map[string]interface{}{
+			"success": false,
+			"error":   "Authentication is not configured",
+		})
+		return
+	}
+	s.authHandler.HandleRefresh(c)
+}
+
+// handleAuthMe wraps the auth handler me with lazy initialization
+func (s *Server) handleAuthMe(c *gin.Context) {
+	if s.authHandler == nil {
+		s.initializeAuth()
+	}
+	if s.authHandler == nil {
+		c.JSON(http.StatusServiceUnavailable, map[string]interface{}{
+			"success": false,
+			"error":   "Authentication is not configured",
+		})
+		return
+	}
+	s.authHandler.HandleMe(c)
+}
+
+// initializeAuth attempts to initialize authentication lazily
+func (s *Server) initializeAuth() {
+	if !auth.IsAuthEnabled() {
+		return
+	}
+	namespace := os.Getenv("POD_NAMESPACE")
+	if namespace == "" {
+		namespace = "keos-core"
+	}
+	s.logger.Info("Initializing authentication", "namespace", namespace)
+	jwtSecret, err := auth.LoadJWTSecret(s.client, namespace)
+	if err != nil {
+		s.logger.Error(err, "Failed to load JWT secret", "namespace", namespace)
+		return
+	}
+	userStore := auth.NewUserStore(s.client, namespace, "kube-green-users")
+	if err := userStore.LoadUsers(context.Background()); err != nil {
+		s.logger.Error(err, "Failed to load users", "namespace", namespace)
+		return
+	}
+	s.userStore = userStore
+	s.authHandler = auth.NewAuthHandler(userStore, jwtSecret)
+	s.logger.Info("Authentication initialized successfully", "namespace", namespace)
 }

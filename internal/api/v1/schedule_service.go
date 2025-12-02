@@ -52,53 +52,53 @@ func NewScheduleService(c client.Client, l logger) *ScheduleService {
 
 // CreateSchedule creates SleepInfo objects for the tenant
 func (s *ScheduleService) CreateSchedule(ctx context.Context, req CreateScheduleRequest) error {
-	s.logger.Info("CreateSchedule CALLED", "tenant", req.Tenant, "off", req.Off, "on", req.On, "weekdaysSleep", req.WeekdaysSleep, "weekdaysWake", req.WeekdaysWake, "namespaces", fmt.Sprintf("%v", req.Namespaces), "userTimezone", req.UserTimezone, "clusterTimezone", req.ClusterTimezone)
+	s.logger.Info("CreateSchedule CALLED", "tenant", req.Tenant, "off", req.Off, "on", req.On, "weekdays", req.Weekdays, "sleepDays", req.SleepDays, "wakeDays", req.WakeDays, "namespaces", fmt.Sprintf("%v", req.Namespaces))
 
 	// 1. Normalize weekdays
 	wdDefault := "0-6"
 	wdSleep := wdDefault
 	wdWake := wdDefault
 
-	// Use weekdaysSleep and weekdaysWake (new format)
-	if req.WeekdaysSleep != "" {
+	// Use SleepDays and WakeDays if provided, otherwise use Weekdays
+	if req.SleepDays != "" {
 		var err error
-		wdSleep, err = HumanWeekdaysToKube(req.WeekdaysSleep)
+		wdSleep, err = HumanWeekdaysToKube(req.SleepDays)
 		if err != nil {
-			return fmt.Errorf("invalid weekdaysSleep: %w", err)
+			return fmt.Errorf("invalid sleepDays: %w", err)
+		}
+	} else if req.Weekdays != "" {
+		var err error
+		wdSleep, err = HumanWeekdaysToKube(req.Weekdays)
+		if err != nil {
+			return fmt.Errorf("invalid weekdays: %w", err)
 		}
 	}
 
-	if req.WeekdaysWake != "" {
+	if req.WakeDays != "" {
 		var err error
-		wdWake, err = HumanWeekdaysToKube(req.WeekdaysWake)
+		wdWake, err = HumanWeekdaysToKube(req.WakeDays)
 		if err != nil {
-			return fmt.Errorf("invalid weekdaysWake: %w", err)
+			return fmt.Errorf("invalid wakeDays: %w", err)
 		}
 	} else {
-		// If weekdaysWake is not provided, use weekdaysSleep
+		// If wakeDays is not provided, use sleepDays or weekdays
 		wdWake = wdSleep
 	}
 
-	// 2. Convert times from user timezone to cluster timezone
-	userTZ := req.UserTimezone
-	if userTZ == "" {
-		userTZ = TZLocal // Default to America/Bogota
-	}
-	clusterTZ := req.ClusterTimezone
-	if clusterTZ == "" {
-		clusterTZ = TZUTC // Default to UTC
-	}
+	// 2. Convert times from local timezone (America/Bogota) to UTC
+	userTZ := TZLocal // Default to America/Bogota
+	clusterTZ := TZUTC // Default to UTC
 
-	offConv, err := ToUTCHHMMWithTimezone(req.Off, userTZ, clusterTZ)
+	offConv, err := ToUTCHHMM(req.Off, userTZ)
 	if err != nil {
-		s.logger.Error(err, "failed to convert off time", "off", req.Off, "userTZ", userTZ, "clusterTZ", clusterTZ)
+		s.logger.Error(err, "failed to convert off time", "off", req.Off, "userTZ", userTZ)
 		return fmt.Errorf("invalid off time: %w", err)
 	}
 	s.logger.Info("Time conversion: off", "userTime", req.Off, "clusterTime", offConv.TimeUTC, "dayShift", offConv.DayShift, "userTZ", userTZ, "clusterTZ", clusterTZ)
 
-	onConv, err := ToUTCHHMMWithTimezone(req.On, userTZ, clusterTZ)
+	onConv, err := ToUTCHHMM(req.On, userTZ)
 	if err != nil {
-		s.logger.Error(err, "failed to convert on time", "on", req.On, "userTZ", userTZ, "clusterTZ", clusterTZ)
+		s.logger.Error(err, "failed to convert on time", "on", req.On, "userTZ", userTZ)
 		return fmt.Errorf("invalid on time: %w", err)
 	}
 	s.logger.Info("Time conversion: on", "userTime", req.On, "clusterTime", onConv.TimeUTC, "dayShift", onConv.DayShift, "userTZ", userTZ, "clusterTZ", clusterTZ)
@@ -121,37 +121,15 @@ func (s *ScheduleService) CreateSchedule(ctx context.Context, req CreateSchedule
 	onPgBouncer := onConv.TimeUTC
 	onDeployments := onConv.TimeUTC
 
-	// Solo aplicar delays si se especifican explícitamente en req.Delays
-	// Los delays por defecto (5m, 7m) SOLO se aplicarán en createDatastoresSleepInfos cuando sea necesario
-	if req.Delays != nil {
-		// Parse delays and apply them
-		if req.Delays.SuspendDeploymentsPgbouncer != "" {
-			pgbouncerDelay, _ := parseDelayToMinutes(req.Delays.SuspendDeploymentsPgbouncer)
-			onPgBouncer, _ = AddMinutes(onConv.TimeUTC, pgbouncerDelay)
-		}
-
-		if req.Delays.SuspendDeployments != "" {
-			deployDelay, _ := parseDelayToMinutes(req.Delays.SuspendDeployments)
-			onDeployments, _ = AddMinutes(onConv.TimeUTC, deployDelay)
-		}
-	}
 	// NO aplicar delays por defecto aquí - se aplicarán solo en createDatastoresSleepInfos si es necesario
+	// Los delays por defecto (5m, 7m) SOLO se aplicarán en createDatastoresSleepInfos cuando sea necesario
 
 	// 5. Determine which namespaces to process
 	selectedNamespaces := normalizeNamespaces(req.Namespaces)
 
-	// 6. Build excludeRef from exclusions
-	hasCustomExclusions := len(req.Exclusions) > 0
+	// 6. Build excludeRef from exclusions (no exclusions in CreateScheduleRequest, use defaults)
 
-	// 7. Validate scheduleName uniqueness if provided
-	if req.ScheduleName != "" {
-		for suffix := range selectedNamespaces {
-			namespace := fmt.Sprintf("%s-%s", req.Tenant, suffix)
-			if err := s.validateScheduleNameUniqueness(ctx, namespace, req.ScheduleName); err != nil {
-				return err
-			}
-		}
-	}
+	// 7. Validate scheduleName uniqueness if provided (no ScheduleName in CreateScheduleRequest, skip)
 
 	// 8. Create SleepInfo objects for each namespace
 	// NO iterar sobre validSuffixes hardcodeados - usar los namespaces seleccionados dinámicamente
@@ -160,17 +138,8 @@ func (s *ScheduleService) CreateSchedule(ctx context.Context, req CreateSchedule
 		namespace := fmt.Sprintf("%s-%s", req.Tenant, suffix)
 		s.logger.Info("CreateSchedule: processing namespace", "suffix", suffix, "namespace", namespace)
 
-		// Build excludeRef from exclusions
+		// Build excludeRef from exclusions (no custom exclusions in CreateScheduleRequest)
 		excludeRefs := getExcludeRefsForOperators()
-		if hasCustomExclusions {
-			for _, excl := range req.Exclusions {
-				if excl.Namespace == namespace {
-					excludeRefs = append(excludeRefs, kubegreenv1alpha1.FilterRef{
-						MatchLabels: excl.Filter.MatchLabels,
-					})
-				}
-			}
-		}
 
 		// DYNAMIC LOGIC: Detect resources in namespace to determine what type of SleepInfos to create
 		// This replaces hardcoded switch statements and works with ANY namespace
@@ -204,29 +173,27 @@ func (s *ScheduleService) CreateSchedule(ctx context.Context, req CreateSchedule
 		onPgBouncerFinal := onPgBouncer
 		onDeploymentsFinal := onDeployments
 
-		// If no custom delays provided, apply default staggered wake for namespaces with CRDs
-		if req.Delays == nil {
-			hasCRDs := resources.HasPgCluster || resources.HasHdfsCluster || resources.HasPgBouncer
-			if hasCRDs {
-				// Default staggered wake: PgHDFS at t0, PgBouncer at t0+5m, Deployments at t0+7m
-				onPgHDFSFinal = onConv.TimeUTC
-				onPgBouncerFinal, _ = AddMinutes(onConv.TimeUTC, 5)
-				onDeploymentsFinal, _ = AddMinutes(onConv.TimeUTC, 7)
-			} else {
-				// Simple namespaces: all wake at the same time
-				onPgHDFSFinal = onConv.TimeUTC
-				onPgBouncerFinal = onConv.TimeUTC
-				onDeploymentsFinal = onConv.TimeUTC
-			}
+		// Apply default staggered wake for namespaces with CRDs (no custom delays in CreateScheduleRequest)
+		hasCRDs := resources.HasPgCluster || resources.HasHdfsCluster || resources.HasPgBouncer
+		if hasCRDs {
+			// Default staggered wake: PgHDFS at t0, PgBouncer at t0+5m, Deployments at t0+7m
+			onPgHDFSFinal = onConv.TimeUTC
+			onPgBouncerFinal, _ = AddMinutes(onConv.TimeUTC, 5)
+			onDeploymentsFinal, _ = AddMinutes(onConv.TimeUTC, 7)
+		} else {
+			// Simple namespaces: all wake at the same time
+			onPgHDFSFinal = onConv.TimeUTC
+			onPgBouncerFinal = onConv.TimeUTC
+			onDeploymentsFinal = onConv.TimeUTC
 		}
 
 		// Generate SleepInfos based on detected resources (DYNAMIC LOGIC - no hardcoded names)
-		hasCRDs := resources.HasPgCluster || resources.HasHdfsCluster || resources.HasPgBouncer
+		hasCRDs = resources.HasPgCluster || resources.HasHdfsCluster || resources.HasPgBouncer
 
 		if hasCRDs {
 			// Namespace has CRDs: use staggered wake logic
 			s.logger.Info("CreateSchedule: creating staggered SleepInfos (CRDs detected)", "namespace", namespace, "hasPgCluster", resources.HasPgCluster, "hasHdfsCluster", resources.HasHdfsCluster, "hasPgBouncer", resources.HasPgBouncer)
-			if err := s.createDatastoresSleepInfosWithExclusions(ctx, req.Tenant, namespace, offConv.TimeUTC, onDeploymentsFinal, onPgHDFSFinal, onPgBouncerFinal, wdSleepUTC, wdWakeUTC, excludeRefs, req.ScheduleName, req.Description, userTZ); err != nil {
+			if err := s.createDatastoresSleepInfosWithExclusions(ctx, req.Tenant, namespace, offConv.TimeUTC, onDeploymentsFinal, onPgHDFSFinal, onPgBouncerFinal, wdSleepUTC, wdWakeUTC, excludeRefs, "", "", userTZ); err != nil {
 				s.logger.Error(err, "failed to create staggered sleepinfos", "namespace", namespace)
 				return fmt.Errorf("failed to create staggered sleepinfos for %s: %w", namespace, err)
 			}
@@ -241,7 +208,7 @@ func (s *ScheduleService) CreateSchedule(ctx context.Context, req CreateSchedule
 			}
 
 			s.logger.Info("CreateSchedule: creating simple namespace SleepInfos", "namespace", namespace, "suspendStatefulSets", suspendStatefulSets)
-			if err := s.createNamespaceSleepInfoWithExclusions(ctx, req.Tenant, namespace, suffix, offConv.TimeUTC, onDeploymentsFinal, wdSleepUTC, wdWakeUTC, suspendStatefulSets, excludeRefs, req.ScheduleName, req.Description, userTZ); err != nil {
+			if err := s.createNamespaceSleepInfoWithExclusions(ctx, req.Tenant, namespace, suffix, offConv.TimeUTC, onDeploymentsFinal, wdSleepUTC, wdWakeUTC, suspendStatefulSets, excludeRefs, "", "", userTZ); err != nil {
 				s.logger.Error(err, "failed to create namespace sleepinfo", "namespace", namespace)
 				return fmt.Errorf("failed to create sleepinfo for %s: %w", namespace, err)
 			}
@@ -1587,21 +1554,15 @@ func (s *ScheduleService) UpdateSchedule(ctx context.Context, tenant string, req
 	// Solo extraer valores del schedule existente si realmente están vacíos (no sobrescribir valores del frontend)
 	// Los tiempos del schedule existente están en UTC, necesitamos convertirlos a la timezone del usuario
 	// IMPORTANTE: NO extraer si el frontend ya envió los valores
-	s.logger.Info("UpdateSchedule", "tenant", tenant, "namespace", filterNamespace, "req.Off", req.Off, "req.On", req.On, "req.WeekdaysSleep", req.WeekdaysSleep, "req.WeekdaysWake", req.WeekdaysWake, "req.UserTimezone", req.UserTimezone, "req.ClusterTimezone", req.ClusterTimezone)
+	s.logger.Info("UpdateSchedule", "tenant", tenant, "namespace", filterNamespace, "req.Off", req.Off, "req.On", req.On, "req.Weekdays", req.Weekdays, "req.SleepDays", req.SleepDays, "req.WakeDays", req.WakeDays)
 
 	if req.Off == "" || req.On == "" {
 		s.logger.Info("UpdateSchedule: extracting times from existing schedule", "off_empty", req.Off == "", "on_empty", req.On == "")
 		existing, err := s.GetSchedule(ctx, tenant, filterNamespace)
 		if err == nil && existing != nil {
-			// Get timezones for conversion
-			userTZ := req.UserTimezone
-			if userTZ == "" {
-				userTZ = TZLocal
-			}
-			clusterTZ := req.ClusterTimezone
-			if clusterTZ == "" {
-				clusterTZ = TZUTC
-			}
+			// Get timezones for conversion (default to America/Bogota -> UTC)
+			userTZ := TZLocal
+			clusterTZ := TZUTC
 
 			// Extract values from existing schedule
 			// IMPORTANTE: Buscar específicamente schedules sleep y wake, no usar el primero
@@ -1749,27 +1710,19 @@ func (s *ScheduleService) UpdateSchedule(ctx context.Context, tenant string, req
 		}
 	} else {
 		s.logger.Info("UpdateSchedule: using namespaces from request", "namespaces", strings.Join(req.Namespaces, ","), "count", len(req.Namespaces))
-		// Obtener schedule existente para extraer delays si no se proporcionan
-		if req.Delays == nil {
-			existing, err := s.GetSchedule(ctx, tenant, filterNamespace)
-			if err == nil && existing != nil {
-				existingSchedule = existing
-			}
+		// Obtener schedule existente (no hay Delays en CreateScheduleRequest)
+		existing, err := s.GetSchedule(ctx, tenant, filterNamespace)
+		if err == nil && existing != nil {
+			existingSchedule = existing
 		}
 	}
 
 	// IMPORTANTE: Extraer weekdays del schedule existente si no se proporcionan en el request
 	// Los weekdays del schedule existente están en UTC (ya shiftados), necesitamos convertirlos de vuelta a la timezone del usuario
-	if (req.WeekdaysSleep == "" || req.WeekdaysWake == "") && existingSchedule != nil {
-		// Get timezones for conversion
-		userTZ := req.UserTimezone
-		if userTZ == "" {
-			userTZ = TZLocal
-		}
-		clusterTZ := req.ClusterTimezone
-		if clusterTZ == "" {
-			clusterTZ = TZUTC
-		}
+	if (req.SleepDays == "" || req.WakeDays == "" || req.Weekdays == "") && existingSchedule != nil {
+		// Get timezones for conversion (default to America/Bogota -> UTC)
+		userTZ := TZLocal
+		clusterTZ := TZUTC
 
 		// Buscar schedules sleep y wake en el schedule existente
 		for _, nsInfo := range existingSchedule.Namespaces {
@@ -1781,7 +1734,7 @@ func (s *ScheduleService) UpdateSchedule(ctx context.Context, tenant string, req
 				}
 
 				// Buscar schedule sleep para extraer weekdays
-				if req.WeekdaysSleep == "" {
+				if req.SleepDays == "" && req.Weekdays == "" {
 					var sleepSchedule *SleepInfoSummary
 					for i := range nsInfo.Schedule {
 						if nsInfo.Schedule[i].Role == "sleep" {
@@ -1814,8 +1767,8 @@ func (s *ScheduleService) UpdateSchedule(ctx context.Context, tenant string, req
 								if err == nil {
 									// Convertir de formato Kube (0-6) a formato Human (0-6 pero puede ser range o comma-separated)
 									// El formato ya debería estar en formato correcto, solo necesitamos asegurarnos
-									req.WeekdaysSleep = wdSleepUser
-									s.logger.Info("UpdateSchedule: converted WeekdaysSleep from UTC to user timezone", "from_utc", sleepSchedule.Weekdays, "to_user", req.WeekdaysSleep, "dayShift", -offConv.DayShift, "sleepTimeUTC", sleepTimeUTC)
+									req.SleepDays = wdSleepUser
+									s.logger.Info("UpdateSchedule: converted SleepDays from UTC to user timezone", "from_utc", sleepSchedule.Weekdays, "to_user", req.SleepDays, "dayShift", -offConv.DayShift, "sleepTimeUTC", sleepTimeUTC)
 								} else {
 									s.logger.Error(err, "failed to shift sleep weekdays", "weekdays", sleepSchedule.Weekdays, "dayShift", -offConv.DayShift)
 								}
@@ -1827,7 +1780,7 @@ func (s *ScheduleService) UpdateSchedule(ctx context.Context, tenant string, req
 				}
 
 				// Buscar schedule wake para extraer weekdays
-				if req.WeekdaysWake == "" {
+				if req.WakeDays == "" && req.Weekdays == "" {
 					var wakeSchedule *SleepInfoSummary
 					for i := range nsInfo.Schedule {
 						if nsInfo.Schedule[i].Role == "wake" {
@@ -1861,8 +1814,8 @@ func (s *ScheduleService) UpdateSchedule(ctx context.Context, tenant string, req
 								// Aplicar shift inverso (negativo) para convertir de UTC a user timezone
 								wdWakeUser, err := ShiftWeekdaysStr(wakeSchedule.Weekdays, -onConv.DayShift)
 								if err == nil {
-									req.WeekdaysWake = wdWakeUser
-									s.logger.Info("UpdateSchedule: converted WeekdaysWake from UTC to user timezone", "from_utc", wakeSchedule.Weekdays, "to_user", req.WeekdaysWake, "dayShift", -onConv.DayShift, "wakeTimeUTC", wakeTimeUTC)
+									req.WakeDays = wdWakeUser
+									s.logger.Info("UpdateSchedule: converted WakeDays from UTC to user timezone", "from_utc", wakeSchedule.Weekdays, "to_user", req.WakeDays, "dayShift", -onConv.DayShift, "wakeTimeUTC", wakeTimeUTC)
 								} else {
 									s.logger.Error(err, "failed to shift wake weekdays", "weekdays", wakeSchedule.Weekdays, "dayShift", -onConv.DayShift)
 								}
@@ -1877,63 +1830,9 @@ func (s *ScheduleService) UpdateSchedule(ctx context.Context, tenant string, req
 		}
 	}
 
-	// IMPORTANTE: Extraer delays del schedule existente si no se proporcionan en el request
-	// Esto preserva los delays configurados previamente
-	if req.Delays == nil && existingSchedule != nil {
-		extractedDelays := s.extractDelaysFromSchedule(existingSchedule, req.Namespaces)
-		if extractedDelays != nil {
-			req.Delays = extractedDelays
-			s.logger.Info("UpdateSchedule: extracted delays from existing schedule", "delays", fmt.Sprintf("%+v", extractedDelays))
-		}
-	}
+	// Note: Delays are not in CreateScheduleRequest, will use defaults
 
-	// IMPORTANTE: Extraer scheduleName y description del schedule existente si no se proporcionan en el request
-	// Esto preserva las anotaciones cuando se actualiza solo la hora o el día
-	// Log para debug: ver qué valores vienen en el request
-	s.logger.Info("UpdateSchedule: checking scheduleName and description", 
-		"req.ScheduleName", req.ScheduleName, 
-		"req.Description", req.Description,
-		"hasExistingSchedule", existingSchedule != nil)
-	
-	if (req.ScheduleName == "" || req.Description == "") && existingSchedule != nil {
-		s.logger.Info("UpdateSchedule: attempting to extract scheduleName and description from existing schedule")
-		for _, nsInfo := range existingSchedule.Namespaces {
-			for _, sched := range nsInfo.Schedule {
-				// Log para debug: ver qué anotaciones tiene el schedule
-				if sched.Annotations != nil {
-					s.logger.Info("UpdateSchedule: checking schedule annotations", 
-						"scheduleName", sched.Annotations["kube-green.stratio.com/schedule-name"],
-						"description", sched.Annotations["kube-green.stratio.com/schedule-description"],
-						"allAnnotations", fmt.Sprintf("%+v", sched.Annotations))
-				}
-				// Extraer scheduleName de las anotaciones si no se proporciona
-				if req.ScheduleName == "" && sched.Annotations != nil {
-					if scheduleName, ok := sched.Annotations["kube-green.stratio.com/schedule-name"]; ok && scheduleName != "" {
-						req.ScheduleName = scheduleName
-						s.logger.Info("UpdateSchedule: extracted scheduleName from existing schedule", "scheduleName", scheduleName)
-					}
-				}
-				// Extraer description de las anotaciones si no se proporciona
-				if req.Description == "" && sched.Annotations != nil {
-					if description, ok := sched.Annotations["kube-green.stratio.com/schedule-description"]; ok && description != "" {
-						req.Description = description
-						s.logger.Info("UpdateSchedule: extracted description from existing schedule", "description", description)
-					}
-				}
-				// Si ya encontramos ambos, salir del loop
-				if req.ScheduleName != "" && req.Description != "" {
-					break
-				}
-			}
-			// Si ya encontramos ambos, salir del loop de namespaces
-			if req.ScheduleName != "" && req.Description != "" {
-				break
-			}
-		}
-		s.logger.Info("UpdateSchedule: after extraction", 
-			"req.ScheduleName", req.ScheduleName, 
-			"req.Description", req.Description)
-	}
+	// Note: ScheduleName and Description are not in CreateScheduleRequest, will use empty strings
 
 	// IMPORTANTE: Eliminar SleepInfos antiguos ANTES de crear los nuevos
 	// Esto asegura que los cambios se reflejen correctamente, especialmente cuando cambian los weekdays
@@ -1946,19 +1845,19 @@ func (s *ScheduleService) UpdateSchedule(ctx context.Context, tenant string, req
 		}
 	}
 
-	// Validar que weekdaysSleep y weekdaysWake estén presentes
+	// Validar que weekdays estén presentes
 	// Si no están, usar valores por defecto (todos los días)
-	if req.WeekdaysSleep == "" {
-		req.WeekdaysSleep = "0-6"
-		s.logger.Info("UpdateSchedule: using default WeekdaysSleep", "weekdaysSleep", req.WeekdaysSleep)
+	if req.SleepDays == "" && req.Weekdays == "" {
+		req.Weekdays = "0-6"
+		s.logger.Info("UpdateSchedule: using default Weekdays", "weekdays", req.Weekdays)
 	}
-	if req.WeekdaysWake == "" {
-		req.WeekdaysWake = req.WeekdaysSleep // Si no se especifica, usar el mismo que sleep
-		s.logger.Info("UpdateSchedule: using default WeekdaysWake", "weekdaysWake", req.WeekdaysWake)
+	if req.WakeDays == "" && req.SleepDays == "" && req.Weekdays == "" {
+		req.Weekdays = "0-6"
+		s.logger.Info("UpdateSchedule: using default Weekdays for wake", "weekdays", req.Weekdays)
 	}
 
 	req.Tenant = tenant
-	s.logger.Info("UpdateSchedule: calling CreateSchedule", "tenant", tenant, "namespaces", strings.Join(req.Namespaces, ","), "off", req.Off, "on", req.On, "weekdaysSleep", req.WeekdaysSleep, "weekdaysWake", req.WeekdaysWake)
+	s.logger.Info("UpdateSchedule: calling CreateSchedule", "tenant", tenant, "namespaces", strings.Join(req.Namespaces, ","), "off", req.Off, "on", req.On, "weekdays", req.Weekdays, "sleepDays", req.SleepDays, "wakeDays", req.WakeDays)
 	return s.CreateSchedule(ctx, req)
 }
 
@@ -2568,22 +2467,15 @@ func (s *ScheduleService) CreateNamespaceSchedule(ctx context.Context, req Names
 		return fmt.Errorf("invalid wake weekdays: %w", err)
 	}
 
-	// 3. Convert times to UTC
-	userTZ := req.UserTimezone
-	if userTZ == "" {
-		userTZ = TZLocal
-	}
-	clusterTZ := req.ClusterTimezone
-	if clusterTZ == "" {
-		clusterTZ = TZUTC
-	}
+	// 3. Convert times to UTC (default to America/Bogota -> UTC)
+	userTZ := TZLocal
 
-	offConv, err := ToUTCHHMMWithTimezone(req.Off, userTZ, clusterTZ)
+	offConv, err := ToUTCHHMM(req.Off, userTZ)
 	if err != nil {
 		return fmt.Errorf("invalid off time: %w", err)
 	}
 
-	onConv, err := ToUTCHHMMWithTimezone(req.On, userTZ, clusterTZ)
+	onConv, err := ToUTCHHMM(req.On, userTZ)
 	if err != nil {
 		return fmt.Errorf("invalid on time: %w", err)
 	}
@@ -2780,16 +2672,16 @@ func (s *ScheduleService) extractDelaysFromSchedule(existing *ScheduleResponse, 
 		}
 
 		// Mapear a los campos de DelayConfig
-		// DelayConfig usa: SuspendDeploymentsPgbouncer y SuspendDeployments
-		if hasPgbouncer && !hasDeployments && delays.SuspendDeploymentsPgbouncer == "" {
-			delays.SuspendDeploymentsPgbouncer = formatMinutesToDelay(delayMinutes)
-		} else if hasDeployments && !hasPostgres && !hasHdfs && delays.SuspendDeployments == "" {
-			delays.SuspendDeployments = formatMinutesToDelay(delayMinutes)
+		// DelayConfig usa: PgbouncerDelay y DeploymentsDelay
+		if hasPgbouncer && !hasDeployments && delays.PgbouncerDelay == "" {
+			delays.PgbouncerDelay = formatMinutesToDelay(delayMinutes)
+		} else if hasDeployments && !hasPostgres && !hasHdfs && delays.DeploymentsDelay == "" {
+			delays.DeploymentsDelay = formatMinutesToDelay(delayMinutes)
 		}
 	}
 
 	// Solo retornar si se encontraron delays
-	if delays.SuspendDeploymentsPgbouncer != "" || delays.SuspendDeployments != "" {
+	if delays.PgbouncerDelay != "" || delays.DeploymentsDelay != "" {
 		return delays
 	}
 

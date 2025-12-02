@@ -127,3 +127,65 @@ func stripAccents(s string) string {
 	}
 	return result.String()
 }
+
+// FromClusterToUserTimezone converts time from cluster timezone to user timezone
+// This is the reverse of ToUTCHHMM - converts UTC to local timezone
+func FromClusterToUserTimezone(clusterHHMM, clusterTZ, userTZ string) (TimeConversion, error) {
+	if clusterTZ == "" {
+		clusterTZ = TZUTC
+	}
+	if userTZ == "" {
+		userTZ = TZLocal
+	}
+
+	// Parse input time
+	var hour, minute int
+	if _, err := fmt.Sscanf(clusterHHMM, "%d:%d", &hour, &minute); err != nil {
+		return TimeConversion{}, fmt.Errorf("invalid time format: %s (expected HH:MM)", clusterHHMM)
+	}
+
+	if hour < 0 || hour > 23 || minute < 0 || minute > 59 {
+		return TimeConversion{}, fmt.Errorf("invalid time values: hour=%d minute=%d", hour, minute)
+	}
+
+	// Load timezones
+	clusterTZLoc, err := time.LoadLocation(clusterTZ)
+	if err != nil {
+		return TimeConversion{}, fmt.Errorf("invalid cluster timezone: %s", clusterTZ)
+	}
+
+	userTZLoc, err := time.LoadLocation(userTZ)
+	if err != nil {
+		return TimeConversion{}, fmt.Errorf("invalid user timezone: %s", userTZ)
+	}
+
+	// Create datetime in cluster timezone
+	today := time.Now().In(clusterTZLoc)
+	clusterTime := time.Date(today.Year(), today.Month(), today.Day(), hour, minute, 0, 0, clusterTZLoc)
+
+	// Convert to user timezone
+	userTime := clusterTime.In(userTZLoc)
+
+	// Calculate day shift
+	clusterYearDay := clusterTime.YearDay()
+	userYearDay := userTime.YearDay()
+	clusterYear := clusterTime.Year()
+	userYear := userTime.Year()
+
+	var dayShift int
+	if clusterYear == userYear {
+		dayShift = userYearDay - clusterYearDay
+	} else {
+		clusterDaysSinceEpoch := clusterTime.Unix() / 86400
+		userDaysSinceEpoch := userTime.Unix() / 86400
+		dayShift = int(userDaysSinceEpoch - clusterDaysSinceEpoch)
+	}
+
+	// Format user time
+	userHHMM := fmt.Sprintf("%02d:%02d", userTime.Hour(), userTime.Minute())
+
+	return TimeConversion{
+		TimeUTC:  userHHMM,
+		DayShift: dayShift,
+	}, nil
+}

@@ -427,3 +427,36 @@ func handleKubernetesError(c *gin.Context, err error) {
 		Code:    http.StatusInternalServerError,
 	})
 }
+
+// ExclusionFilter represents a filter for excluding resources
+type ExclusionFilter struct {
+	MatchLabels map[string]string `json:"matchLabels,omitempty"`
+}
+
+// DelayConfig represents delay configuration for staged wake-up
+type DelayConfig struct {
+	PgHdfsDelay      string `json:"pgHdfsDelay,omitempty"`      // Delay for PgCluster + HDFSCluster (e.g., "0m", "5m")
+	PgbouncerDelay   string `json:"pgbouncerDelay,omitempty"`  // Delay for PgBouncer (e.g., "5m")
+	DeploymentsDelay string `json:"deploymentsDelay,omitempty"` // Delay for Deployments (e.g., "7m")
+}
+
+// NamespaceScheduleRequest represents a request to create/update a schedule for a specific namespace
+type NamespaceScheduleRequest struct {
+	Tenant        string            `json:"tenant" binding:"required"`
+	Namespace     string            `json:"namespace" binding:"required"`
+	Off           string            `json:"off" binding:"required"`
+	On            string            `json:"on" binding:"required"`
+	Weekdays      string            `json:"weekdays,omitempty"`
+	WeekdaysSleep string            `json:"weekdaysSleep,omitempty"`
+	WeekdaysWake  string            `json:"weekdaysWake,omitempty"`
+	ScheduleName  string            `json:"scheduleName,omitempty"`
+	Description   string            `json:"description,omitempty"`
+	Delays        *DelayConfig      `json:"delays,omitempty"`
+	Exclusions    []NamespaceExclusion `json:"exclusions,omitempty"`
+}
+
+// NamespaceExclusion represents an exclusion for a specific namespace
+type NamespaceExclusion struct {
+	Namespace string         `json:"namespace"`
+	Filter    ExclusionFilter `json:"filter"`
+}
