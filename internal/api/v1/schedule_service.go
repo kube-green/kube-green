@@ -1937,7 +1937,7 @@ func (s *ScheduleService) UpdateSchedule(ctx context.Context, tenant string, req
 	}
 
 	req.Tenant = tenant
-	s.logger.Info("UpdateSchedule: calling CreateSchedule", "tenant", tenant, "namespaces", strings.Join(req.Namespaces, ","), "off", req.Off, "on", req.On, "weekdays", req.Weekdays, "sleepDays", req.SleepDays, "wakeDays", req.WakeDays)
+	s.logger.Info("UpdateSchedule: calling CreateSchedule", "tenant", tenant, "namespaces", strings.Join(req.Namespaces, ","), "off", req.Off, "on", req.On, "weekdays", req.Weekdays, "sleepDays", req.SleepDays, "wakeDays", req.WakeDays, "scheduleName", req.ScheduleName, "description", req.Description)
 	return s.CreateSchedule(ctx, req)
 }
 
