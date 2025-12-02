@@ -121,15 +121,39 @@ func (s *ScheduleService) CreateSchedule(ctx context.Context, req CreateSchedule
 	onPgBouncer := onConv.TimeUTC
 	onDeployments := onConv.TimeUTC
 
-	// NO aplicar delays por defecto aquí - se aplicarán solo en createDatastoresSleepInfos si es necesario
+	// Solo aplicar delays si se especifican explícitamente en req.Delays
 	// Los delays por defecto (5m, 7m) SOLO se aplicarán en createDatastoresSleepInfos cuando sea necesario
+	if req.Delays != nil {
+		// Parse delays and apply them
+		if req.Delays.PgHdfsDelay != "" {
+			delayMinutes, _ := parseDelayToMinutes(req.Delays.PgHdfsDelay)
+			onPgHDFS, _ = AddMinutes(onConv.TimeUTC, delayMinutes)
+		}
+		if req.Delays.PgbouncerDelay != "" {
+			delayMinutes, _ := parseDelayToMinutes(req.Delays.PgbouncerDelay)
+			onPgBouncer, _ = AddMinutes(onConv.TimeUTC, delayMinutes)
+		}
+		if req.Delays.DeploymentsDelay != "" {
+			delayMinutes, _ := parseDelayToMinutes(req.Delays.DeploymentsDelay)
+			onDeployments, _ = AddMinutes(onConv.TimeUTC, delayMinutes)
+		}
+	}
+	// NO aplicar delays por defecto aquí - se aplicarán solo en createDatastoresSleepInfos si es necesario
 
 	// 5. Determine which namespaces to process
 	selectedNamespaces := normalizeNamespaces(req.Namespaces)
 
 	// 6. Build excludeRef from exclusions (no exclusions in CreateScheduleRequest, use defaults)
 
-	// 7. Validate scheduleName uniqueness if provided (no ScheduleName in CreateScheduleRequest, skip)
+	// 7. Validate scheduleName uniqueness if provided
+	if req.ScheduleName != "" {
+		for suffix := range selectedNamespaces {
+			namespace := fmt.Sprintf("%s-%s", req.Tenant, suffix)
+			if err := s.validateScheduleNameUniqueness(ctx, namespace, req.ScheduleName); err != nil {
+				return err
+			}
+		}
+	}
 
 	// 8. Create SleepInfo objects for each namespace
 	// NO iterar sobre validSuffixes hardcodeados - usar los namespaces seleccionados dinámicamente
@@ -173,27 +197,34 @@ func (s *ScheduleService) CreateSchedule(ctx context.Context, req CreateSchedule
 		onPgBouncerFinal := onPgBouncer
 		onDeploymentsFinal := onDeployments
 
-		// Apply default staggered wake for namespaces with CRDs (no custom delays in CreateScheduleRequest)
-		hasCRDs := resources.HasPgCluster || resources.HasHdfsCluster || resources.HasPgBouncer
-		if hasCRDs {
-			// Default staggered wake: PgHDFS at t0, PgBouncer at t0+5m, Deployments at t0+7m
-			onPgHDFSFinal = onConv.TimeUTC
-			onPgBouncerFinal, _ = AddMinutes(onConv.TimeUTC, 5)
-			onDeploymentsFinal, _ = AddMinutes(onConv.TimeUTC, 7)
+		// If no custom delays provided, apply default staggered wake for namespaces with CRDs
+		if req.Delays == nil {
+			hasCRDs := resources.HasPgCluster || resources.HasHdfsCluster || resources.HasPgBouncer
+			if hasCRDs {
+				// Default staggered wake: PgHDFS at t0, PgBouncer at t0+5m, Deployments at t0+7m
+				onPgHDFSFinal = onConv.TimeUTC
+				onPgBouncerFinal, _ = AddMinutes(onConv.TimeUTC, 5)
+				onDeploymentsFinal, _ = AddMinutes(onConv.TimeUTC, 7)
+			} else {
+				// Simple namespaces: all wake at the same time
+				onPgHDFSFinal = onConv.TimeUTC
+				onPgBouncerFinal = onConv.TimeUTC
+				onDeploymentsFinal = onConv.TimeUTC
+			}
 		} else {
-			// Simple namespaces: all wake at the same time
-			onPgHDFSFinal = onConv.TimeUTC
-			onPgBouncerFinal = onConv.TimeUTC
-			onDeploymentsFinal = onConv.TimeUTC
+			// Use custom delays from request
+			onPgHDFSFinal = onPgHDFS
+			onPgBouncerFinal = onPgBouncer
+			onDeploymentsFinal = onDeployments
 		}
 
 		// Generate SleepInfos based on detected resources (DYNAMIC LOGIC - no hardcoded names)
-		hasCRDs = resources.HasPgCluster || resources.HasHdfsCluster || resources.HasPgBouncer
+		hasCRDs := resources.HasPgCluster || resources.HasHdfsCluster || resources.HasPgBouncer
 
 		if hasCRDs {
 			// Namespace has CRDs: use staggered wake logic
 			s.logger.Info("CreateSchedule: creating staggered SleepInfos (CRDs detected)", "namespace", namespace, "hasPgCluster", resources.HasPgCluster, "hasHdfsCluster", resources.HasHdfsCluster, "hasPgBouncer", resources.HasPgBouncer)
-			if err := s.createDatastoresSleepInfosWithExclusions(ctx, req.Tenant, namespace, offConv.TimeUTC, onDeploymentsFinal, onPgHDFSFinal, onPgBouncerFinal, wdSleepUTC, wdWakeUTC, excludeRefs, "", "", userTZ); err != nil {
+			if err := s.createDatastoresSleepInfosWithExclusions(ctx, req.Tenant, namespace, offConv.TimeUTC, onDeploymentsFinal, onPgHDFSFinal, onPgBouncerFinal, wdSleepUTC, wdWakeUTC, excludeRefs, req.ScheduleName, req.Description, userTZ); err != nil {
 				s.logger.Error(err, "failed to create staggered sleepinfos", "namespace", namespace)
 				return fmt.Errorf("failed to create staggered sleepinfos for %s: %w", namespace, err)
 			}
@@ -208,7 +239,7 @@ func (s *ScheduleService) CreateSchedule(ctx context.Context, req CreateSchedule
 			}
 
 			s.logger.Info("CreateSchedule: creating simple namespace SleepInfos", "namespace", namespace, "suspendStatefulSets", suspendStatefulSets)
-			if err := s.createNamespaceSleepInfoWithExclusions(ctx, req.Tenant, namespace, suffix, offConv.TimeUTC, onDeploymentsFinal, wdSleepUTC, wdWakeUTC, suspendStatefulSets, excludeRefs, "", "", userTZ); err != nil {
+			if err := s.createNamespaceSleepInfoWithExclusions(ctx, req.Tenant, namespace, suffix, offConv.TimeUTC, onDeploymentsFinal, wdSleepUTC, wdWakeUTC, suspendStatefulSets, excludeRefs, req.ScheduleName, req.Description, userTZ); err != nil {
 				s.logger.Error(err, "failed to create namespace sleepinfo", "namespace", namespace)
 				return fmt.Errorf("failed to create sleepinfo for %s: %w", namespace, err)
 			}
@@ -1832,7 +1863,37 @@ func (s *ScheduleService) UpdateSchedule(ctx context.Context, tenant string, req
 
 	// Note: Delays are not in CreateScheduleRequest, will use defaults
 
-	// Note: ScheduleName and Description are not in CreateScheduleRequest, will use empty strings
+	// IMPORTANTE: Extraer scheduleName y description del schedule existente si no se proporcionan en el request
+	// Esto preserva las anotaciones cuando se actualiza solo la hora o el día
+	if (req.ScheduleName == "" || req.Description == "") && existingSchedule != nil {
+		s.logger.Info("UpdateSchedule: attempting to extract scheduleName and description from existing schedule")
+		for _, nsInfo := range existingSchedule.Namespaces {
+			for _, sched := range nsInfo.Schedule {
+				// Extraer scheduleName de las anotaciones si no se proporciona
+				if req.ScheduleName == "" && sched.Annotations != nil {
+					if scheduleName, ok := sched.Annotations["kube-green.stratio.com/schedule-name"]; ok && scheduleName != "" {
+						req.ScheduleName = scheduleName
+						s.logger.Info("UpdateSchedule: extracted scheduleName from existing schedule", "scheduleName", scheduleName)
+					}
+				}
+				// Extraer description de las anotaciones si no se proporciona
+				if req.Description == "" && sched.Annotations != nil {
+					if description, ok := sched.Annotations["kube-green.stratio.com/schedule-description"]; ok && description != "" {
+						req.Description = description
+						s.logger.Info("UpdateSchedule: extracted description from existing schedule", "description", description)
+					}
+				}
+				// Si ya encontramos ambos, salir del loop
+				if req.ScheduleName != "" && req.Description != "" {
+					break
+				}
+			}
+			// Si ya encontramos ambos, salir del loop de namespaces
+			if req.ScheduleName != "" && req.Description != "" {
+				break
+			}
+		}
+	}
 
 	// IMPORTANTE: Eliminar SleepInfos antiguos ANTES de crear los nuevos
 	// Esto asegura que los cambios se reflejen correctamente, especialmente cuando cambian los weekdays
