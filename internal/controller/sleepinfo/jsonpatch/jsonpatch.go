@@ -14,6 +14,7 @@ import (
 	"github.com/go-logr/logr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var (
@@ -118,11 +119,14 @@ func (g managedResources) Sleep(ctx context.Context) error {
 				continue
 			}
 
+			// CRITICAL: Save original state BEFORE attempting patch
+			// This ensures we always have the original state saved, even if patch fails
 			original, err := json.Marshal(resource.Object)
 			if err != nil {
 				return fmt.Errorf("%w: %s", ErrJSONPatch, err)
 			}
 
+			// Now attempt to apply the patch
 			modified, err := patcherFn.Exec(original)
 			if err != nil {
 				g.logger.Error(err, "fails to apply patch",
@@ -130,9 +134,62 @@ func (g managedResources) Sleep(ctx context.Context) error {
 					"resourceKind", resource.GetKind(),
 					"patch", resourceWrapper.patchData.Patch,
 				)
+				// CRITICAL: Even if patch fails, we need to save the original state
+				// The resource might have been modified in a previous attempt (e.g., replicas set to 0)
+				// We need to re-read the current state from cluster and create a restore patch
+				// that restores from current state to original state
+				currentResource := &unstructured.Unstructured{}
+				currentResource.SetGroupVersionKind(resource.GroupVersionKind())
+				currentResource.SetName(resource.GetName())
+				currentResource.SetNamespace(resource.GetNamespace())
+				
+				// Re-read current state from cluster (might be modified from previous attempt)
+				if err := resourceWrapper.Client.Get(ctx, client.ObjectKeyFromObject(currentResource), currentResource); err != nil {
+					g.logger.Error(err, "failed to re-read resource after patch failure, using original state",
+						"resourceName", resource.GetName(),
+						"resourceKind", resource.GetKind(),
+					)
+					// If we can't re-read, create a restore patch from original to original (identity)
+					// This at least marks that we've seen this resource
+					identityPatch, _ := jsonpatch.CreateMergePatch(original, original)
+					if string(identityPatch) != "{}" {
+						resourceWrapper.restorePatches[resource.GetName()] = string(identityPatch)
+					}
+				} else {
+					// Re-read successful: create restore patch from current state to original
+					currentState, err := json.Marshal(currentResource.Object)
+					if err != nil {
+						g.logger.Error(err, "failed to marshal current resource state",
+							"resourceName", resource.GetName(),
+							"resourceKind", resource.GetKind(),
+						)
+						continue
+					}
+					
+					// Create restore patch from current state (might be modified) to original state
+					restorePatchFromCurrent, err := jsonpatch.CreateMergePatch(currentState, original)
+					if err != nil {
+						g.logger.Error(err, "failed to create restore patch from current to original",
+							"resourceName", resource.GetName(),
+							"resourceKind", resource.GetKind(),
+						)
+						continue
+					}
+					
+					restorePatchString := string(restorePatchFromCurrent)
+					// Only save if it's not empty (resource was actually modified)
+					if restorePatchString != "{}" {
+						resourceWrapper.restorePatches[resource.GetName()] = restorePatchString
+						g.logger.Info("saved restore patch from current state to original despite patch failure",
+							"resourceName", resource.GetName(),
+							"resourceKind", resource.GetKind(),
+						)
+					}
+				}
 				continue
 			}
 
+			// Patch succeeded: create proper restore patch (from modified back to original)
 			restorePatch, err := jsonpatch.CreateMergePatch(modified, original)
 			if err != nil {
 				return fmt.Errorf("%w: %s", ErrJSONPatch, err)
@@ -145,6 +202,7 @@ func (g managedResources) Sleep(ctx context.Context) error {
 				continue
 			}
 
+			// Save the restore patch (from modified to original)
 			resourceWrapper.restorePatches[resource.GetName()] = restorePatchString
 
 			res := &unstructured.Unstructured{}
