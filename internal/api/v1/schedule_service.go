@@ -1358,16 +1358,63 @@ func (s *ScheduleService) buildNamespaceInfo(ctx context.Context, sleepInfos []k
 		}
 	}
 	
+	// Extract userTimezone from first SleepInfo annotations
+	userTimezone := TZLocal // Default
+	if first.Annotations != nil {
+		if tz, ok := first.Annotations["kube-green.stratio.com/user-timezone"]; ok && tz != "" {
+			userTimezone = tz
+		}
+	}
+	
+	// CRITICAL: Convert weekdays from UTC to user timezone for display
+	// The weekdays are stored in UTC in the cluster, but we need to show them in user timezone
+	weekdaysUser := first.Spec.Weekdays
+	clusterTZ := first.Spec.TimeZone
+	if clusterTZ == "" {
+		clusterTZ = TZUTC
+	}
+	
+	// Find sleep time to calculate day shift
+	timeForConversion := first.Spec.SleepTime
+	if timeForConversion == "" {
+		timeForConversion = first.Spec.WakeUpTime
+	}
+	
+	// Convert weekdays from UTC to user timezone if we have the time
+	if timeForConversion != "" && first.Spec.Weekdays != "" {
+		// Calculate day shift using FromClusterToUserTimezone
+		timeConv, err := FromClusterToUserTimezone(timeForConversion, clusterTZ, userTimezone)
+		if err == nil {
+			// Apply reverse shift (negative) to convert from UTC to user timezone
+			wdUser, err := ShiftWeekdaysStr(first.Spec.Weekdays, -timeConv.DayShift)
+			if err == nil {
+				weekdaysUser = wdUser
+				s.logger.Info("buildNamespaceInfo: converted weekdays from UTC to user timezone",
+					"from_utc", first.Spec.Weekdays,
+					"to_user", weekdaysUser,
+					"dayShift", -timeConv.DayShift,
+					"timeUTC", timeForConversion,
+					"userTimezone", userTimezone)
+			} else {
+				s.logger.Error(err, "failed to shift weekdays in buildNamespaceInfo",
+					"weekdays", first.Spec.Weekdays,
+					"dayShift", -timeConv.DayShift)
+			}
+		} else {
+			s.logger.Error(err, "failed to convert time for weekday conversion in buildNamespaceInfo",
+				"time", timeForConversion,
+				"clusterTZ", clusterTZ,
+				"userTimezone", userTimezone)
+		}
+	}
+	
 	nsInfo := NamespaceInfo{
 		Namespace:    first.Namespace,
-		Weekdays:     first.Spec.Weekdays,
+		Weekdays:     weekdaysUser, // Converted to user timezone
 		Timezone:     first.Spec.TimeZone,
 		ScheduleName: scheduleName,
 		Description:  description,
 	}
-
-	// Convert weekdays to human-readable (keep numeric for now, can enhance later)
-	// For now, just use the numeric format
 
 	// Build summaries for each SleepInfo
 	summaries := make([]SleepInfoSummary, 0, len(sleepInfos))
@@ -1466,12 +1513,55 @@ func (s *ScheduleService) buildSleepInfoSummary(ctx context.Context, si kubegree
 	// Extract scheduleName and description from annotations
 	scheduleName := ""
 	description := ""
+	userTimezone := TZLocal // Default
 	if si.Annotations != nil {
 		if name, ok := si.Annotations["kube-green.stratio.com/schedule-name"]; ok {
 			scheduleName = name
 		}
 		if desc, ok := si.Annotations["kube-green.stratio.com/schedule-description"]; ok {
 			description = desc
+		}
+		// Extract userTimezone from annotations
+		if tz, ok := si.Annotations["kube-green.stratio.com/user-timezone"]; ok && tz != "" {
+			userTimezone = tz
+		}
+	}
+
+	// CRITICAL: Convert weekdays from UTC to user timezone for display
+	// The weekdays are stored in UTC in the cluster, but we need to show them in user timezone
+	weekdaysUser := si.Spec.Weekdays
+	clusterTZ := si.Spec.TimeZone
+	if clusterTZ == "" {
+		clusterTZ = TZUTC
+	}
+	
+	// Convert weekdays from UTC to user timezone if we have the time
+	if time != "" && si.Spec.Weekdays != "" {
+		// Calculate day shift using FromClusterToUserTimezone
+		timeConv, err := FromClusterToUserTimezone(time, clusterTZ, userTimezone)
+		if err == nil {
+			// Apply reverse shift (negative) to convert from UTC to user timezone
+			// This is the same logic used in UpdateSchedule
+			wdUser, err := ShiftWeekdaysStr(si.Spec.Weekdays, -timeConv.DayShift)
+			if err == nil {
+				weekdaysUser = wdUser
+				s.logger.Info("buildSleepInfoSummary: converted weekdays from UTC to user timezone",
+					"from_utc", si.Spec.Weekdays,
+					"to_user", weekdaysUser,
+					"dayShift", -timeConv.DayShift,
+					"timeUTC", time,
+					"userTimezone", userTimezone,
+					"role", role)
+			} else {
+				s.logger.Error(err, "failed to shift weekdays in buildSleepInfoSummary",
+					"weekdays", si.Spec.Weekdays,
+					"dayShift", -timeConv.DayShift)
+			}
+		} else {
+			s.logger.Error(err, "failed to convert time for weekday conversion in buildSleepInfoSummary",
+				"time", time,
+				"clusterTZ", clusterTZ,
+				"userTimezone", userTimezone)
 		}
 	}
 
@@ -1481,7 +1571,7 @@ func (s *ScheduleService) buildSleepInfoSummary(ctx context.Context, si kubegree
 		Role:         role,
 		Operation:    operation,
 		Time:         time,
-		Weekdays:     si.Spec.Weekdays,
+		Weekdays:     weekdaysUser, // Converted to user timezone
 		TimeZone:     si.Spec.TimeZone,
 		WakeTime:     si.Spec.WakeUpTime,
 		Resources:    resources,
