@@ -1451,18 +1451,15 @@ func (s *ScheduleService) buildSleepInfoSummary(ctx context.Context, si kubegree
 	// Para sleep: usar SleepTime (que es sleepAt en JSON) - este es el tiempo de apagado en UTC
 	// Para wake: usar WakeUpTime si está disponible (SleepInfo único), o SleepTime si es un SleepInfo separado
 	var time string
-	var timeForConversion string // Tiempo específico para calcular dayShift
 	if role == "sleep" {
 		// Para sleep, usar SleepTime (tiempo de apagado en UTC)
 		time = si.Spec.SleepTime
-		timeForConversion = si.Spec.SleepTime
 	} else {
 		// Para wake, preferir WakeUpTime (SleepInfo único), pero si no está, usar SleepTime (SleepInfos separados)
 		time = si.Spec.WakeUpTime
 		if time == "" {
 			time = si.Spec.SleepTime
 		}
-		timeForConversion = time
 	}
 
 	// Determine resources managed
