@@ -162,24 +162,8 @@ func (s *Server) handleGetSchedule(c *gin.Context) {
 	// Get optional namespace filter from query parameter
 	namespaceFilter := c.Query("namespace")
 
-	// Validate namespace if provided
-	if namespaceFilter != "" {
-		valid := false
-		for _, validNS := range validSuffixes {
-			if namespaceFilter == validNS {
-				valid = true
-				break
-			}
-		}
-		if !valid {
-			c.JSON(http.StatusBadRequest, ErrorResponse{
-				Success: false,
-				Error:   fmt.Sprintf("invalid namespace '%s'. Valid options are: %s", namespaceFilter, ValidNamespaceSuffixes),
-				Code:    http.StatusBadRequest,
-			})
-			return
-		}
-	}
+	// Namespaces are validated dynamically - any namespace that exists for the tenant is valid
+	// No hardcoded validation - namespaces are discovered from the cluster
 
 	schedule, err := s.scheduleService.GetSchedule(c.Request.Context(), tenant, namespaceFilter)
 	if err != nil {

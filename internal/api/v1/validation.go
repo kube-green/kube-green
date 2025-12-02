@@ -7,6 +7,7 @@ package v1
 import (
 	"fmt"
 	"regexp"
+	"strings"
 )
 
 var (
@@ -58,17 +59,13 @@ func ValidateCreateSchedule(req CreateScheduleRequest) error {
 	}
 
 	// Validate namespaces if provided
+	// Namespaces are validated dynamically - any namespace that exists for the tenant is valid
+	// No hardcoded validation - namespaces are discovered from the cluster
 	if len(req.Namespaces) > 0 {
+		// Basic validation: namespace should not be empty
 		for _, ns := range req.Namespaces {
-			valid := false
-			for _, validSuffix := range validSuffixes {
-				if ns == validSuffix {
-					valid = true
-					break
-				}
-			}
-			if !valid {
-				return fmt.Errorf("invalid namespace: %s (valid values: %s)", ns, ValidNamespaceSuffixes)
+			if strings.TrimSpace(ns) == "" {
+				return fmt.Errorf("namespace cannot be empty")
 			}
 		}
 	}
@@ -114,17 +111,13 @@ func ValidateUpdateSchedule(req UpdateScheduleRequest) error {
 	}
 
 	// Validate namespaces if provided
+	// Namespaces are validated dynamically - any namespace that exists for the tenant is valid
+	// No hardcoded validation - namespaces are discovered from the cluster
 	if len(req.Namespaces) > 0 {
+		// Basic validation: namespace should not be empty
 		for _, ns := range req.Namespaces {
-			valid := false
-			for _, validSuffix := range validSuffixes {
-				if ns == validSuffix {
-					valid = true
-					break
-				}
-			}
-			if !valid {
-				return fmt.Errorf("invalid namespace: %s (valid values: %s)", ns, ValidNamespaceSuffixes)
+			if strings.TrimSpace(ns) == "" {
+				return fmt.Errorf("namespace cannot be empty")
 			}
 		}
 	}
