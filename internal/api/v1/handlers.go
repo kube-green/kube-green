@@ -89,6 +89,29 @@ func (s *Server) handleInfo(c *gin.Context) {
 	})
 }
 
+// handleListTenants lists all discovered tenants
+// @Summary List all tenants
+// @Description Discovers all tenants by scanning namespaces that match the pattern {tenant}-{suffix}
+// @Tags Tenants
+// @Accept json
+// @Produce json
+// @Success 200 {object} APIResponse{data=TenantListResponse}
+// @Failure 500 {object} ErrorResponse
+// @Router /api/v1/tenants [get]
+func (s *Server) handleListTenants(c *gin.Context) {
+	tenants, err := s.scheduleService.ListTenants(c.Request.Context())
+	if err != nil {
+		s.logger.Error(err, "failed to list tenants")
+		handleKubernetesError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, APIResponse{
+		Success: true,
+		Data:    tenants,
+	})
+}
+
 // handleListSchedules lists all schedules
 // @Summary List all schedules
 // @Description Lists all SleepInfo schedules across all namespaces

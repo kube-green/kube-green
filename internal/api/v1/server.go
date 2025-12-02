@@ -129,8 +129,7 @@ func (s *Server) setupRoutes() {
 	}
 
 	// Tenant discovery endpoints
-	// TODO: Implement handleListTenants
-	// s.router.GET("/api/v1/tenants", s.handleListTenants)
+	s.router.GET("/api/v1/tenants", s.handleListTenants)
 
 	// Namespace services endpoints
 	// TODO: Implement handleGetNamespaceServices
