@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -16,6 +17,7 @@ import (
 	ginSwagger "github.com/swaggo/gin-swagger"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/kube-green/kube-green/internal/api/v1/auth"
 	_ "github.com/kube-green/kube-green/internal/api/v1/docs" // Swagger docs
 )
 
@@ -27,6 +29,8 @@ type Server struct {
 	httpServer      *http.Server
 	port            int
 	scheduleService *ScheduleService
+	authHandler     *auth.AuthHandler
+	userStore       *auth.UserStore
 }
 
 // Config holds the configuration for the REST API server
@@ -35,6 +39,7 @@ type Config struct {
 	Client     client.Client
 	Logger     logr.Logger
 	EnableCORS bool
+	Namespace  string // Kubernetes namespace for loading secrets
 }
 
 // NewServer creates a new REST API server instance
@@ -61,6 +66,37 @@ func NewServer(config Config) *Server {
 		scheduleService: NewScheduleService(config.Client, config.Logger),
 	}
 
+	// Initialize authentication if enabled
+	authEnabled := auth.IsAuthEnabled()
+	var jwtSecret []byte
+	if authEnabled {
+		// Load JWT secret
+		var err error
+		jwtSecret, err = auth.LoadJWTSecret(config.Client, config.Namespace)
+		if err != nil {
+			config.Logger.Error(err, "Failed to load JWT secret, authentication disabled")
+			authEnabled = false
+		} else {
+			// Initialize user store
+			userStore := auth.NewUserStore(config.Client, config.Namespace, "kube-green-users")
+			if err := userStore.LoadUsers(context.Background()); err != nil {
+				config.Logger.Error(err, "Failed to load users, authentication disabled")
+				authEnabled = false
+			} else {
+				server.userStore = userStore
+				server.authHandler = auth.NewAuthHandler(userStore, jwtSecret)
+				config.Logger.Info("Authentication enabled", "namespace", config.Namespace)
+			}
+		}
+	} else {
+		config.Logger.Info("Authentication disabled")
+	}
+
+	// Add JWT middleware if auth is enabled
+	if authEnabled && jwtSecret != nil {
+		router.Use(auth.JWTAuthMiddleware(jwtSecret, true))
+	}
+
 	// Setup routes
 	server.setupRoutes()
 
@@ -83,14 +119,38 @@ func (s *Server) setupRoutes() {
 	s.router.GET("/ready", s.handleReady)
 	s.router.GET("/api/v1/info", s.handleInfo)
 
+	// Authentication endpoints (public, no auth required)
+	if s.authHandler != nil {
+		authGroup := s.router.Group("/api/v1/auth")
+		{
+			authGroup.POST("/login", s.authHandler.HandleLogin)
+			authGroup.POST("/refresh", s.authHandler.HandleRefresh)
+			authGroup.GET("/me", s.authHandler.HandleMe)
+		}
+	}
+
+	// Tenant discovery endpoints
+	s.router.GET("/api/v1/tenants", s.handleListTenants)
+
+	// Namespace services endpoints
+	s.router.GET("/api/v1/namespaces/:tenant/services", s.handleGetNamespaceServices)
+	s.router.GET("/api/v1/namespaces/:tenant/resources", s.handleGetNamespaceResources)
+
 	// Schedule management endpoints
 	v1 := s.router.Group("/api/v1/schedules")
 	{
 		v1.GET("", s.handleListSchedules)
 		v1.GET("/:tenant", s.handleGetSchedule)
+		v1.GET("/:tenant/suspended", s.handleGetSuspendedServices)
 		v1.POST("", s.handleCreateSchedule)
 		v1.PUT("/:tenant", s.handleUpdateSchedule)
 		v1.DELETE("/:tenant", s.handleDeleteSchedule)
+
+		// Namespace-specific schedule endpoints
+		v1.GET("/:tenant/:namespace", s.handleGetNamespaceSchedule)
+		v1.POST("/:tenant/:namespace", s.handleCreateNamespaceSchedule)
+		v1.PUT("/:tenant/:namespace", s.handleUpdateNamespaceSchedule)
+		v1.DELETE("/:tenant/:namespace", s.handleDeleteNamespaceSchedule)
 	}
 
 	// Swagger documentation

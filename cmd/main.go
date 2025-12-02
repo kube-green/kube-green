@@ -250,11 +250,18 @@ func main() {
 	// Start REST API server if enabled
 	ctx := ctrl.SetupSignalHandler()
 	if enableAPI {
+		// Get namespace from environment or use default
+		namespace := os.Getenv("POD_NAMESPACE")
+		if namespace == "" {
+			namespace = "keos-core" // Default namespace
+		}
+
 		apiServer := apiv1.NewServer(apiv1.Config{
 			Port:       apiPort,
 			Client:     mgr.GetClient(),
 			Logger:     ctrl.Log.WithName("api"),
 			EnableCORS: enableAPICORS,
+			Namespace:  namespace,
 		})
 
 		// Add API server as a runnable to the manager
