@@ -1382,54 +1382,10 @@ func (s *ScheduleService) buildNamespaceInfo(ctx context.Context, sleepInfos []k
 		}
 	}
 	
-	// CRITICAL: Convert weekdays from UTC to user timezone for display
-	// The weekdays are stored in UTC in the cluster, but we need to show them in user timezone
+	// IMPORTANTE: NO convertir weekdays aquí - el frontend hace la conversión
+	// Los weekdays se devuelven en UTC tal como están almacenados en el cluster
+	// El frontend tiene la lógica para convertir de UTC a user timezone usando el tiempo y dayShift
 	weekdaysUser := first.Spec.Weekdays
-	// Get cluster timezone dynamically from SleepInfo spec (should be "UTC" but get it from spec)
-	clusterTZ := first.Spec.TimeZone
-	if clusterTZ == "" {
-		// If not specified in spec, default to UTC (cluster timezone)
-		clusterTZ = "UTC"
-	}
-	
-	// Find sleep time to calculate day shift
-	timeForConversion := first.Spec.SleepTime
-	if timeForConversion == "" {
-		timeForConversion = first.Spec.WakeUpTime
-	}
-	
-	// Convert weekdays from UTC to user timezone if we have the time AND userTimezone
-	// Only convert if we have all required information (time, weekdays, and userTimezone)
-	if timeForConversion != "" && first.Spec.Weekdays != "" && userTimezone != "" {
-		// Calculate day shift dynamically using FromClusterToUserTimezone
-		timeConv, err := FromClusterToUserTimezone(timeForConversion, clusterTZ, userTimezone)
-		if err == nil {
-			// FromClusterToUserTimezone returns: dayShift = userYearDay - clusterYearDay
-			// If dayShift = -1: user day is 1 day BEFORE cluster day (viernes - sábado)
-			// To convert from cluster (UTC) to user: apply dayShift directly
-			// Example: sábado (6) in UTC, dayShift = -1 → viernes (5) in Colombia
-			// (6 + (-1) + 7) % 7 = 5 ✓
-			wdUser, err := ShiftWeekdaysStr(first.Spec.Weekdays, timeConv.DayShift)
-			if err == nil {
-				weekdaysUser = wdUser
-				s.logger.Info("buildNamespaceInfo: converted weekdays from UTC to user timezone",
-					"from_utc", first.Spec.Weekdays,
-					"to_user", weekdaysUser,
-					"dayShift", timeConv.DayShift,
-					"timeUTC", timeForConversion,
-					"userTimezone", userTimezone)
-			} else {
-				s.logger.Error(err, "failed to shift weekdays in buildNamespaceInfo",
-					"weekdays", first.Spec.Weekdays,
-					"dayShift", timeConv.DayShift)
-			}
-		} else {
-			s.logger.Error(err, "failed to convert time for weekday conversion in buildNamespaceInfo",
-				"time", timeForConversion,
-				"clusterTZ", clusterTZ,
-				"userTimezone", userTimezone)
-		}
-	}
 	
 	nsInfo := NamespaceInfo{
 		Namespace:    first.Namespace,
@@ -1490,20 +1446,23 @@ func (s *ScheduleService) buildSleepInfoSummary(ctx context.Context, si kubegree
 		operation = "Apagar servicios"
 	}
 
-	// Determine time
+	// Determine time based on role
 	// IMPORTANTE: El CRD usa sleepAt y wakeUpAt en JSON, pero el struct Go usa SleepTime y WakeUpTime
-	// Para sleep: usar SleepTime (que es sleepAt en JSON)
-	// Para wake: si es un SleepInfo separado, SleepTime contiene la hora de wake (sleepAt en JSON)
-	//            si es un SleepInfo único, WakeUpTime contiene la hora de wake (wakeUpAt en JSON)
-	time := si.Spec.SleepTime
-	if time == "" {
-		time = si.Spec.WakeUpTime
-	}
-
-	// Si el role es "wake" y no hay WakeUpTime, entonces SleepTime es la hora de wake
-	// (esto pasa cuando weekdays son diferentes y se crean SleepInfos separados)
-	if role == "wake" && time == "" && si.Spec.SleepTime != "" {
+	// Para sleep: usar SleepTime (que es sleepAt en JSON) - este es el tiempo de apagado en UTC
+	// Para wake: usar WakeUpTime si está disponible (SleepInfo único), o SleepTime si es un SleepInfo separado
+	var time string
+	var timeForConversion string // Tiempo específico para calcular dayShift
+	if role == "sleep" {
+		// Para sleep, usar SleepTime (tiempo de apagado en UTC)
 		time = si.Spec.SleepTime
+		timeForConversion = si.Spec.SleepTime
+	} else {
+		// Para wake, preferir WakeUpTime (SleepInfo único), pero si no está, usar SleepTime (SleepInfos separados)
+		time = si.Spec.WakeUpTime
+		if time == "" {
+			time = si.Spec.SleepTime
+		}
+		timeForConversion = time
 	}
 
 	// Determine resources managed
@@ -1566,49 +1525,10 @@ func (s *ScheduleService) buildSleepInfoSummary(ctx context.Context, si kubegree
 		}
 	}
 
-	// CRITICAL: Convert weekdays from UTC to user timezone for display
-	// The weekdays are stored in UTC in the cluster, but we need to show them in user timezone
+	// IMPORTANTE: NO convertir weekdays aquí - el frontend hace la conversión
+	// Los weekdays se devuelven en UTC tal como están almacenados en el cluster
+	// El frontend tiene la lógica para convertir de UTC a user timezone usando el tiempo y dayShift
 	weekdaysUser := si.Spec.Weekdays
-	// Get cluster timezone dynamically from SleepInfo spec (should be "UTC" but get it from spec)
-	clusterTZ := si.Spec.TimeZone
-	if clusterTZ == "" {
-		// If not specified in spec, default to UTC (cluster timezone)
-		clusterTZ = "UTC"
-	}
-	
-	// Convert weekdays from UTC to user timezone if we have the time AND userTimezone
-	// Only convert if we have all required information (time, weekdays, and userTimezone)
-	if time != "" && si.Spec.Weekdays != "" && userTimezone != "" {
-		// Calculate day shift dynamically using FromClusterToUserTimezone
-		timeConv, err := FromClusterToUserTimezone(time, clusterTZ, userTimezone)
-		if err == nil {
-			// FromClusterToUserTimezone returns: dayShift = userYearDay - clusterYearDay
-			// If dayShift = -1: user day is 1 day BEFORE cluster day (viernes - sábado)
-			// To convert from cluster (UTC) to user: apply dayShift directly
-			// Example: sábado (6) in UTC, dayShift = -1 → viernes (5) in Colombia
-			// (6 + (-1) + 7) % 7 = 5 ✓
-			wdUser, err := ShiftWeekdaysStr(si.Spec.Weekdays, timeConv.DayShift)
-			if err == nil {
-				weekdaysUser = wdUser
-				s.logger.Info("buildSleepInfoSummary: converted weekdays from UTC to user timezone",
-					"from_utc", si.Spec.Weekdays,
-					"to_user", weekdaysUser,
-					"dayShift", timeConv.DayShift,
-					"timeUTC", time,
-					"userTimezone", userTimezone,
-					"role", role)
-			} else {
-				s.logger.Error(err, "failed to shift weekdays in buildSleepInfoSummary",
-					"weekdays", si.Spec.Weekdays,
-					"dayShift", timeConv.DayShift)
-			}
-		} else {
-			s.logger.Error(err, "failed to convert time for weekday conversion in buildSleepInfoSummary",
-				"time", time,
-				"clusterTZ", clusterTZ,
-				"userTimezone", userTimezone)
-		}
-	}
 
 	summary := SleepInfoSummary{
 		Name:         si.Name,
