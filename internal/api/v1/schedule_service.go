@@ -1195,11 +1195,13 @@ type ScheduleResponse struct {
 
 // NamespaceInfo represents schedule information for a namespace
 type NamespaceInfo struct {
-	Namespace string             `json:"namespace"`
-	Weekdays  string             `json:"weekdays"`
-	Timezone  string             `json:"timezone"`
-	Schedule  []SleepInfoSummary `json:"schedule"` // Chronologically ordered schedule
-	Summary   ScheduleSummary    `json:"summary"`  // Human-readable summary
+	Namespace    string             `json:"namespace"`
+	Weekdays     string             `json:"weekdays"`
+	Timezone     string             `json:"timezone"`
+	Schedule     []SleepInfoSummary `json:"schedule"` // Chronologically ordered schedule
+	Summary      ScheduleSummary    `json:"summary"`  // Human-readable summary
+	ScheduleName string             `json:"scheduleName,omitempty"` // Schedule name if set
+	Description  string             `json:"description,omitempty"`  // Schedule description if set
 }
 
 // ScheduleSummary provides a human-readable summary of the schedule
@@ -1217,17 +1219,19 @@ type FilterRef struct {
 
 // SleepInfoSummary represents a summary of a SleepInfo
 type SleepInfoSummary struct {
-	Name        string            `json:"name"`
-	Namespace   string            `json:"namespace"`
-	Role        string            `json:"role"`      // "sleep" or "wake"
-	Operation   string            `json:"operation"` // Human-readable description
-	Time        string            `json:"time"`      // Sleep or wake time
-	Weekdays    string            `json:"weekdays"`
-	TimeZone    string            `json:"timeZone"`
-	Resources   []string          `json:"resources"` // List of resources managed (Postgres, HDFS, PgBouncer, Deployments, etc.)
-	WakeTime    string            `json:"wakeTime,omitempty"`
-	Annotations map[string]string `json:"annotations,omitempty"`
-	ExcludeRef  []FilterRef       `json:"excludeRef,omitempty"` // Exclusion filters
+	Name         string            `json:"name"`
+	Namespace    string            `json:"namespace"`
+	Role         string            `json:"role"`      // "sleep" or "wake"
+	Operation    string            `json:"operation"` // Human-readable description
+	Time         string            `json:"time"`      // Sleep or wake time
+	Weekdays     string            `json:"weekdays"`
+	TimeZone     string            `json:"timeZone"`
+	Resources    []string          `json:"resources"` // List of resources managed (Postgres, HDFS, PgBouncer, Deployments, etc.)
+	WakeTime     string            `json:"wakeTime,omitempty"`
+	ScheduleName string            `json:"scheduleName,omitempty"` // Schedule name if set
+	Description  string            `json:"description,omitempty"`  // Schedule description if set
+	Annotations  map[string]string `json:"annotations,omitempty"`
+	ExcludeRef   []FilterRef       `json:"excludeRef,omitempty"` // Exclusion filters
 }
 
 // ListSchedules lists all schedules grouped by tenant
@@ -1341,10 +1345,25 @@ func (s *ScheduleService) buildNamespaceInfo(ctx context.Context, sleepInfos []k
 
 	// Get common info from first SleepInfo
 	first := sleepInfos[0]
+	
+	// Extract scheduleName and description from first SleepInfo annotations
+	scheduleName := ""
+	description := ""
+	if first.Annotations != nil {
+		if name, ok := first.Annotations["kube-green.stratio.com/schedule-name"]; ok {
+			scheduleName = name
+		}
+		if desc, ok := first.Annotations["kube-green.stratio.com/schedule-description"]; ok {
+			description = desc
+		}
+	}
+	
 	nsInfo := NamespaceInfo{
-		Namespace: first.Namespace,
-		Weekdays:  first.Spec.Weekdays,
-		Timezone:  first.Spec.TimeZone,
+		Namespace:    first.Namespace,
+		Weekdays:     first.Spec.Weekdays,
+		Timezone:     first.Spec.TimeZone,
+		ScheduleName: scheduleName,
+		Description:  description,
 	}
 
 	// Convert weekdays to human-readable (keep numeric for now, can enhance later)
@@ -1444,18 +1463,32 @@ func (s *ScheduleService) buildSleepInfoSummary(ctx context.Context, si kubegree
 	}
 	// userTimezone is already in annotations if it was set during creation
 
+	// Extract scheduleName and description from annotations
+	scheduleName := ""
+	description := ""
+	if si.Annotations != nil {
+		if name, ok := si.Annotations["kube-green.stratio.com/schedule-name"]; ok {
+			scheduleName = name
+		}
+		if desc, ok := si.Annotations["kube-green.stratio.com/schedule-description"]; ok {
+			description = desc
+		}
+	}
+
 	summary := SleepInfoSummary{
-		Name:        si.Name,
-		Namespace:   si.Namespace,
-		Role:        role,
-		Operation:   operation,
-		Time:        time,
-		Weekdays:    si.Spec.Weekdays,
-		TimeZone:    si.Spec.TimeZone,
-		WakeTime:    si.Spec.WakeUpTime,
-		Resources:   resources,
-		Annotations: annotations,
-		ExcludeRef:  excludeRefs,
+		Name:         si.Name,
+		Namespace:    si.Namespace,
+		Role:         role,
+		Operation:    operation,
+		Time:         time,
+		Weekdays:     si.Spec.Weekdays,
+		TimeZone:     si.Spec.TimeZone,
+		WakeTime:     si.Spec.WakeUpTime,
+		Resources:    resources,
+		ScheduleName: scheduleName,
+		Description:  description,
+		Annotations:  annotations,
+		ExcludeRef:   excludeRefs,
 	}
 
 	return summary
