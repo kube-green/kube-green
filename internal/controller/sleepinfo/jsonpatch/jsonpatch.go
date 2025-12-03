@@ -105,10 +105,10 @@ func (g managedResources) Sleep(ctx context.Context) error {
 			// Some examples are:
 			// - Pod managed by ReplicaSet managed by Deployment
 			// - Pod managed by Job managed by CronJob
-			// EXCEPCIÓN: No saltar CRDs (PgBouncer, PgCluster, HDFSCluster) aunque tengan ownerReferences,
+			// EXCEPCIÓN: No saltar CRDs (PgBouncer, PgCluster, HDFSCluster, OsCluster, KafkaCluster) aunque tengan ownerReferences,
 			// ya que estos son recursos de nivel superior que debemos gestionar directamente.
 			resourceKind := resource.GetKind()
-			isCRD := resourceKind == "PgBouncer" || resourceKind == "PgCluster" || resourceKind == "HDFSCluster"
+			isCRD := resourceKind == "PgBouncer" || resourceKind == "PgCluster" || resourceKind == "HDFSCluster" || resourceKind == "OsCluster" || resourceKind == "KafkaCluster"
 
 			if metav1.GetControllerOfNoCopy(&resource) != nil && !isCRD {
 				g.logger.Info("resource is managed by another controller, skipped",
@@ -267,10 +267,10 @@ func (g managedResources) WakeUp(ctx context.Context) error {
 
 		for _, resource := range resourceWrapper.data {
 			// Skip resources managed by another controller
-			// EXCEPCIÓN: No saltar CRDs (PgBouncer, PgCluster, HDFSCluster) aunque tengan ownerReferences,
+			// EXCEPCIÓN: No saltar CRDs (PgBouncer, PgCluster, HDFSCluster, OsCluster, KafkaCluster) aunque tengan ownerReferences,
 			// ya que estos son recursos de nivel superior que debemos gestionar directamente.
 			resourceKind := resource.GetKind()
-			isCRD := resourceKind == "PgBouncer" || resourceKind == "PgCluster" || resourceKind == "HDFSCluster"
+			isCRD := resourceKind == "PgBouncer" || resourceKind == "PgCluster" || resourceKind == "HDFSCluster" || resourceKind == "OsCluster" || resourceKind == "KafkaCluster"
 
 			if metav1.GetControllerOfNoCopy(&resource) != nil && !isCRD {
 				g.logger.Info("resource is managed by another controller, skipped",
@@ -286,10 +286,10 @@ func (g managedResources) WakeUp(ctx context.Context) error {
 				return fmt.Errorf("%w: %s", ErrJSONPatch, err)
 			}
 
-			// EXTENSIÓN PRIORITARIA: Para CRDs con patches dinámicos (PgCluster, HDFSCluster),
+			// EXTENSIÓN PRIORITARIA: Para CRDs con patches dinámicos (PgCluster, HDFSCluster, OsCluster, KafkaCluster),
 			// aplicar el patch de WAKE directamente sin verificar el restore patch.
 			// Estos patches están diseñados para ser aplicados siempre, independientemente del estado del restore patch.
-			isCRDWithDynamicPatch := resourceKind == "PgCluster" || resourceKind == "HDFSCluster"
+			isCRDWithDynamicPatch := resourceKind == "PgCluster" || resourceKind == "HDFSCluster" || resourceKind == "OsCluster" || resourceKind == "KafkaCluster"
 
 			if isCRDWithDynamicPatch && resourceWrapper.patchData.Patch != "" {
 				// Para CRDs con patches dinámicos, aplicar el patch directamente sin verificar restore patch

@@ -13,6 +13,7 @@ import (
 // Claims represents JWT claims
 type Claims struct {
 	Username string `json:"username"`
+	Role     string `json:"role"`
 	jwt.RegisteredClaims
 }
 
@@ -24,12 +25,13 @@ type TokenPair struct {
 }
 
 // GenerateTokenPair generates both access and refresh tokens
-func GenerateTokenPair(username string, secret []byte, accessExpiration, refreshExpiration time.Duration) (*TokenPair, error) {
+func GenerateTokenPair(username, role string, secret []byte, accessExpiration, refreshExpiration time.Duration) (*TokenPair, error) {
 	now := time.Now()
 
 	// Generate access token
 	accessClaims := &Claims{
 		Username: username,
+		Role:     role,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(now.Add(accessExpiration)),
 			IssuedAt:  jwt.NewNumericDate(now),
@@ -48,6 +50,7 @@ func GenerateTokenPair(username string, secret []byte, accessExpiration, refresh
 	// Generate refresh token
 	refreshClaims := &Claims{
 		Username: username,
+		Role:     role,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(now.Add(refreshExpiration)),
 			IssuedAt:  jwt.NewNumericDate(now),

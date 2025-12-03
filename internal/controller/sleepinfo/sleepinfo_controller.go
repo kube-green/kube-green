@@ -139,7 +139,7 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		}
 	}
 
-	// EXTENSIÓN: Agregar patches dinámicos para PgCluster y HDFSCluster según operación
+	// EXTENSIÓN: Agregar patches dinámicos para PgCluster, HDFSCluster, OsCluster y KafkaCluster según operación
 	// Los patches de anotaciones dependen de si es SLEEP (shutdown=true) o WAKE (shutdown=false)
 	sleepInfoWithPatches := sleepInfo.DeepCopy()
 	if sleepInfoData.IsSleepOperation() {
@@ -151,6 +151,14 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			sleepInfoWithPatches.Spec.Patches = append(sleepInfoWithPatches.Spec.Patches, kubegreenv1alpha1.HdfsclusterSleepPatch)
 			log.Info("added hdfscluster sleep patch", "sleepinfo", sleepInfo.GetName(), "namespace", req.Namespace)
 		}
+		if sleepInfo.IsOpenSearchToSuspend() {
+			sleepInfoWithPatches.Spec.Patches = append(sleepInfoWithPatches.Spec.Patches, kubegreenv1alpha1.OsclusterSleepPatch)
+			log.Info("added oscluster sleep patch", "sleepinfo", sleepInfo.GetName(), "namespace", req.Namespace)
+		}
+		if sleepInfo.IsKafkaToSuspend() {
+			sleepInfoWithPatches.Spec.Patches = append(sleepInfoWithPatches.Spec.Patches, kubegreenv1alpha1.KafkaclusterSleepPatch)
+			log.Info("added kafkacluster sleep patch", "sleepinfo", sleepInfo.GetName(), "namespace", req.Namespace)
+		}
 	} else if sleepInfoData.IsWakeUpOperation() {
 		if sleepInfo.IsPostgresToSuspend() {
 			sleepInfoWithPatches.Spec.Patches = append(sleepInfoWithPatches.Spec.Patches, kubegreenv1alpha1.PgclusterWakePatch)
@@ -159,6 +167,14 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		if sleepInfo.IsHdfsToSuspend() {
 			sleepInfoWithPatches.Spec.Patches = append(sleepInfoWithPatches.Spec.Patches, kubegreenv1alpha1.HdfsclusterWakePatch)
 			log.Info("added hdfscluster wake patch", "sleepinfo", sleepInfo.GetName(), "namespace", req.Namespace)
+		}
+		if sleepInfo.IsOpenSearchToSuspend() {
+			sleepInfoWithPatches.Spec.Patches = append(sleepInfoWithPatches.Spec.Patches, kubegreenv1alpha1.OsclusterWakePatch)
+			log.Info("added oscluster wake patch", "sleepinfo", sleepInfo.GetName(), "namespace", req.Namespace)
+		}
+		if sleepInfo.IsKafkaToSuspend() {
+			sleepInfoWithPatches.Spec.Patches = append(sleepInfoWithPatches.Spec.Patches, kubegreenv1alpha1.KafkaclusterWakePatch)
+			log.Info("added kafkacluster wake patch", "sleepinfo", sleepInfo.GetName(), "namespace", req.Namespace)
 		}
 	}
 

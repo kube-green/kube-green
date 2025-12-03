@@ -15,6 +15,20 @@ How many of your dev/preview pods stay on during weekends? Or at night? It's a w
 
 *kube-green* is a simple **k8s addon** that automatically **shuts down** (some of) your **resources** when you don't need them.
 
+## 🚀 Extended Features (This Fork)
+
+This fork extends kube-green with:
+
+- ✅ **REST API** with JWT authentication
+- ✅ **Role-Based Access Control** (admin, operacion, lectura)
+- ✅ **Web Frontend** (React-based UI)
+- ✅ **Extended CRD Support** (PgCluster, HDFSCluster, OsCluster, KafkaCluster, PgBouncer)
+- ✅ **User Management** via admin panel
+- ✅ **Dynamic Resource Detection** in namespaces
+- ✅ **Staged Wake-Up** sequences for proper service dependencies
+- ✅ **Multi-tenant Support** with helper scripts
+- ✅ **Comprehensive API Documentation** (Swagger + HTML)
+
 If you already use *kube-green*, add yourself as an [adopter][add-adopters]!
 
 ## Getting Started
@@ -300,27 +314,70 @@ To see other examples, go to [our docs](https://kube-green.dev/docs/configuratio
 
 ## Extensions
 
-This fork includes extended functionality for managing Custom Resource Definitions (CRDs) like PgCluster, HDFSCluster, and PgBouncer, along with a helper script for multi-tenant environments.
+This fork includes extended functionality for managing Custom Resource Definitions (CRDs), REST API with authentication, role-based access control, and a helper script for multi-tenant environments.
 
 ### Extended CRD Support
 
 This fork extends kube-green with native support for managing these CRDs:
 
 - **PgCluster**: PostgreSQL clusters managed by the postgres-operator
-- **HDFSCluster**: HDFS clusters managed by the hdfs-operator  
+- **HDFSCluster**: HDFS clusters managed by the hdfs-operator
+- **OsCluster**: OpenSearch clusters managed by the opensearch-operator
+- **KafkaCluster**: Kafka clusters managed by the kafka-operator
 - **PgBouncer**: PgBouncer instances managed by the postgres-operator
 
 These CRDs are managed through annotation-based patches:
 - PgCluster: `pgcluster.stratio.com/shutdown=true|false`
 - HDFSCluster: `hdfscluster.stratio.com/shutdown=true|false`
+- OsCluster: `oscluster.stratio.com/shutdown=true|false`
+- KafkaCluster: `kafkacluster.stratio.com/shutdown=true|false`
 - PgBouncer: `spec.instances` field (native support)
+
+**Example: Managing OpenSearch and Kafka clusters**
+
+```yaml
+apiVersion: kube-green.com/v1alpha1
+kind: SleepInfo
+metadata:
+  name: sleep-opensearch-kafka
+  namespace: my-namespace
+spec:
+  weekdays: "5"  # Friday
+  sleepAt: "22:00"
+  wakeUpAt: "06:00"
+  timeZone: "UTC"
+  suspendStatefulSetsOpenSearch: true  # Manages OsCluster
+  suspendStatefulSetsKafka: true       # Manages KafkaCluster
+```
+
+**Example: Managing all CRDs together**
+
+```yaml
+apiVersion: kube-green.com/v1alpha1
+kind: SleepInfo
+metadata:
+  name: sleep-all-crds
+  namespace: my-namespace
+spec:
+  weekdays: "5"
+  sleepAt: "22:00"
+  wakeUpAt: "06:00"
+  timeZone: "UTC"
+  suspendStatefulSetsPostgres: true
+  suspendStatefulSetsHdfs: true
+  suspendStatefulSetsOpenSearch: true
+  suspendStatefulSetsKafka: true
+  suspendDeploymentsPgbouncer: true
+```
 
 ### Staged Wake-Up
 
 The extended version supports staged wake-up sequences to ensure proper service dependencies:
-1. Postgres and HDFS clusters (needed for all services)
+1. Postgres, HDFS, OpenSearch, and Kafka clusters (needed for all services)
 2. PgBouncer instances (5 minutes after, depends on Postgres)
 3. Native Deployments/StatefulSets (7 minutes after, depend on databases)
+
+The system automatically detects CRDs in namespaces and configures appropriate wake-up sequences with delays to ensure services start in the correct order.
 
 ### tenant_power.py Helper Script
 
@@ -413,6 +470,306 @@ Or for specific command help:
 python3 tenant_power.py create --help
 python3 tenant_power.py update --help
 python3 tenant_power.py show --help
+```
+
+## REST API
+
+This fork includes a comprehensive REST API for managing schedules programmatically, with authentication and role-based access control.
+
+### API Features
+
+- **JWT Authentication**: Secure token-based authentication
+- **Role-Based Access Control (RBAC)**: Three roles with different permissions
+- **CRUD Operations**: Create, read, update, and delete schedules
+- **Multi-tenant Support**: Manage schedules across multiple tenants
+- **Dynamic Resource Detection**: Automatically detects CRDs in namespaces
+- **Interactive Documentation**: Swagger UI and detailed HTML documentation
+
+### Authentication
+
+The API uses JWT (JSON Web Tokens) for authentication. Users must authenticate before accessing protected endpoints.
+
+**Login Endpoint:**
+
+```bash
+curl -X POST http://localhost:8080/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "admin",
+    "password": "admin123"
+  }'
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "expiresIn": 3600
+  }
+}
+```
+
+**Using the Token:**
+
+```bash
+curl -X GET http://localhost:8080/api/v1/tenants \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+```
+
+### Role-Based Access Control
+
+The API supports three roles with different permissions:
+
+#### 1. **admin** (Full Access)
+- ✅ View all schedules
+- ✅ Create schedules
+- ✅ Update schedules
+- ✅ Delete schedules
+- ✅ Manage users (create, update, delete)
+- ✅ Change user passwords and roles
+
+#### 2. **operacion** (Operations)
+- ✅ View all schedules
+- ✅ Create schedules
+- ✅ Update schedules
+- ✅ Delete schedules
+- ❌ Cannot manage users
+- ❌ Cannot change passwords
+
+#### 3. **lectura** (Read-Only)
+- ✅ View all schedules
+- ❌ Cannot create schedules
+- ❌ Cannot update schedules
+- ❌ Cannot delete schedules
+- ❌ Cannot manage users
+
+### User Management
+
+Users are stored in Kubernetes Secrets. The default admin user can be created with:
+
+```bash
+# Create admin user secret
+kubectl create secret generic kube-green-users \
+  --from-literal=users="admin:\$2a\$10\$..." \
+  -n keos-core
+
+# Or use the deployment script which handles this automatically
+```
+
+**User Format in Secret:**
+
+The secret contains a `users` key with the following format (one user per line):
+```
+username:password_hash:role
+```
+
+Example:
+```
+admin:$2a$10$...:admin
+operator:$2a$10$...:operacion
+viewer:$2a$10$...:lectura
+```
+
+### API Endpoints
+
+#### Authentication
+- `POST /api/v1/auth/login` - Authenticate and get JWT tokens
+- `POST /api/v1/auth/refresh` - Refresh access token
+- `GET /api/v1/auth/me` - Get current user information
+
+#### Schedules
+- `GET /api/v1/tenants` - List all tenants
+- `GET /api/v1/schedules` - List all schedules
+- `GET /api/v1/schedules/:tenant` - Get schedule for a tenant
+- `POST /api/v1/schedules` - Create a new schedule
+- `PUT /api/v1/schedules/:tenant` - Update a schedule
+- `DELETE /api/v1/schedules/:tenant` - Delete a schedule
+
+#### User Management (Admin only)
+- `GET /api/v1/users` - List all users
+- `POST /api/v1/users` - Create a new user
+- `PUT /api/v1/users/:username/password` - Update user password
+- `PUT /api/v1/users/:username/role` - Update user role
+- `DELETE /api/v1/users/:username` - Delete a user
+
+#### Information
+- `GET /api/v1/suspended` - Get all suspended services
+- `GET /api/v1/next` - Get all next operations
+- `GET /api/v1/:tenant/suspended` - Get suspended services for a tenant
+- `GET /api/v1/:tenant/next` - Get next operation for a tenant
+
+### API Documentation
+
+The API includes comprehensive documentation:
+
+- **Swagger UI**: `http://localhost:8080/swagger` - Interactive API documentation
+- **HTML Documentation**: `http://localhost:8080/docs` - Detailed documentation with CI/CD examples
+
+The HTML documentation includes:
+- Authentication flow
+- All endpoints with examples
+- CI/CD pipeline examples (Bash, Python, GitLab, GitHub Actions, Jenkins, Azure DevOps)
+- Practical use cases (single/multiple tenants, namespaces, weekdays, weekends, etc.)
+
+### Configuration
+
+Enable authentication by setting environment variables:
+
+```bash
+# Backend
+AUTH_ENABLED=true
+JWT_SECRET=your-secret-key-here
+POD_NAMESPACE=keos-core
+
+# Frontend
+VITE_AUTH_ENABLED=true
+VITE_API_SERVICE_NAME=kube-green-api
+VITE_API_SERVICE_PORT=8080
+```
+
+### Example: Creating a Schedule via API
+
+```bash
+# 1. Authenticate
+TOKEN=$(curl -X POST http://localhost:8080/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin123"}' \
+  | jq -r '.data.accessToken')
+
+# 2. Create schedule
+curl -X POST http://localhost:8080/api/v1/schedules \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tenant": "bdadevprd",
+    "namespaces": ["datastores"],
+    "timeSleep": "22:00",
+    "timeWake": "06:00",
+    "weekdaysSleep": "5",
+    "weekdaysWake": "1",
+    "userTimezone": "America/Bogota",
+    "scheduleName": "weekend-schedule",
+    "description": "Weekend shutdown schedule"
+  }'
+```
+
+## Web Frontend
+
+This fork includes a modern React-based web frontend for managing schedules through a user-friendly interface.
+
+### Features
+
+- **Authentication UI**: Login page with JWT support
+- **Dashboard**: Overview of all tenants and schedules
+- **Schedule Management**: Create, edit, and delete schedules
+- **User Management**: Admin panel for managing users (admin role only)
+- **Role-Based UI**: Interface adapts based on user role
+- **Real-time Updates**: Shows suspended services and next operations
+
+### Accessing the Frontend
+
+The frontend is available at the configured service URL (default: `http://localhost:3000`).
+
+### Frontend Features by Role
+
+**Admin:**
+- Full access to all features
+- User management panel
+- Can create, edit, and delete schedules
+- Can manage other users
+
+**Operacion:**
+- Can view and manage schedules
+- Cannot access user management
+- Cannot create or modify users
+
+**Lectura:**
+- Read-only access
+- Can view schedules but cannot modify them
+- No access to user management
+
+## Security Considerations
+
+### Authentication
+
+- JWT tokens are used for secure authentication
+- Passwords are hashed using bcrypt
+- Tokens have expiration times (configurable)
+- Refresh tokens allow token renewal without re-authentication
+
+### RBAC
+
+- Role-based access control ensures users only have necessary permissions
+- Admin users can manage other users and have full access
+- Operations users can manage schedules but not users
+- Read-only users can only view schedules
+
+### Secrets Management
+
+- User credentials are stored in Kubernetes Secrets
+- Secrets should be properly secured using Kubernetes RBAC
+- The JWT secret should be a strong, randomly generated string
+
+## Deployment
+
+### Prerequisites
+
+- Kubernetes cluster (1.19+)
+- kubectl configured
+- Docker (for building images)
+- Go 1.19+ (for development)
+
+### Quick Deployment
+
+1. **Apply RBAC:**
+
+```bash
+kubectl apply -f kube-green-rbac-completo.yaml
+```
+
+2. **Create authentication secret:**
+
+```bash
+# Generate password hash (use a tool or bcrypt)
+# Then create secret
+kubectl create secret generic kube-green-users \
+  --from-literal=users="admin:\$2a\$10\$...:admin" \
+  -n keos-core
+
+# Create JWT secret
+kubectl create secret generic kube-green-jwt \
+  --from-literal=secret="your-random-secret-key" \
+  -n keos-core
+```
+
+3. **Deploy kube-green:**
+
+```bash
+# Build and push image
+docker build -t your-registry/kube-green:latest .
+docker push your-registry/kube-green:latest
+
+# Deploy using Helm or Kustomize
+# (See official kube-green documentation)
+```
+
+4. **Configure environment variables:**
+
+```yaml
+env:
+  - name: AUTH_ENABLED
+    value: "true"
+  - name: JWT_SECRET
+    valueFrom:
+      secretKeyRef:
+        name: kube-green-jwt
+        key: secret
+  - name: POD_NAMESPACE
+    value: "keos-core"
 ```
 
 ## Contributing

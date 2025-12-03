@@ -6,6 +6,7 @@ package v1
 
 import (
 	"context"
+	_ "embed"
 	"fmt"
 	"net/http"
 	"os"
@@ -20,6 +21,9 @@ import (
 	"github.com/kube-green/kube-green/internal/api/v1/auth"
 	_ "github.com/kube-green/kube-green/internal/api/v1/docs" // Swagger docs
 )
+
+//go:embed static/API_DOCUMENTATION.html
+var apiDocumentationHTML string
 
 // Server represents the REST API server
 type Server struct {
@@ -131,6 +135,16 @@ func (s *Server) setupRoutes() {
 	// Tenant discovery endpoints
 	s.router.GET("/api/v1/tenants", s.handleListTenants)
 
+	// User management endpoints (admin only)
+	userMgmt := s.router.Group("/api/v1/users")
+	{
+		userMgmt.GET("", s.handleListUsers)
+		userMgmt.POST("", s.handleCreateUser)
+		userMgmt.PUT("/:username/password", s.handleUpdateUserPassword)
+		userMgmt.PUT("/:username/role", s.handleUpdateUserRole)
+		userMgmt.DELETE("/:username", s.handleDeleteUser)
+	}
+
 	// Namespace services endpoints
 	// TODO: Implement handleGetNamespaceServices
 	// s.router.GET("/api/v1/namespaces/:tenant/services", s.handleGetNamespaceServices)
@@ -141,9 +155,11 @@ func (s *Server) setupRoutes() {
 	v1 := s.router.Group("/api/v1/schedules")
 	{
 		v1.GET("", s.handleListSchedules)
+		v1.GET("/suspended", s.handleGetAllSuspendedServices)      // Aggregate endpoint for all tenants
+		v1.GET("/next", s.handleGetAllNextOperations)                // Aggregate endpoint for all tenants
 		v1.GET("/:tenant", s.handleGetSchedule)
-		// TODO: Implement handleGetSuspendedServices
-		// v1.GET("/:tenant/suspended", s.handleGetSuspendedServices)
+		v1.GET("/:tenant/suspended", s.handleGetSuspendedServices)
+		v1.GET("/:tenant/next", s.handleGetNextOperation)
 		v1.POST("", s.handleCreateSchedule)
 		v1.PUT("/:tenant", s.handleUpdateSchedule)
 		v1.DELETE("/:tenant", s.handleDeleteSchedule)
@@ -160,6 +176,16 @@ func (s *Server) setupRoutes() {
 	s.router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	s.router.GET("/swagger", func(c *gin.Context) {
 		c.Redirect(http.StatusMovedPermanently, "/swagger/index.html")
+	})
+
+	// API Documentation (HTML) - embedded in binary
+	s.router.GET("/docs", func(c *gin.Context) {
+		c.Header("Content-Type", "text/html; charset=utf-8")
+		c.String(http.StatusOK, apiDocumentationHTML)
+	})
+	s.router.GET("/documentation", func(c *gin.Context) {
+		c.Header("Content-Type", "text/html; charset=utf-8")
+		c.String(http.StatusOK, apiDocumentationHTML)
 	})
 }
 
@@ -236,21 +262,46 @@ func corsMiddleware() gin.HandlerFunc {
 }
 
 // handleAuthLogin wraps the auth handler login with lazy initialization
+// @Summary Login
+// @Description Authenticates a user and returns JWT access and refresh tokens
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param request body auth.LoginRequest true "Login credentials"
+// @Success 200 {object} map[string]interface{} "Login successful, returns tokens"
+// @Failure 400 {object} map[string]interface{} "Invalid request"
+// @Failure 401 {object} map[string]interface{} "Invalid credentials"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Router /api/v1/auth/login [post]
 func (s *Server) handleAuthLogin(c *gin.Context) {
+	// Initialize auth if needed (lazy initialization)
 	if s.authHandler == nil {
 		s.initializeAuth()
 	}
 	if s.authHandler == nil {
+		s.logger.Error(nil, "Authentication handler not available")
 		c.JSON(http.StatusServiceUnavailable, map[string]interface{}{
 			"success": false,
 			"error":   "Authentication is not configured",
 		})
 		return
 	}
+	// Call the actual handler
 	s.authHandler.HandleLogin(c)
 }
 
 // handleAuthRefresh wraps the auth handler refresh with lazy initialization
+// @Summary Refresh token
+// @Description Refreshes an access token using a refresh token
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param request body auth.RefreshRequest true "Refresh token request"
+// @Success 200 {object} map[string]interface{} "Token refreshed successfully"
+// @Failure 400 {object} map[string]interface{} "Invalid request"
+// @Failure 401 {object} map[string]interface{} "Invalid or expired refresh token"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Router /api/v1/auth/refresh [post]
 func (s *Server) handleAuthRefresh(c *gin.Context) {
 	if s.authHandler == nil {
 		s.initializeAuth()
@@ -266,6 +317,15 @@ func (s *Server) handleAuthRefresh(c *gin.Context) {
 }
 
 // handleAuthMe wraps the auth handler me with lazy initialization
+// @Summary Get current user info
+// @Description Returns information about the currently authenticated user
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} map[string]interface{} "User information"
+// @Failure 401 {object} map[string]interface{} "Not authenticated"
+// @Router /api/v1/auth/me [get]
 func (s *Server) handleAuthMe(c *gin.Context) {
 	if s.authHandler == nil {
 		s.initializeAuth()
@@ -303,4 +363,9 @@ func (s *Server) initializeAuth() {
 	s.userStore = userStore
 	s.authHandler = auth.NewAuthHandler(userStore, jwtSecret)
 	s.logger.Info("Authentication initialized successfully", "namespace", namespace)
+}
+
+// GetUserStore returns the user store (for handlers)
+func (s *Server) GetUserStore() *auth.UserStore {
+	return s.userStore
 }

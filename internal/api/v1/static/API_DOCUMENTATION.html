@@ -1,0 +1,1595 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kube-Green REST API - Documentación Técnica</title>
+    <style>
+        :root {
+            --primary-color: #1e3c72;
+            --secondary-color: #2a5298;
+            --accent-color: #007bff;
+            --success-color: #28a745;
+            --warning-color: #ffc107;
+            --danger-color: #dc3545;
+            --info-color: #17a2b8;
+            --text-primary: #212529;
+            --text-secondary: #6c757d;
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8f9fa;
+            --bg-tertiary: #e9ecef;
+            --border-color: #dee2e6;
+            --shadow-sm: 0 2px 4px rgba(0,0,0,0.08);
+            --shadow-md: 0 4px 6px rgba(0,0,0,0.1);
+            --shadow-lg: 0 10px 20px rgba(0,0,0,0.15);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+            line-height: 1.7;
+            color: var(--text-primary);
+            background: var(--bg-secondary);
+            font-size: 16px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0;
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: 0;
+            min-height: 100vh;
+        }
+
+        /* Sidebar Navigation */
+        .sidebar {
+            background: var(--bg-primary);
+            border-right: 1px solid var(--border-color);
+            padding: 2rem 0;
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            overflow-y: auto;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .sidebar-header {
+            padding: 0 1.5rem 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 1.5rem;
+        }
+
+        .sidebar-header h1 {
+            font-size: 1.5rem;
+            color: var(--primary-color);
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .sidebar-header .version {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .nav-section {
+            margin-bottom: 2rem;
+        }
+
+        .nav-section-title {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+            padding: 0 1.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .nav-item {
+            display: block;
+            padding: 0.75rem 1.5rem;
+            color: var(--text-primary);
+            text-decoration: none;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+            font-size: 0.9375rem;
+        }
+
+        .nav-item:hover {
+            background: var(--bg-secondary);
+            border-left-color: var(--accent-color);
+            color: var(--accent-color);
+        }
+
+        .nav-item.active {
+            background: var(--bg-secondary);
+            border-left-color: var(--primary-color);
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        /* Main Content */
+        .main-content {
+            background: var(--bg-secondary);
+            padding: 3rem 4rem;
+        }
+
+        .content-section {
+            background: var(--bg-primary);
+            border-radius: 8px;
+            padding: 3rem;
+            margin-bottom: 3rem;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-color);
+        }
+
+        .content-section h2 {
+            font-size: 2.25rem;
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 3px solid var(--primary-color);
+            font-weight: 700;
+        }
+
+        .content-section h3 {
+            font-size: 1.75rem;
+            color: var(--secondary-color);
+            margin-top: 3rem;
+            margin-bottom: 1.5rem;
+            font-weight: 600;
+        }
+
+        .content-section h4 {
+            font-size: 1.25rem;
+            color: var(--text-primary);
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+            font-weight: 600;
+        }
+
+        .content-section p {
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
+            line-height: 1.8;
+        }
+
+        .content-section ul, .content-section ol {
+            margin: 1.5rem 0;
+            padding-left: 2rem;
+        }
+
+        .content-section li {
+            margin-bottom: 0.75rem;
+            line-height: 1.8;
+        }
+
+        /* Endpoint Card */
+        .endpoint-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 2rem;
+            margin: 2rem 0;
+            transition: box-shadow 0.2s;
+        }
+
+        .endpoint-card:hover {
+            box-shadow: var(--shadow-md);
+        }
+
+        .endpoint-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .method-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .method-badge.get { background: var(--success-color); color: white; }
+        .method-badge.post { background: var(--accent-color); color: white; }
+        .method-badge.put { background: var(--warning-color); color: #212529; }
+        .method-badge.delete { background: var(--danger-color); color: white; }
+
+        .endpoint-path {
+            font-family: 'Courier New', monospace;
+            font-size: 1.125rem;
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        .endpoint-description {
+            color: var(--text-secondary);
+            margin-bottom: 1.5rem;
+            font-size: 1rem;
+        }
+
+        .endpoint-params {
+            margin-top: 1.5rem;
+        }
+
+        .endpoint-params h5 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        /* Code Blocks */
+        .code-block {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 2rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 2rem 0;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 0.9375rem;
+            line-height: 1.6;
+            border: 1px solid #3c3c3c;
+            position: relative;
+            white-space: pre;
+            word-wrap: normal;
+        }
+
+        .code-block::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+            border-radius: 8px 8px 0 0;
+        }
+
+        .code-block .comment { color: #6a9955; font-style: italic; }
+        .code-block .string { color: #ce9178; }
+        .code-block .keyword { color: #c586c0; }
+        .code-block .function { color: #dcdcaa; }
+        .code-block .number { color: #b5cea8; }
+        .code-block .variable { color: #9cdcfe; }
+
+        .code-label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* Alert Boxes */
+        .alert {
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin: 2rem 0;
+            border-left: 4px solid;
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+
+        .alert-icon {
+            font-size: 1.5rem;
+            flex-shrink: 0;
+        }
+
+        .alert-content {
+            flex: 1;
+        }
+
+        .alert-title {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            font-size: 1.0625rem;
+        }
+
+        .alert.info {
+            background: #e7f3ff;
+            border-color: var(--info-color);
+            color: #004085;
+        }
+
+        .alert.warning {
+            background: #fff3cd;
+            border-color: var(--warning-color);
+            color: #856404;
+        }
+
+        .alert.success {
+            background: #d4edda;
+            border-color: var(--success-color);
+            color: #155724;
+        }
+
+        .alert.danger {
+            background: #f8d7da;
+            border-color: var(--danger-color);
+            color: #721c24;
+        }
+
+        /* Tables */
+        .table-container {
+            overflow-x: auto;
+            margin: 2rem 0;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--bg-primary);
+        }
+
+        table thead {
+            background: var(--bg-tertiary);
+        }
+
+        table th {
+            padding: 1rem 1.5rem;
+            text-align: left;
+            font-weight: 600;
+            color: var(--text-primary);
+            border-bottom: 2px solid var(--border-color);
+            font-size: 0.9375rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        table td {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-primary);
+        }
+
+        table tbody tr:hover {
+            background: var(--bg-secondary);
+        }
+
+        table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* Badges */
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .badge.required { background: var(--danger-color); color: white; }
+        .badge.optional { background: var(--text-secondary); color: white; }
+        .badge.admin { background: var(--danger-color); color: white; }
+        .badge.operacion { background: var(--warning-color); color: #212529; }
+        .badge.lectura { background: var(--info-color); color: white; }
+
+        /* Example Section */
+        .example-section {
+            margin: 3rem 0;
+        }
+
+        .example-section h4 {
+            margin-bottom: 1.5rem;
+            color: var(--secondary-color);
+        }
+
+        .example-tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .example-tab {
+            padding: 0.75rem 1.5rem;
+            background: transparent;
+            border: none;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            font-weight: 600;
+            color: var(--text-secondary);
+            transition: all 0.2s;
+            font-size: 0.9375rem;
+        }
+
+        .example-tab.active {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+
+        .example-tab:hover {
+            color: var(--primary-color);
+        }
+
+        /* Step-by-step */
+        .steps-container {
+            margin: 2rem 0;
+        }
+
+        .step {
+            display: flex;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            border-left: 4px solid var(--primary-color);
+        }
+
+        .step-number {
+            flex-shrink: 0;
+            width: 2.5rem;
+            height: 2.5rem;
+            background: var(--primary-color);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1.125rem;
+        }
+
+        .step-content {
+            flex: 1;
+        }
+
+        .step-content h5 {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+            color: var(--text-primary);
+        }
+
+        .step-content p {
+            margin-bottom: 1rem;
+            color: var(--text-secondary);
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-secondary);
+            border-top: 1px solid var(--border-color);
+            margin-top: 4rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                display: none;
+            }
+
+            .main-content {
+                padding: 2rem;
+            }
+        }
+
+        /* Print Styles */
+        @media print {
+            .sidebar {
+                display: none;
+            }
+
+            .container {
+                grid-template-columns: 1fr;
+            }
+
+            .main-content {
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <h1>Kube-Green API</h1>
+                <div class="version">v1.0.0</div>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-section-title">Inicio</div>
+                <a href="#introduccion" class="nav-item">Introducción</a>
+                <a href="#autenticacion" class="nav-item">Autenticación</a>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-section-title">API Reference</div>
+                <a href="#endpoints" class="nav-item">Endpoints</a>
+                <a href="#manejo-errores" class="nav-item">Manejo de Errores</a>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-section-title">Guías</div>
+                <a href="#casos-uso" class="nav-item">Casos de Uso</a>
+                <a href="#ejemplos-cicd" class="nav-item">Ejemplos CI/CD</a>
+                <a href="#pipelines" class="nav-item">Pipelines</a>
+                <a href="#mejores-practicas" class="nav-item">Mejores Prácticas</a>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- INTRODUCCIÓN -->
+            <section id="introduccion" class="content-section">
+                <h2>Introducción</h2>
+                
+                <p>
+                    La API REST de Kube-Green proporciona una interfaz programática para gestionar las configuraciones 
+                    de apagado y encendido automático de recursos Kubernetes. Esta documentación está diseñada para 
+                    desarrolladores e ingenieros de DevOps que necesitan integrar la gestión de schedules en sus 
+                    pipelines de CI/CD.
+                </p>
+
+                <h3>URL Base</h3>
+                <p>La API está disponible en la siguiente URL base:</p>
+                
+                <div class="code-block">
+<span class="comment"># Desde dentro del cluster Kubernetes</span>
+<span class="variable">BASE_URL</span> = <span class="string">"http://kube-green-api-service.keos-core.svc.cluster.local:8080"</span>
+
+<span class="comment"># Desde fuera del cluster (con port-forward)</span>
+<span class="variable">BASE_URL</span> = <span class="string">"http://localhost:8080"</span>
+                </div>
+
+                <div class="alert info">
+                    <div class="alert-icon">ℹ️</div>
+                    <div class="alert-content">
+                        <div class="alert-title">Nota Importante</div>
+                        <div>Para acceder desde fuera del cluster, utiliza <code>kubectl port-forward</code> para exponer el servicio localmente.</div>
+                    </div>
+                </div>
+
+                <h3>Formato de Respuestas</h3>
+                <p>Todas las respuestas de la API siguen un formato estándar JSON:</p>
+
+                <div class="example-section">
+                    <h4>Respuesta Exitosa</h4>
+                    <div class="code-block">
+{
+  <span class="string">"success"</span>: <span class="keyword">true</span>,
+  <span class="string">"message"</span>: <span class="string">"Operación completada exitosamente"</span>,
+  <span class="string">"data"</span>: {
+    <span class="comment">// Datos de la respuesta</span>
+  }
+}
+                    </div>
+                </div>
+
+                <div class="example-section">
+                    <h4>Respuesta de Error</h4>
+                    <div class="code-block">
+{
+  <span class="string">"success"</span>: <span class="keyword">false</span>,
+  <span class="string">"error"</span>: <span class="string">"Mensaje de error descriptivo"</span>,
+  <span class="string">"code"</span>: <span class="number">400</span>
+}
+                    </div>
+                </div>
+
+                <div class="alert warning">
+                    <div class="alert-icon">⚠️</div>
+                    <div class="alert-content">
+                        <div class="alert-title">Importante</div>
+                        <div>Siempre verifica el campo <code>success</code> antes de procesar los datos en tus scripts.</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- AUTENTICACIÓN -->
+            <section id="autenticacion" class="content-section">
+                <h2>Autenticación</h2>
+                
+                <p>
+                    La API utiliza autenticación basada en tokens JWT (JSON Web Tokens). Todos los endpoints, 
+                    excepto los de autenticación y documentación, requieren un token Bearer válido en el header 
+                    <code>Authorization</code>.
+                </p>
+
+                <h3>Flujo de Autenticación</h3>
+
+                <div class="steps-container">
+                    <div class="step">
+                        <div class="step-number">1</div>
+                        <div class="step-content">
+                            <h5>Realizar Login</h5>
+                            <p>Envía una petición POST al endpoint de login con tus credenciales.</p>
+                            
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge post">POST</span>
+                                    <span class="endpoint-path">/api/v1/auth/login</span>
+                                </div>
+                                <div class="code-block">
+<span class="comment"># Ejemplo con curl</span>
+<span class="function">curl</span> -X POST <span class="string">"${BASE_URL}/api/v1/auth/login"</span> \
+  -H <span class="string">"Content-Type: application/json"</span> \
+  -d <span class="string">'{
+    "username": "admin",
+    "password": "admin123"
+  }'</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="step">
+                        <div class="step-number">2</div>
+                        <div class="step-content">
+                            <h5>Obtener Token de Acceso</h5>
+                            <p>La respuesta incluye un token de acceso y un token de refresco.</p>
+                            
+                            <div class="code-block">
+{
+  <span class="string">"success"</span>: <span class="keyword">true</span>,
+  <span class="string">"data"</span>: {
+    <span class="string">"accessToken"</span>: <span class="string">"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."</span>,
+    <span class="string">"refreshToken"</span>: <span class="string">"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."</span>,
+    <span class="string">"expiresIn"</span>: <span class="number">86400</span>
+  }
+}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="step">
+                        <div class="step-number">3</div>
+                        <div class="step-content">
+                            <h5>Usar el Token en Peticiones</h5>
+                            <p>Incluye el token en el header <code>Authorization</code> de todas las peticiones protegidas.</p>
+                            
+                            <div class="code-block">
+<span class="comment"># Formato del header</span>
+<span class="variable">Authorization</span>: Bearer <span class="string">${TOKEN}</span>
+
+<span class="comment"># Ejemplo completo</span>
+<span class="function">curl</span> -X GET <span class="string">"${BASE_URL}/api/v1/schedules"</span> \
+  -H <span class="string">"Authorization: Bearer ${TOKEN}"</span> \
+  -H <span class="string">"Content-Type: application/json"</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <h3>Refrescar Token</h3>
+                <p>Cuando el token esté próximo a expirar, puedes obtener uno nuevo usando el refresh token:</p>
+
+                <div class="endpoint-card">
+                    <div class="endpoint-header">
+                        <span class="method-badge post">POST</span>
+                        <span class="endpoint-path">/api/v1/auth/refresh</span>
+                    </div>
+                    <div class="endpoint-description">
+                        Renueva el token de acceso usando el refresh token almacenado.
+                    </div>
+                    <div class="code-block">
+<span class="function">curl</span> -X POST <span class="string">"${BASE_URL}/api/v1/auth/refresh"</span> \
+  -H <span class="string">"Content-Type: application/json"</span> \
+  -d <span class="string">'{
+    "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  }'</span>
+                    </div>
+                </div>
+
+                <h3>Roles y Permisos</h3>
+                <p>La API implementa un sistema de roles con diferentes niveles de acceso:</p>
+
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Rol</th>
+                                <th>Descripción</th>
+                                <th>Permisos</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><span class="badge admin">admin</span></td>
+                                <td>Administrador</td>
+                                <td>Acceso completo a todos los endpoints, incluyendo gestión de usuarios</td>
+                            </tr>
+                            <tr>
+                                <td><span class="badge operacion">operacion</span></td>
+                                <td>Operación</td>
+                                <td>Gestión completa de schedules (crear, editar, eliminar, ver)</td>
+                            </tr>
+                            <tr>
+                                <td><span class="badge lectura">lectura</span></td>
+                                <td>Lectura</td>
+                                <td>Solo lectura de schedules y tenants</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- ENDPOINTS -->
+            <section id="endpoints" class="content-section">
+                <h2>Endpoints de la API</h2>
+
+                <h3>Gestión de Tenants</h3>
+
+                <div class="endpoint-card">
+                    <div class="endpoint-header">
+                        <span class="method-badge get">GET</span>
+                        <span class="endpoint-path">/api/v1/tenants</span>
+                    </div>
+                    <div class="endpoint-description">
+                        Lista todos los tenants descubiertos en el cluster Kubernetes.
+                    </div>
+                    <div class="endpoint-params">
+                        <h5>Autenticación</h5>
+                        <p>Requerida - Todos los roles</p>
+                    </div>
+                    <div class="code-block">
+<span class="function">curl</span> -X GET <span class="string">"${BASE_URL}/api/v1/tenants"</span> \
+  -H <span class="string">"Authorization: Bearer ${TOKEN}"</span> \
+  -H <span class="string">"Content-Type: application/json"</span>
+                    </div>
+                </div>
+
+                <h3>Gestión de Schedules</h3>
+
+                <h4>Listar Todos los Schedules</h4>
+                <div class="endpoint-card">
+                    <div class="endpoint-header">
+                        <span class="method-badge get">GET</span>
+                        <span class="endpoint-path">/api/v1/schedules</span>
+                    </div>
+                    <div class="endpoint-description">
+                        Obtiene todos los schedules configurados en todos los tenants.
+                    </div>
+                    <div class="code-block">
+<span class="function">curl</span> -X GET <span class="string">"${BASE_URL}/api/v1/schedules"</span> \
+  -H <span class="string">"Authorization: Bearer ${TOKEN}"</span>
+                    </div>
+                </div>
+
+                <h4>Obtener Schedule de un Tenant</h4>
+                <div class="endpoint-card">
+                    <div class="endpoint-header">
+                        <span class="method-badge get">GET</span>
+                        <span class="endpoint-path">/api/v1/schedules/{tenant}</span>
+                    </div>
+                    <div class="endpoint-description">
+                        Obtiene la configuración de schedule para un tenant específico.
+                    </div>
+                    <div class="endpoint-params">
+                        <h5>Parámetros</h5>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Parámetro</th>
+                                        <th>Tipo</th>
+                                        <th>Ubicación</th>
+                                        <th>Requerido</th>
+                                        <th>Descripción</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><code>tenant</code></td>
+                                        <td>string</td>
+                                        <td>Path</td>
+                                        <td><span class="badge required">Sí</span></td>
+                                        <td>Nombre del tenant (ej: "bdadevdat")</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>namespace</code></td>
+                                        <td>string</td>
+                                        <td>Query</td>
+                                        <td><span class="badge optional">No</span></td>
+                                        <td>Filtro por namespace específico</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="code-block">
+<span class="comment"># Obtener schedule de un tenant específico</span>
+<span class="variable">TENANT</span>=<span class="string">"bdadevdat"</span>
+<span class="function">curl</span> -X GET <span class="string">"${BASE_URL}/api/v1/schedules/${TENANT}"</span> \
+  -H <span class="string">"Authorization: Bearer ${TOKEN}"</span>
+
+<span class="comment"># Obtener schedule de un namespace específico</span>
+<span class="function">curl</span> -X GET <span class="string">"${BASE_URL}/api/v1/schedules/${TENANT}?namespace=datastores"</span> \
+  -H <span class="string">"Authorization: Bearer ${TOKEN}"</span>
+                    </div>
+                </div>
+
+                <h4>Crear Schedule</h4>
+                <div class="endpoint-card">
+                    <div class="endpoint-header">
+                        <span class="method-badge post">POST</span>
+                        <span class="endpoint-path">/api/v1/schedules</span>
+                    </div>
+                    <div class="endpoint-description">
+                        Crea un nuevo schedule para un tenant. Requiere permisos de administrador o operación.
+                    </div>
+                    <div class="endpoint-params">
+                        <h5>Body Parameters</h5>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Campo</th>
+                                        <th>Tipo</th>
+                                        <th>Requerido</th>
+                                        <th>Descripción</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><code>tenant</code></td>
+                                        <td>string</td>
+                                        <td><span class="badge required">Sí</span></td>
+                                        <td>Nombre del tenant</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>scheduleName</code></td>
+                                        <td>string</td>
+                                        <td><span class="badge required">Sí</span></td>
+                                        <td>Nombre identificador del schedule</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>description</code></td>
+                                        <td>string</td>
+                                        <td><span class="badge optional">No</span></td>
+                                        <td>Descripción del schedule</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>off</code></td>
+                                        <td>string</td>
+                                        <td><span class="badge required">Sí</span></td>
+                                        <td>Hora de apagado (formato HH:MM, 24 horas)</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>on</code></td>
+                                        <td>string</td>
+                                        <td><span class="badge required">Sí</span></td>
+                                        <td>Hora de encendido (formato HH:MM, 24 horas)</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>sleepDays</code></td>
+                                        <td>string</td>
+                                        <td><span class="badge required">Sí</span></td>
+                                        <td>Días de apagado (ej: "lunes,martes,miércoles,jueves,viernes")</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>wakeDays</code></td>
+                                        <td>string</td>
+                                        <td><span class="badge required">Sí</span></td>
+                                        <td>Días de encendido</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>namespaces</code></td>
+                                        <td>array</td>
+                                        <td><span class="badge required">Sí</span></td>
+                                        <td>Lista de namespaces a gestionar</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>userTimezone</code></td>
+                                        <td>string</td>
+                                        <td><span class="badge required">Sí</span></td>
+                                        <td>Zona horaria del usuario (ej: "America/Bogota")</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>clusterTimezone</code></td>
+                                        <td>string</td>
+                                        <td><span class="badge required">Sí</span></td>
+                                        <td>Zona horaria del cluster (generalmente "UTC")</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="code-block">
+<span class="function">curl</span> -X POST <span class="string">"${BASE_URL}/api/v1/schedules"</span> \
+  -H <span class="string">"Authorization: Bearer ${TOKEN}"</span> \
+  -H <span class="string">"Content-Type: application/json"</span> \
+  -d <span class="string">'{
+    "tenant": "bdadevdat",
+    "scheduleName": "horario-laboral",
+    "description": "Apagado nocturno de lunes a viernes",
+    "userTimezone": "America/Bogota",
+    "clusterTimezone": "UTC",
+    "off": "22:00",
+    "on": "06:00",
+    "sleepDays": "lunes,martes,miércoles,jueves,viernes",
+    "wakeDays": "lunes,martes,miércoles,jueves,viernes",
+    "namespaces": ["datastores", "apps", "rocket"],
+    "delays": {
+      "pgbouncerDelay": "0m",
+      "deploymentsDelay": "5m"
+    },
+    "exclusions": [
+      {
+        "namespace": "apps",
+        "resourceType": "Deployment",
+        "resourceName": "virtualizer"
+      }
+    ]
+  }'</span>
+                    </div>
+                </div>
+
+                <div class="alert info">
+                    <div class="alert-icon">ℹ️</div>
+                    <div class="alert-content">
+                        <div class="alert-title">Notas Importantes</div>
+                        <ul style="margin-top: 0.5rem;">
+                            <li>Los campos <code>off</code> y <code>on</code> deben estar en formato 24 horas (HH:MM)</li>
+                            <li><code>sleepDays</code> y <code>wakeDays</code> pueden ser días en español o números (0-6, donde 0=domingo)</li>
+                            <li>La API convierte automáticamente las horas de la zona del usuario a UTC</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- CASOS DE USO PRÁCTICOS -->
+            <section id="casos-uso" class="content-section">
+                <h2>Casos de Uso Prácticos</h2>
+                
+                <p>
+                    Esta sección contiene ejemplos prácticos de cómo configurar schedules para diferentes escenarios 
+                    comunes en entornos de producción y desarrollo.
+                </p>
+
+                <h3>1. Apagado de un Tenant Completo</h3>
+                <p>Configura un schedule para apagar todos los namespaces de un tenant específico:</p>
+
+                <div class="code-block"><span class="comment"># Ejemplo: Apagar tenant "bdadevdat" todos los días a las 22:00</span>
+<span class="function">curl</span> -X POST <span class="string">"${BASE_URL}/api/v1/schedules"</span> \
+  -H <span class="string">"Authorization: Bearer ${TOKEN}"</span> \
+  -H <span class="string">"Content-Type: application/json"</span> \
+  -d <span class="string">'{
+    "tenant": "bdadevdat",
+    "scheduleName": "apagado-completo-tenant",
+    "description": "Apagado completo del tenant todas las noches",
+    "userTimezone": "America/Bogota",
+    "clusterTimezone": "UTC",
+    "off": "22:00",
+    "on": "06:00",
+    "sleepDays": "lunes,martes,miércoles,jueves,viernes,sábado,domingo",
+    "wakeDays": "lunes,martes,miércoles,jueves,viernes,sábado,domingo",
+    "namespaces": ["datastores", "apps", "rocket", "intelligence", "airflowsso"]
+  }'</span></div>
+
+                <h3>2. Apagado Solo Días Laborales (Lunes a Viernes)</h3>
+                <p>Apaga los servicios solo de lunes a viernes, manteniéndolos encendidos los fines de semana:</p>
+
+                <div class="code-block"><span class="comment"># Ejemplo: Apagar solo días laborales</span>
+<span class="function">curl</span> -X POST <span class="string">"${BASE_URL}/api/v1/schedules"</span> \
+  -H <span class="string">"Authorization: Bearer ${TOKEN}"</span> \
+  -H <span class="string">"Content-Type: application/json"</span> \
+  -d <span class="string">'{
+    "tenant": "bdadevdat",
+    "scheduleName": "horario-laboral",
+    "description": "Apagado nocturno solo días laborales",
+    "userTimezone": "America/Bogota",
+    "clusterTimezone": "UTC",
+    "off": "22:00",
+    "on": "06:00",
+    "sleepDays": "lunes,martes,miércoles,jueves,viernes",
+    "wakeDays": "lunes,martes,miércoles,jueves,viernes",
+    "namespaces": ["datastores", "apps", "rocket"]
+  }'</span></div>
+
+                <h3>3. Apagado de Fin de Semana</h3>
+                <p>Apaga los servicios solo los fines de semana (sábado y domingo):</p>
+
+                <div class="code-block"><span class="comment"># Ejemplo: Apagar solo fines de semana</span>
+<span class="function">curl</span> -X POST <span class="string">"${BASE_URL}/api/v1/schedules"</span> \
+  -H <span class="string">"Authorization: Bearer ${TOKEN}"</span> \
+  -H <span class="string">"Content-Type: application/json"</span> \
+  -d <span class="string">'{
+    "tenant": "bdadevdat",
+    "scheduleName": "apagado-fin-semana",
+    "description": "Apagado completo durante fines de semana",
+    "userTimezone": "America/Bogota",
+    "clusterTimezone": "UTC",
+    "off": "20:00",
+    "on": "08:00",
+    "sleepDays": "sábado,domingo",
+    "wakeDays": "sábado,domingo",
+    "namespaces": ["datastores", "apps", "rocket"]
+  }'</span></div>
+
+                <div class="alert info">
+                    <div class="alert-icon">ℹ️</div>
+                    <div class="alert-content">
+                        <div class="alert-title">Nota sobre Fines de Semana</div>
+                        <div>El apagado comienza el viernes a las 20:00 y el encendido el lunes a las 08:00. Los días de sleep y wake deben incluir sábado y domingo.</div>
+                    </div>
+                </div>
+
+                <h3>4. Apagado de un Namespace Específico</h3>
+                <p>Configura un schedule para apagar solo un namespace específico dentro de un tenant:</p>
+
+                <div class="code-block"><span class="comment"># Ejemplo: Apagar solo el namespace "apps"</span>
+<span class="function">curl</span> -X POST <span class="string">"${BASE_URL}/api/v1/schedules"</span> \
+  -H <span class="string">"Authorization: Bearer ${TOKEN}"</span> \
+  -H <span class="string">"Content-Type: application/json"</span> \
+  -d <span class="string">'{
+    "tenant": "bdadevdat",
+    "scheduleName": "apagado-namespace-apps",
+    "description": "Apagado solo del namespace apps",
+    "userTimezone": "America/Bogota",
+    "clusterTimezone": "UTC",
+    "off": "23:00",
+    "on": "05:00",
+    "sleepDays": "lunes,martes,miércoles,jueves,viernes",
+    "wakeDays": "lunes,martes,miércoles,jueves,viernes",
+    "namespaces": ["apps"]
+  }'</span></div>
+
+                <h3>5. Apagado de Varios Namespaces con Excepciones</h3>
+                <p>Apaga varios namespaces pero excluye recursos específicos:</p>
+
+                <div class="code-block"><span class="comment"># Ejemplo: Apagar múltiples namespaces excluyendo recursos específicos</span>
+<span class="function">curl</span> -X POST <span class="string">"${BASE_URL}/api/v1/schedules"</span> \
+  -H <span class="string">"Authorization: Bearer ${TOKEN}"</span> \
+  -H <span class="string">"Content-Type: application/json"</span> \
+  -d <span class="string">'{
+    "tenant": "bdadevdat",
+    "scheduleName": "apagado-selectivo",
+    "description": "Apagado de múltiples namespaces con exclusiones",
+    "userTimezone": "America/Bogota",
+    "clusterTimezone": "UTC",
+    "off": "22:00",
+    "on": "06:00",
+    "sleepDays": "lunes,martes,miércoles,jueves,viernes",
+    "wakeDays": "lunes,martes,miércoles,jueves,viernes",
+    "namespaces": ["datastores", "apps", "rocket"],
+    "exclusions": [
+      {
+        "namespace": "apps",
+        "resourceType": "Deployment",
+        "resourceName": "virtualizer"
+      },
+      {
+        "namespace": "datastores",
+        "resourceType": "StatefulSet",
+        "resourceName": "postgres-primary"
+      }
+    ]
+  }'</span></div>
+
+                <h3>6. Apagado con Delays Escalonados</h3>
+                <p>Configura delays para que los servicios se apaguen y enciendan en orden específico:</p>
+
+                <div class="code-block"><span class="comment"># Ejemplo: Apagado con delays para ordenar el encendido</span>
+<span class="function">curl</span> -X POST <span class="string">"${BASE_URL}/api/v1/schedules"</span> \
+  -H <span class="string">"Authorization: Bearer ${TOKEN}"</span> \
+  -H <span class="string">"Content-Type: application/json"</span> \
+  -d <span class="string">'{
+    "tenant": "bdadevdat",
+    "scheduleName": "apagado-con-delays",
+    "description": "Apagado con delays escalonados para encendido ordenado",
+    "userTimezone": "America/Bogota",
+    "clusterTimezone": "UTC",
+    "off": "22:00",
+    "on": "06:00",
+    "sleepDays": "lunes,martes,miércoles,jueves,viernes",
+    "wakeDays": "lunes,martes,miércoles,jueves,viernes",
+    "namespaces": ["datastores", "apps"],
+    "delays": {
+      "pgbouncerDelay": "0m",
+      "deploymentsDelay": "5m"
+    }
+  }'</span></div>
+
+                <div class="alert info">
+                    <div class="alert-icon">ℹ️</div>
+                    <div class="alert-content">
+                        <div class="alert-title">Sobre los Delays</div>
+                        <div>
+                            <ul style="margin-top: 0.5rem;">
+                                <li><code>pgbouncerDelay</code>: Tiempo de espera antes de encender PgBouncer (ej: "0m", "2m", "5m")</li>
+                                <li><code>deploymentsDelay</code>: Tiempo de espera antes de encender los Deployments (ej: "5m", "10m")</li>
+                                <li>Los delays aseguran que los servicios se enciendan en el orden correcto (primero bases de datos, luego aplicaciones)</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <h3>7. Apagado Todos los Días (24/7 con Horario Específico)</h3>
+                <p>Apaga los servicios todos los días a una hora específica:</p>
+
+                <div class="code-block"><span class="comment"># Ejemplo: Apagado todos los días a las 23:00</span>
+<span class="function">curl</span> -X POST <span class="string">"${BASE_URL}/api/v1/schedules"</span> \
+  -H <span class="string">"Authorization: Bearer ${TOKEN}"</span> \
+  -H <span class="string">"Content-Type: application/json"</span> \
+  -d <span class="string">'{
+    "tenant": "bdadevdat",
+    "scheduleName": "apagado-diario",
+    "description": "Apagado todos los días a las 23:00",
+    "userTimezone": "America/Bogota",
+    "clusterTimezone": "UTC",
+    "off": "23:00",
+    "on": "07:00",
+    "sleepDays": "lunes,martes,miércoles,jueves,viernes,sábado,domingo",
+    "wakeDays": "lunes,martes,miércoles,jueves,viernes,sábado,domingo",
+    "namespaces": ["datastores", "apps", "rocket"]
+  }'</span></div>
+
+                <h3>8. Múltiples Schedules para el Mismo Tenant</h3>
+                <p>Puedes crear múltiples schedules con diferentes configuraciones usando diferentes <code>scheduleName</code>:</p>
+
+                <div class="code-block"><span class="comment"># Schedule 1: Apagado días laborales</span>
+<span class="function">curl</span> -X POST <span class="string">"${BASE_URL}/api/v1/schedules"</span> \
+  -H <span class="string">"Authorization: Bearer ${TOKEN}"</span> \
+  -H <span class="string">"Content-Type: application/json"</span> \
+  -d <span class="string">'{
+    "tenant": "bdadevdat",
+    "scheduleName": "horario-laboral",
+    "description": "Apagado días laborales",
+    "userTimezone": "America/Bogota",
+    "clusterTimezone": "UTC",
+    "off": "22:00",
+    "on": "06:00",
+    "sleepDays": "lunes,martes,miércoles,jueves,viernes",
+    "wakeDays": "lunes,martes,miércoles,jueves,viernes",
+    "namespaces": ["apps", "rocket"]
+  }'</span>
+
+<span class="comment"># Schedule 2: Apagado fin de semana (mismo tenant, diferente scheduleName)</span>
+<span class="function">curl</span> -X POST <span class="string">"${BASE_URL}/api/v1/schedules"</span> \
+  -H <span class="string">"Authorization: Bearer ${TOKEN}"</span> \
+  -H <span class="string">"Content-Type: application/json"</span> \
+  -d <span class="string">'{
+    "tenant": "bdadevdat",
+    "scheduleName": "horario-fin-semana",
+    "description": "Apagado fin de semana",
+    "userTimezone": "America/Bogota",
+    "clusterTimezone": "UTC",
+    "off": "20:00",
+    "on": "08:00",
+    "sleepDays": "sábado,domingo",
+    "wakeDays": "sábado,domingo",
+    "namespaces": ["datastores", "apps"]
+  }'</span></div>
+
+                <h3>9. Actualizar un Schedule Existente</h3>
+                <p>Para modificar un schedule existente, usa PUT con solo los campos que quieres cambiar:</p>
+
+                <div class="code-block"><span class="comment"># Ejemplo: Cambiar solo la hora de apagado</span>
+<span class="function">curl</span> -X PUT <span class="string">"${BASE_URL}/api/v1/schedules/bdadevdat"</span> \
+  -H <span class="string">"Authorization: Bearer ${TOKEN}"</span> \
+  -H <span class="string">"Content-Type: application/json"</span> \
+  -d <span class="string">'{
+    "off": "23:30",
+    "on": "06:30"
+  }'</span>
+
+<span class="comment"># Ejemplo: Agregar un namespace adicional</span>
+<span class="function">curl</span> -X PUT <span class="string">"${BASE_URL}/api/v1/schedules/bdadevdat"</span> \
+  -H <span class="string">"Authorization: Bearer ${TOKEN}"</span> \
+  -H <span class="string">"Content-Type: application/json"</span> \
+  -d <span class="string">'{
+    "namespaces": ["datastores", "apps", "rocket", "intelligence"]
+  }'</span></div>
+
+                <h3>10. Consultar Schedule Configurado</h3>
+                <p>Para ver la configuración actual de un tenant:</p>
+
+                <div class="code-block"><span class="comment"># Obtener todos los schedules de un tenant</span>
+<span class="function">curl</span> -X GET <span class="string">"${BASE_URL}/api/v1/schedules/bdadevdat"</span> \
+  -H <span class="string">"Authorization: Bearer ${TOKEN}"</span>
+
+<span class="comment"># Obtener schedule de un namespace específico</span>
+<span class="function">curl</span> -X GET <span class="string">"${BASE_URL}/api/v1/schedules/bdadevdat?namespace=apps"</span> \
+  -H <span class="string">"Authorization: Bearer ${TOKEN}"</span></div>
+
+                <h3>11. Eliminar un Schedule</h3>
+                <p>Para eliminar todos los schedules de un tenant:</p>
+
+                <div class="code-block"><span class="comment"># Eliminar todos los schedules del tenant</span>
+<span class="function">curl</span> -X DELETE <span class="string">"${BASE_URL}/api/v1/schedules/bdadevdat"</span> \
+  -H <span class="string">"Authorization: Bearer ${TOKEN}"</span></div>
+
+                <div class="alert warning">
+                    <div class="alert-icon">⚠️</div>
+                    <div class="alert-content">
+                        <div class="alert-title">Advertencia</div>
+                        <div>Eliminar un schedule detendrá todos los apagados/encendidos programados para ese tenant. Los servicios actualmente apagados permanecerán apagados hasta que se enciendan manualmente.</div>
+                    </div>
+                </div>
+
+                <h3>12. Formato de Días de la Semana</h3>
+                <p>Puedes usar días en español o números (0=domingo, 1=lunes, ..., 6=sábado):</p>
+
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Formato</th>
+                                <th>Ejemplo</th>
+                                <th>Descripción</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Español</td>
+                                <td><code>"lunes,martes,miércoles"</code></td>
+                                <td>Días escritos en español (recomendado)</td>
+                            </tr>
+                            <tr>
+                                <td>Números</td>
+                                <td><code>"1,2,3"</code></td>
+                                <td>0=domingo, 1=lunes, 2=martes, ..., 6=sábado</td>
+                            </tr>
+                            <tr>
+                                <td>Rango</td>
+                                <td><code>"1-5"</code></td>
+                                <td>Equivale a lunes a viernes</td>
+                            </tr>
+                            <tr>
+                                <td>Mixto</td>
+                                <td><code>"lunes,3,viernes"</code></td>
+                                <td>Puedes mezclar formatos</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- EJEMPLOS CI/CD -->
+            <section id="ejemplos-cicd" class="content-section">
+                <h2>Ejemplos para CI/CD</h2>
+
+                <h3>Script Bash Completo</h3>
+                <p>Ejemplo completo de script bash para gestionar schedules desde pipelines:</p>
+
+                <div class="code-block">
+<span class="comment">#!/bin/bash
+# Script completo para gestionar schedules desde CI/CD</span>
+
+<span class="comment"># ============================================================================
+# Configuración
+# ============================================================================</span>
+<span class="variable">BASE_URL</span>=<span class="string">"${KUBE_GREEN_API_URL:-http://localhost:8080}"</span>
+<span class="variable">USERNAME</span>=<span class="string">"${KUBE_GREEN_USERNAME:-admin}"</span>
+<span class="variable">PASSWORD</span>=<span class="string">"${KUBE_GREEN_PASSWORD:-admin123}"</span>
+
+<span class="comment"># ============================================================================
+# Funciones
+# ============================================================================</span>
+
+<span class="comment"># Función para obtener token</span>
+<span class="function">get_token</span>() {
+  <span class="variable">local</span> response=$(<span class="function">curl</span> -s -X POST <span class="string">"${BASE_URL}/api/v1/auth/login"</span> \
+    -H <span class="string">"Content-Type: application/json"</span> \
+    -d <span class="string">"{\"username\":\"${USERNAME}\",\"password\":\"${PASSWORD}\"}"</span>)
+  
+  <span class="variable">local</span> success=$(<span class="function">echo</span> <span class="string">"$response"</span> | <span class="function">jq</span> -r <span class="string">'.success'</span>)
+  
+  <span class="keyword">if</span> [ <span class="string">"$success"</span> != <span class="string">"true"</span> ]; <span class="keyword">then</span>
+    <span class="function">echo</span> <span class="string">"Error: Fallo en autenticación"</span> >&2
+    <span class="function">echo</span> <span class="string">"$response"</span> | <span class="function">jq</span> '.' >&2
+    <span class="function">exit</span> <span class="number">1</span>
+  <span class="keyword">fi</span>
+  
+  <span class="function">echo</span> <span class="string">"$response"</span> | <span class="function">jq</span> -r <span class="string">'.data.accessToken'</span>
+}
+
+<span class="comment"># Función para hacer peticiones autenticadas</span>
+<span class="function">api_request</span>() {
+  <span class="variable">local</span> method=$1
+  <span class="variable">local</span> endpoint=$2
+  <span class="variable">local</span> data=$3
+  
+  <span class="variable">local</span> url=<span class="string">"${BASE_URL}${endpoint}"</span>
+  <span class="variable">local</span> cmd=(<span class="function">curl</span> -s -X <span class="string">"$method"</span> <span class="string">"$url"</span> \
+    -H <span class="string">"Authorization: Bearer ${TOKEN}"</span> \
+    -H <span class="string">"Content-Type: application/json"</span>)
+  
+  <span class="keyword">if</span> [ -n <span class="string">"$data"</span> ]; <span class="keyword">then</span>
+    <span class="function">cmd</span>+=(<span class="string">"-d"</span> <span class="string">"$data"</span>)
+  <span class="keyword">fi</span>
+  
+  <span class="function">"${cmd[@]}"</span>
+}
+
+<span class="comment"># ============================================================================
+# Ejecución
+# ============================================================================</span>
+
+<span class="comment"># Obtener token</span>
+<span class="function">echo</span> <span class="string">"Obteniendo token de autenticación..."</span>
+<span class="variable">TOKEN</span>=<span class="string">"$(get_token)"</span>
+
+<span class="keyword">if</span> [ -z <span class="string">"$TOKEN"</span> ] || [ <span class="string">"$TOKEN"</span> = <span class="string">"null"</span> ]; <span class="keyword">then</span>
+  <span class="function">echo</span> <span class="string">"Error: No se pudo obtener el token"</span> >&2
+  <span class="function">exit</span> <span class="number">1</span>
+<span class="keyword">fi</span>
+
+<span class="function">echo</span> <span class="string">"✓ Token obtenido exitosamente"</span>
+
+<span class="comment"># Ejemplo: Listar tenants</span>
+<span class="function">echo</span> <span class="string">"Listando tenants..."</span>
+<span class="variable">response</span>=<span class="string">"$(api_request GET "/api/v1/tenants")"</span>
+<span class="function">echo</span> <span class="string">"$response"</span> | <span class="function">jq</span> '.'
+                </div>
+
+                <h3>Script Python</h3>
+                <p>Clase Python reutilizable para interactuar con la API:</p>
+
+                <div class="code-block"><span class="comment">#!/usr/bin/env python3
+"""
+Clase para interactuar con la API de Kube-Green
+"""</span>
+
+<span class="keyword">import</span> os
+<span class="keyword">import</span> json
+<span class="keyword">import</span> requests
+<span class="keyword">from</span> typing <span class="keyword">import</span> Optional, Dict, Any
+
+
+<span class="keyword">class</span> <span class="function">KubeGreenAPI</span>:
+    <span class="string">"""Cliente para la API REST de Kube-Green"""</span>
+    
+    <span class="keyword">def</span> <span class="function">__init__</span>(<span class="keyword">self</span>, base_url: str, username: str, password: str):
+        <span class="keyword">self</span>.<span class="variable">base_url</span> = base_url.rstrip(<span class="string">'/'</span>)
+        <span class="keyword">self</span>.<span class="variable">username</span> = username
+        <span class="keyword">self</span>.<span class="variable">password</span> = password
+        <span class="keyword">self</span>.<span class="variable">token</span> = <span class="keyword">None</span>
+        <span class="keyword">self</span>.<span class="variable">refresh_token</span> = <span class="keyword">None</span>
+    
+    <span class="keyword">def</span> <span class="function">login</span>(<span class="keyword">self</span>) -> <span class="keyword">bool</span>:
+        <span class="string">"""Autentica y obtiene el token de acceso"""</span>
+        url = <span class="string">f"{self.base_url}/api/v1/auth/login"</span>
+        data = {
+            <span class="string">"username"</span>: <span class="keyword">self</span>.<span class="variable">username</span>,
+            <span class="string">"password"</span>: <span class="keyword">self</span>.<span class="variable">password</span>
+        }
+        
+        <span class="keyword">try</span>:
+            response = requests.post(url, json=data, timeout=10)
+            response.raise_for_status()
+            
+            result = response.json()
+            <span class="keyword">if</span> result.get(<span class="string">'success'</span>):
+                <span class="keyword">self</span>.<span class="variable">token</span> = result[<span class="string">'data'</span>][<span class="string">'accessToken'</span>]
+                <span class="keyword">self</span>.<span class="variable">refresh_token</span> = result[<span class="string">'data'</span>][<span class="string">'refreshToken'</span>]
+                <span class="keyword">return</span> <span class="keyword">True</span>
+            <span class="keyword">else</span>:
+                <span class="function">print</span>(<span class="string">f"Error en login: {result.get('error')}"</span>)
+                <span class="keyword">return</span> <span class="keyword">False</span>
+        <span class="keyword">except</span> requests.exceptions.RequestException <span class="keyword">as</span> e:
+            <span class="function">print</span>(<span class="string">f"Error de conexión: {e}"</span>)
+            <span class="keyword">return</span> <span class="keyword">False</span>
+    
+    <span class="keyword">def</span> <span class="function">_request</span>(<span class="keyword">self</span>, method: str, endpoint: str, data: Optional[Dict] = <span class="keyword">None</span>) -> Dict[Any, Any]:
+        <span class="string">"""Realiza una petición autenticada"""</span>
+        <span class="keyword">if</span> <span class="keyword">not</span> <span class="keyword">self</span>.<span class="variable">token</span>:
+            <span class="keyword">raise</span> <span class="function">ValueError</span>(<span class="string">"No hay token. Llama a login() primero"</span>)
+        
+        url = <span class="string">f"{self.base_url}{endpoint}"</span>
+        headers = {
+            <span class="string">"Authorization"</span>: <span class="string">f"Bearer {self.token}"</span>,
+            <span class="string">"Content-Type"</span>: <span class="string">"application/json"</span>
+        }
+        
+        <span class="keyword">try</span>:
+            <span class="keyword">if</span> method.upper() == <span class="string">'GET'</span>:
+                response = requests.get(url, headers=headers, timeout=30)
+            <span class="keyword">elif</span> method.upper() == <span class="string">'POST'</span>:
+                response = requests.post(url, headers=headers, json=data, timeout=30)
+            <span class="keyword">elif</span> method.upper() == <span class="string">'PUT'</span>:
+                response = requests.put(url, headers=headers, json=data, timeout=30)
+            <span class="keyword">elif</span> method.upper() == <span class="string">'DELETE'</span>:
+                response = requests.delete(url, headers=headers, timeout=30)
+            <span class="keyword">else</span>:
+                <span class="keyword">raise</span> <span class="function">ValueError</span>(<span class="string">f"Método no soportado: {method}"</span>)
+            
+            response.raise_for_status()
+            <span class="keyword">return</span> response.json()
+        <span class="keyword">except</span> requests.exceptions.RequestException <span class="keyword">as</span> e:
+            <span class="function">print</span>(<span class="string">f"Error en petición: {e}"</span>)
+            <span class="keyword">if</span> hasattr(e, <span class="string">'response'</span>) <span class="keyword">and</span> e.response <span class="keyword">is</span> <span class="keyword">not</span> <span class="keyword">None</span>:
+                <span class="function">print</span>(<span class="string">f"Respuesta: {e.response.text}"</span>)
+            <span class="keyword">raise</span>
+    
+    <span class="keyword">def</span> <span class="function">list_tenants</span>(<span class="keyword">self</span>) -> Dict[Any, Any]:
+        <span class="string">"""Lista todos los tenants"""</span>
+        <span class="keyword">return</span> <span class="keyword">self</span>.<span class="function">_request</span>(<span class="string">'GET'</span>, <span class="string">'/api/v1/tenants'</span>)
+    
+    <span class="keyword">def</span> <span class="function">create_schedule</span>(<span class="keyword">self</span>, tenant: str, schedule_config: Dict) -> Dict[Any, Any]:
+        <span class="string">"""Crea un nuevo schedule"""</span>
+        schedule_config[<span class="string">'tenant'</span>] = tenant
+        <span class="keyword">return</span> <span class="keyword">self</span>.<span class="function">_request</span>(<span class="string">'POST'</span>, <span class="string">'/api/v1/schedules'</span>, schedule_config)
+
+
+<span class="comment"># Ejemplo de uso</span>
+<span class="keyword">if</span> __name__ == <span class="string">"__main__"</span>:
+    api = <span class="function">KubeGreenAPI</span>(
+        base_url=os.getenv(<span class="string">'KUBE_GREEN_API_URL'</span>, <span class="string">'http://localhost:8080'</span>),
+        username=os.getenv(<span class="string">'KUBE_GREEN_USERNAME'</span>, <span class="string">'admin'</span>),
+        password=os.getenv(<span class="string">'KUBE_GREEN_PASSWORD'</span>, <span class="string">'admin123'</span>)
+    )
+    
+    <span class="keyword">if</span> <span class="keyword">not</span> api.login():
+        <span class="function">print</span>(<span class="string">"Error: No se pudo autenticar"</span>)
+        <span class="function">exit</span>(1)
+    
+    <span class="function">print</span>(<span class="string">"✓ Autenticación exitosa"</span>)
+    
+    <span class="comment"># Listar tenants</span>
+    tenants = api.list_tenants()
+    <span class="function">print</span>(<span class="string">f"Tenants encontrados: {len(tenants['data']['tenants'])}"</span>)</div>
+            </section>
+
+            <!-- PIPELINES -->
+            <section id="pipelines" class="content-section">
+                <h2>Ejemplos de Pipelines CI/CD</h2>
+
+                <h3>Azure DevOps Pipeline</h3>
+                <p>Pipeline completo para Azure DevOps con manejo de errores:</p>
+
+                <div class="code-block">
+<span class="comment"># azure-pipelines.yml</span>
+<span class="variable">trigger</span>:
+  - main
+
+<span class="variable">pool</span>:
+  <span class="variable">vmImage</span>: <span class="string">'ubuntu-latest'</span>
+
+<span class="variable">variables</span>:
+  - <span class="variable">name</span>: <span class="string">kubeGreenApiUrl</span>
+    <span class="variable">value</span>: <span class="string">'http://kube-green-api-service.keos-core.svc.cluster.local:8080'</span>
+  - <span class="variable">name</span>: <span class="string">tenant</span>
+    <span class="variable">value</span>: <span class="string">'bdadevdat'</span>
+
+<span class="variable">stages</span>:
+  - <span class="variable">stage</span>: DeploySchedule
+    <span class="variable">displayName</span>: <span class="string">'Desplegar Schedule'</span>
+    <span class="variable">jobs</span>:
+      - <span class="variable">job</span>: Deploy
+        <span class="variable">displayName</span>: <span class="string">'Desplegar Schedule de Kube-Green'</span>
+        <span class="variable">steps</span>:
+          - <span class="variable">task</span>: Bash@3
+            <span class="variable">displayName</span>: <span class="string">'Autenticar y obtener token'</span>
+            <span class="variable">inputs</span>:
+              <span class="variable">targetType</span>: <span class="string">'inline'</span>
+              <span class="variable">script</span>: |
+                <span class="variable">LOGIN_RESPONSE</span>=<span class="string">$(curl -s -X POST "$(kubeGreenApiUrl)/api/v1/auth/login" \
+                  -H "Content-Type: application/json" \
+                  -d "{\"username\":\"$(KUBE_GREEN_USERNAME)\",\"password\":\"$(KUBE_GREEN_PASSWORD)\"}")</span>
+                
+                <span class="variable">SUCCESS</span>=<span class="string">$(echo "$LOGIN_RESPONSE" | jq -r '.success')</span>
+                <span class="keyword">if</span> [ <span class="string">"$SUCCESS"</span> != <span class="string">"true"</span> ]; <span class="keyword">then</span>
+                  <span class="function">echo</span> <span class="string">"Error en autenticación"</span>
+                  <span class="function">exit</span> <span class="number">1</span>
+                <span class="keyword">fi</span>
+                
+                <span class="variable">TOKEN</span>=<span class="string">$(echo "$LOGIN_RESPONSE" | jq -r '.data.accessToken')</span>
+                <span class="function">echo</span> <span class="string">"##vso[task.setvariable variable=KUBE_GREEN_TOKEN]$TOKEN"</span>
+            <span class="variable">env</span>:
+              <span class="variable">KUBE_GREEN_USERNAME</span>: <span class="string">$(KUBE_GREEN_USERNAME)</span>
+              <span class="variable">KUBE_GREEN_PASSWORD</span>: <span class="string">$(KUBE_GREEN_PASSWORD)</span>
+                </div>
+
+                <div class="alert info">
+                    <div class="alert-icon">ℹ️</div>
+                    <div class="alert-content">
+                        <div class="alert-title">Configuración de Secretos</div>
+                        <div>Configura las variables <code>KUBE_GREEN_USERNAME</code> y <code>KUBE_GREEN_PASSWORD</code> como secretos en las variables del pipeline.</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- MANEJO DE ERRORES -->
+            <section id="manejo-errores" class="content-section">
+                <h2>Manejo de Errores</h2>
+
+                <h3>Códigos de Estado HTTP</h3>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Código</th>
+                                <th>Significado</th>
+                                <th>Acción Recomendada</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>200</code></td>
+                                <td>Éxito</td>
+                                <td>Procesar respuesta normalmente</td>
+                            </tr>
+                            <tr>
+                                <td><code>400</code></td>
+                                <td>Bad Request</td>
+                                <td>Verificar formato de la petición y parámetros</td>
+                            </tr>
+                            <tr>
+                                <td><code>401</code></td>
+                                <td>No autorizado</td>
+                                <td>Token inválido o expirado. Renovar token</td>
+                            </tr>
+                            <tr>
+                                <td><code>403</code></td>
+                                <td>Prohibido</td>
+                                <td>Usuario no tiene permisos suficientes</td>
+                            </tr>
+                            <tr>
+                                <td><code>404</code></td>
+                                <td>No encontrado</td>
+                                <td>Recurso no existe</td>
+                            </tr>
+                            <tr>
+                                <td><code>500</code></td>
+                                <td>Error interno</td>
+                                <td>Error del servidor. Reintentar o contactar soporte</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- MEJORES PRÁCTICAS -->
+            <section id="mejores-practicas" class="content-section">
+                <h2>Mejores Prácticas</h2>
+
+                <h3>Seguridad</h3>
+                <ul>
+                    <li><strong>Nunca hardcodees credenciales:</strong> Usa variables de entorno o secretos de tu sistema CI/CD</li>
+                    <li><strong>Valida siempre las respuestas:</strong> Nunca asumas que una petición fue exitosa sin verificar</li>
+                    <li><strong>Maneja la expiración de tokens:</strong> Implementa renovación automática de tokens</li>
+                </ul>
+
+                <h3>Robustez</h3>
+                <ul>
+                    <li>Configura timeouts en tus peticiones HTTP</li>
+                    <li>Implementa lógica de reintento para errores 500 o de red</li>
+                    <li>Registra todas las operaciones importantes para debugging</li>
+                    <li>Valida los datos antes de enviarlos a la API</li>
+                </ul>
+            </section>
+
+            <footer>
+                <p>Kube-Green API Documentation v1.0</p>
+                <p>Para más información, consulta la documentación de Swagger en <code>/swagger/index.html</code></p>
+            </footer>
+        </main>
+    </div>
+</body>
+</html>

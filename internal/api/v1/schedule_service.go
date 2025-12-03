@@ -13,6 +13,7 @@ import (
 	"time"
 
 	kubegreenv1alpha1 "github.com/kube-green/kube-green/api/v1alpha1"
+	"github.com/robfig/cron/v3"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
@@ -170,15 +171,17 @@ func (s *ScheduleService) CreateSchedule(ctx context.Context, req CreateSchedule
 		resources, err := s.GetNamespaceResources(ctx, req.Tenant, suffix)
 		if err != nil {
 			s.logger.Error(err, "failed to detect resources in namespace", "namespace", namespace)
-			// Continue with default behavior if resource detection fails
-			resources = &NamespaceResourceInfo{
-				Namespace:      namespace,
-				HasPgCluster:   false,
-				HasHdfsCluster: false,
-				HasPgBouncer:   false,
-				HasVirtualizer: false,
-				AutoExclusions: []ExclusionFilter{},
-			}
+		// Continue with default behavior if resource detection fails
+		resources = &NamespaceResourceInfo{
+			Namespace:       namespace,
+			HasPgCluster:    false,
+			HasHdfsCluster:  false,
+			HasOsCluster:    false,
+			HasKafkaCluster: false,
+			HasPgBouncer:    false,
+			HasVirtualizer:  false,
+			AutoExclusions:  []ExclusionFilter{},
+		}
 		}
 
 		// Note: Virtualizer detection is available in resources.HasVirtualizer
@@ -199,7 +202,7 @@ func (s *ScheduleService) CreateSchedule(ctx context.Context, req CreateSchedule
 
 		// If no custom delays provided, apply default staggered wake for namespaces with CRDs
 		if req.Delays == nil {
-			hasCRDs := resources.HasPgCluster || resources.HasHdfsCluster || resources.HasPgBouncer
+			hasCRDs := resources.HasPgCluster || resources.HasHdfsCluster || resources.HasOsCluster || resources.HasKafkaCluster || resources.HasPgBouncer
 			if hasCRDs {
 				// Default staggered wake: PgHDFS at t0, PgBouncer at t0+5m, Deployments at t0+7m
 				onPgHDFSFinal = onConv.TimeUTC
@@ -219,11 +222,11 @@ func (s *ScheduleService) CreateSchedule(ctx context.Context, req CreateSchedule
 		}
 
 		// Generate SleepInfos based on detected resources (DYNAMIC LOGIC - no hardcoded names)
-		hasCRDs := resources.HasPgCluster || resources.HasHdfsCluster || resources.HasPgBouncer
+		hasCRDs := resources.HasPgCluster || resources.HasHdfsCluster || resources.HasOsCluster || resources.HasKafkaCluster || resources.HasPgBouncer
 
 		if hasCRDs {
 			// Namespace has CRDs: use staggered wake logic
-			s.logger.Info("CreateSchedule: creating staggered SleepInfos (CRDs detected)", "namespace", namespace, "hasPgCluster", resources.HasPgCluster, "hasHdfsCluster", resources.HasHdfsCluster, "hasPgBouncer", resources.HasPgBouncer)
+			s.logger.Info("CreateSchedule: creating staggered SleepInfos (CRDs detected)", "namespace", namespace, "hasPgCluster", resources.HasPgCluster, "hasHdfsCluster", resources.HasHdfsCluster, "hasOsCluster", resources.HasOsCluster, "hasKafkaCluster", resources.HasKafkaCluster, "hasPgBouncer", resources.HasPgBouncer)
 			if err := s.createDatastoresSleepInfosWithExclusions(ctx, req.Tenant, namespace, offConv.TimeUTC, onDeploymentsFinal, onPgHDFSFinal, onPgBouncerFinal, wdSleepUTC, wdWakeUTC, excludeRefs, req.ScheduleName, req.Description, userTZ); err != nil {
 				s.logger.Error(err, "failed to create staggered sleepinfos", "namespace", namespace)
 				return fmt.Errorf("failed to create staggered sleepinfos for %s: %w", namespace, err)
@@ -512,6 +515,8 @@ func (s *ScheduleService) createDatastoresSleepInfosWithExclusions(ctx context.C
 	suspendPgbouncer := true
 	suspendPostgres := true
 	suspendHdfs := true
+	suspendOpenSearch := true
+	suspendKafka := true
 
 	// Check if weekdays are the same
 	sleepDays, _ := ExpandWeekdaysStr(wdSleep)
@@ -569,10 +574,12 @@ func (s *ScheduleService) createDatastoresSleepInfosWithExclusions(ctx context.C
 				SuspendDeployments:          &suspendDeployments,
 				SuspendStatefulSets:         &suspendStatefulSets,
 				SuspendCronjobs:             suspendCronJobs,
-				SuspendDeploymentsPgbouncer: &suspendPgbouncer,
-				SuspendStatefulSetsPostgres: &suspendPostgres,
-				SuspendStatefulSetsHdfs:     &suspendHdfs,
-				ExcludeRef:                  excludeRefs,
+				SuspendDeploymentsPgbouncer:  &suspendPgbouncer,
+				SuspendStatefulSetsPostgres:  &suspendPostgres,
+				SuspendStatefulSetsHdfs:      &suspendHdfs,
+				SuspendStatefulSetsOpenSearch: &suspendOpenSearch,
+				SuspendStatefulSetsKafka:     &suspendKafka,
+				ExcludeRef:                   excludeRefs,
 			},
 		}
 
@@ -595,7 +602,8 @@ func (s *ScheduleService) createDatastoresSleepInfosWithExclusions(ctx context.C
 		}
 
 		// Wake PgHDFS: debe tener suspendDeployments=False, suspendStatefulSets=False, suspendCronJobs=False, suspendDeploymentsPgbouncer=False
-		// pero suspendStatefulSetsPostgres=True y suspendStatefulSetsHdfs=True (para restaurar solo Postgres y HDFS)
+		// pero suspendStatefulSetsPostgres=True, suspendStatefulSetsHdfs=True, suspendStatefulSetsOpenSearch=True y suspendStatefulSetsKafka=True
+		// (para restaurar solo Postgres, HDFS, OpenSearch y Kafka)
 		suspendDeploymentsFalse := false
 		suspendStatefulSetsFalse := false
 		suspendCronJobsFalse := false
@@ -614,10 +622,12 @@ func (s *ScheduleService) createDatastoresSleepInfosWithExclusions(ctx context.C
 				SuspendDeployments:          &suspendDeploymentsFalse,
 				SuspendStatefulSets:         &suspendStatefulSetsFalse,
 				SuspendCronjobs:             suspendCronJobsFalse,
-				SuspendDeploymentsPgbouncer: &suspendPgbouncerFalse,
-				SuspendStatefulSetsPostgres: &suspendPostgres,
-				SuspendStatefulSetsHdfs:     &suspendHdfs,
-				ExcludeRef:                  excludeRefs,
+				SuspendDeploymentsPgbouncer:  &suspendPgbouncerFalse,
+				SuspendStatefulSetsPostgres:  &suspendPostgres,
+				SuspendStatefulSetsHdfs:      &suspendHdfs,
+				SuspendStatefulSetsOpenSearch: &suspendOpenSearch,
+				SuspendStatefulSetsKafka:     &suspendKafka,
+				ExcludeRef:                   excludeRefs,
 			},
 		}
 
@@ -733,10 +743,12 @@ func (s *ScheduleService) createDatastoresSleepInfosWithExclusions(ctx context.C
 				SuspendDeployments:          &suspendDeployments,
 				SuspendStatefulSets:         &suspendStatefulSets,
 				SuspendCronjobs:             suspendCronJobs,
-				SuspendDeploymentsPgbouncer: &suspendPgbouncer,
-				SuspendStatefulSetsPostgres: &suspendPostgres,
-				SuspendStatefulSetsHdfs:     &suspendHdfs,
-				ExcludeRef:                  excludeRefs,
+				SuspendDeploymentsPgbouncer:  &suspendPgbouncer,
+				SuspendStatefulSetsPostgres:  &suspendPostgres,
+				SuspendStatefulSetsHdfs:      &suspendHdfs,
+				SuspendStatefulSetsOpenSearch: &suspendOpenSearch,
+				SuspendStatefulSetsKafka:     &suspendKafka,
+				ExcludeRef:                   excludeRefs,
 			},
 		}
 
@@ -759,7 +771,8 @@ func (s *ScheduleService) createDatastoresSleepInfosWithExclusions(ctx context.C
 		}
 
 		// Wake PgHDFS: debe tener suspendDeployments=False, suspendStatefulSets=False, suspendCronJobs=False, suspendDeploymentsPgbouncer=False
-		// pero suspendStatefulSetsPostgres=True y suspendStatefulSetsHdfs=True (para restaurar solo Postgres y HDFS)
+		// pero suspendStatefulSetsPostgres=True, suspendStatefulSetsHdfs=True, suspendStatefulSetsOpenSearch=True y suspendStatefulSetsKafka=True
+		// (para restaurar solo Postgres, HDFS, OpenSearch y Kafka)
 		suspendDeploymentsFalse := false
 		suspendStatefulSetsFalse := false
 		suspendCronJobsFalse := false
@@ -778,10 +791,12 @@ func (s *ScheduleService) createDatastoresSleepInfosWithExclusions(ctx context.C
 				SuspendDeployments:          &suspendDeploymentsFalse,
 				SuspendStatefulSets:         &suspendStatefulSetsFalse,
 				SuspendCronjobs:             suspendCronJobsFalse,
-				SuspendDeploymentsPgbouncer: &suspendPgbouncerFalse,
-				SuspendStatefulSetsPostgres: &suspendPostgres,
-				SuspendStatefulSetsHdfs:     &suspendHdfs,
-				ExcludeRef:                  excludeRefs,
+				SuspendDeploymentsPgbouncer:  &suspendPgbouncerFalse,
+				SuspendStatefulSetsPostgres:  &suspendPostgres,
+				SuspendStatefulSetsHdfs:      &suspendHdfs,
+				SuspendStatefulSetsOpenSearch: &suspendOpenSearch,
+				SuspendStatefulSetsKafka:     &suspendKafka,
+				ExcludeRef:                   excludeRefs,
 			},
 		}
 
@@ -2296,20 +2311,85 @@ type SuspendedServicesResponse struct {
 
 // GetSuspendedServices lists currently suspended services for a tenant
 func (s *ScheduleService) GetSuspendedServices(ctx context.Context, tenant string) (*SuspendedServicesResponse, error) {
-	// List all SleepInfos for the tenant
-	_, err := s.GetSchedule(ctx, tenant)
+	// Get all namespaces for the tenant
+	schedule, err := s.GetSchedule(ctx, tenant)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get schedule: %w", err)
 	}
 
 	suspended := make([]SuspendedServiceInfo, 0)
+	now := time.Now()
 
-	// TODO: Implement logic to check actual resource states
-	// This would require:
-	// 1. List Deployments/StatefulSets in each namespace
-	// 2. Check if replicas are 0
-	// 3. Check associated SleepInfo to determine when they were suspended
-	// 4. Check when they will wake up based on wake schedule
+	// Iterate through all namespaces for this tenant
+	for namespaceSuffix := range schedule.Namespaces {
+		namespace := fmt.Sprintf("%s-%s", tenant, namespaceSuffix)
+		
+		// Get services in this namespace
+		services, err := s.GetNamespaceServices(ctx, tenant, namespaceSuffix)
+		if err != nil {
+			s.logger.Error(err, "failed to get services for namespace", "namespace", namespace)
+			continue
+		}
+
+		// Get SleepInfos for this namespace to determine wake times
+		sleepInfos, err := s.getSleepInfosForNamespace(ctx, namespace)
+		if err != nil {
+			s.logger.Error(err, "failed to get SleepInfos for namespace", "namespace", namespace)
+		}
+
+		// Find wake schedule for this namespace
+		var wakeSchedule string
+		var wakeTime time.Time
+		for _, si := range sleepInfos {
+			role := si.Annotations["kube-green.stratio.com/pair-role"]
+			if role == "wake" {
+				if si.Spec.WakeUpTime != "" {
+					wakeSchedule = si.Spec.WakeUpTime
+				} else if si.Spec.SleepTime != "" {
+					// For separate wake SleepInfos, SleepTime contains wake time
+					wakeSchedule = si.Spec.SleepTime
+				}
+				if wakeSchedule != "" {
+					// Parse wake schedule to get next wake time
+					cronSchedule, err := parseTimeToCron(wakeSchedule, si.Spec.Weekdays, si.Spec.TimeZone)
+					if err == nil {
+						if sched, err := cron.ParseStandard(cronSchedule); err == nil {
+							wakeTime = sched.Next(now)
+						}
+					}
+				}
+				break
+			}
+		}
+
+		// Check each service
+		for _, service := range services.Services {
+			if service.Status == "Suspended" {
+				// Get last schedule time from SleepInfo status if available
+				suspendedAt := now.Format(time.RFC3339)
+				for _, si := range sleepInfos {
+					if !si.Status.LastScheduleTime.IsZero() && si.Status.OperationType == "SLEEP" {
+						suspendedAt = si.Status.LastScheduleTime.Format(time.RFC3339)
+						break
+					}
+				}
+
+				willWakeAt := ""
+				if !wakeTime.IsZero() {
+					willWakeAt = wakeTime.Format(time.RFC3339)
+				}
+
+				suspended = append(suspended, SuspendedServiceInfo{
+					Name:        service.Name,
+					Namespace:   namespace,
+					Kind:        service.Kind,
+					SuspendedAt: suspendedAt,
+					Reason:      "Scheduled sleep",
+					WillWakeAt:  willWakeAt,
+				})
+			}
+		}
+	}
 
 	return &SuspendedServicesResponse{
 		Tenant:    tenant,
@@ -2317,25 +2397,220 @@ func (s *ScheduleService) GetSuspendedServices(ctx context.Context, tenant strin
 	}, nil
 }
 
+// GetAllSuspendedServices gets suspended services for all tenants
+func (s *ScheduleService) GetAllSuspendedServices(ctx context.Context) ([]SuspendedServiceInfo, error) {
+	// Get all tenants
+	tenantsResp, err := s.ListTenants(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list tenants: %w", err)
+	}
+
+	allSuspended := make([]SuspendedServiceInfo, 0)
+	for _, tenant := range tenantsResp.Tenants {
+		suspended, err := s.GetSuspendedServices(ctx, tenant.Name)
+		if err != nil {
+			s.logger.Error(err, "failed to get suspended services for tenant", "tenant", tenant.Name)
+			continue
+		}
+		allSuspended = append(allSuspended, suspended.Suspended...)
+	}
+
+	return allSuspended, nil
+}
+
+// GetAllNextOperations gets next operations for all tenants and returns the earliest one
+func (s *ScheduleService) GetAllNextOperations(ctx context.Context) (*NextOperationResponse, error) {
+	// Get all tenants
+	tenantsResp, err := s.ListTenants(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list tenants: %w", err)
+	}
+
+	var earliest *NextOperationResponse
+	for _, tenant := range tenantsResp.Tenants {
+		nextOp, err := s.GetNextOperation(ctx, tenant.Name)
+		if err != nil {
+			// Skip tenants without schedules
+			continue
+		}
+		if earliest == nil || nextOp.Time.Before(earliest.Time) {
+			earliest = nextOp
+		}
+	}
+
+	if earliest == nil {
+		return nil, fmt.Errorf("no scheduled operations found")
+	}
+
+	return earliest, nil
+}
+
+// getSleepInfosForNamespace gets all SleepInfos in a namespace
+func (s *ScheduleService) getSleepInfosForNamespace(ctx context.Context, namespace string) ([]kubegreenv1alpha1.SleepInfo, error) {
+	sleepInfoList := &kubegreenv1alpha1.SleepInfoList{}
+	if err := s.client.List(ctx, sleepInfoList, client.InNamespace(namespace)); err != nil {
+		return nil, err
+	}
+	return sleepInfoList.Items, nil
+}
+
+// parseTimeToCron converts a time string (HH:MM) and weekdays to a cron expression
+func parseTimeToCron(timeStr, weekdays, timezone string) (string, error) {
+	// Parse time (HH:MM format)
+	parts := strings.Split(timeStr, ":")
+	if len(parts) != 2 {
+		return "", fmt.Errorf("invalid time format: %s", timeStr)
+	}
+	
+	hour := parts[0]
+	minute := parts[1]
+	
+	// Cron format: minute hour day-of-month month day-of-week
+	// weekdays is already in cron format (0-6 or ranges like 1-5)
+	return fmt.Sprintf("%s %s * * %s", minute, hour, weekdays), nil
+}
+
+// NextOperationResponse represents the next scheduled operation
+type NextOperationResponse struct {
+	Tenant      string    `json:"tenant"`
+	Operation   string    `json:"operation"`   // "SLEEP" or "WAKE_UP"
+	Time        time.Time `json:"time"`
+	Namespace   string    `json:"namespace,omitempty"`
+	Description string    `json:"description,omitempty"`
+}
+
+// GetNextOperation gets the next scheduled operation for a tenant
+func (s *ScheduleService) GetNextOperation(ctx context.Context, tenant string) (*NextOperationResponse, error) {
+	// Get all SleepInfos for the tenant
+	schedule, err := s.GetSchedule(ctx, tenant)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get schedule: %w", err)
+	}
+
+	now := time.Now()
+	var nextOp *NextOperationResponse
+
+	// Iterate through all namespaces and find the next operation
+	for namespaceSuffix := range schedule.Namespaces {
+		namespace := fmt.Sprintf("%s-%s", tenant, namespaceSuffix)
+		
+		// Get SleepInfos for this namespace
+		sleepInfos, err := s.getSleepInfosForNamespace(ctx, namespace)
+		if err != nil {
+			s.logger.Error(err, "failed to get SleepInfos for namespace", "namespace", namespace)
+			continue
+		}
+
+		// Check each SleepInfo to find the next operation
+		for _, si := range sleepInfos {
+			// Determine operation type and schedule
+			var operation string
+			var scheduleTime string
+			var weekdays string
+			
+			role := si.Annotations["kube-green.stratio.com/pair-role"]
+			if role == "sleep" {
+				operation = "SLEEP"
+				scheduleTime = si.Spec.SleepTime
+				weekdays = si.Spec.Weekdays
+			} else if role == "wake" {
+				operation = "WAKE_UP"
+				if si.Spec.WakeUpTime != "" {
+					scheduleTime = si.Spec.WakeUpTime
+				} else {
+					scheduleTime = si.Spec.SleepTime // For separate wake SleepInfos
+				}
+				weekdays = si.Spec.Weekdays
+			} else {
+				// Single SleepInfo with both sleep and wake
+				// Check which is next based on current time
+				if si.Spec.SleepTime != "" && si.Spec.WakeUpTime != "" {
+					// Compare sleep and wake times to determine next
+					sleepCron, err1 := parseTimeToCron(si.Spec.SleepTime, si.Spec.Weekdays, si.Spec.TimeZone)
+					wakeCron, err2 := parseTimeToCron(si.Spec.WakeUpTime, si.Spec.Weekdays, si.Spec.TimeZone)
+					
+					if err1 == nil && err2 == nil {
+						sleepSched, _ := cron.ParseStandard(sleepCron)
+						wakeSched, _ := cron.ParseStandard(wakeCron)
+						
+						nextSleep := sleepSched.Next(now)
+						nextWake := wakeSched.Next(now)
+						
+						if nextSleep.Before(nextWake) {
+							operation = "SLEEP"
+							scheduleTime = si.Spec.SleepTime
+							weekdays = si.Spec.Weekdays
+						} else {
+							operation = "WAKE_UP"
+							scheduleTime = si.Spec.WakeUpTime
+							weekdays = si.Spec.Weekdays
+						}
+					}
+				}
+			}
+
+			if scheduleTime != "" && weekdays != "" {
+				cronSchedule, err := parseTimeToCron(scheduleTime, weekdays, si.Spec.TimeZone)
+				if err != nil {
+					s.logger.Error(err, "failed to parse schedule", "time", scheduleTime, "weekdays", weekdays)
+					continue
+				}
+
+				sched, err := cron.ParseStandard(cronSchedule)
+				if err != nil {
+					s.logger.Error(err, "failed to parse cron", "schedule", cronSchedule)
+					continue
+				}
+
+				nextTime := sched.Next(now)
+				
+				// Get description from annotations
+				description := si.Annotations["kube-green.stratio.com/schedule-description"]
+				
+				// If this is earlier than current nextOp, or nextOp is nil, update it
+				if nextOp == nil || nextTime.Before(nextOp.Time) {
+					nextOp = &NextOperationResponse{
+						Tenant:      tenant,
+						Operation:   operation,
+						Time:        nextTime,
+						Namespace:   namespaceSuffix,
+						Description: description,
+					}
+				}
+			}
+		}
+	}
+
+	if nextOp == nil {
+		return nil, fmt.Errorf("no scheduled operations found for tenant: %s", tenant)
+	}
+
+	return nextOp, nil
+}
+
 // NamespaceResourceInfo represents detected resources in a namespace
 type NamespaceResourceInfo struct {
-	Namespace      string            `json:"namespace"`
-	HasPgCluster   bool              `json:"hasPgCluster"`
-	HasHdfsCluster bool              `json:"hasHdfsCluster"`
-	HasPgBouncer   bool              `json:"hasPgBouncer"`
-	HasVirtualizer bool              `json:"hasVirtualizer"`
-	ResourceCounts ResourceCounts    `json:"resourceCounts"`
-	AutoExclusions []ExclusionFilter `json:"autoExclusions"`
+	Namespace        string            `json:"namespace"`
+	HasPgCluster     bool              `json:"hasPgCluster"`
+	HasHdfsCluster   bool              `json:"hasHdfsCluster"`
+	HasOsCluster     bool              `json:"hasOsCluster"`
+	HasKafkaCluster  bool              `json:"hasKafkaCluster"`
+	HasPgBouncer     bool              `json:"hasPgBouncer"`
+	HasVirtualizer   bool              `json:"hasVirtualizer"`
+	ResourceCounts   ResourceCounts    `json:"resourceCounts"`
+	AutoExclusions   []ExclusionFilter `json:"autoExclusions"`
 }
 
 // ResourceCounts represents counts of different resource types
 type ResourceCounts struct {
-	Deployments  int `json:"deployments"`
-	StatefulSets int `json:"statefulSets"`
-	CronJobs     int `json:"cronJobs"`
-	PgClusters   int `json:"pgClusters"`
-	HdfsClusters int `json:"hdfsClusters"`
-	PgBouncers   int `json:"pgBouncers"`
+	Deployments   int `json:"deployments"`
+	StatefulSets  int `json:"statefulSets"`
+	CronJobs      int `json:"cronJobs"`
+	PgClusters    int `json:"pgClusters"`
+	HdfsClusters  int `json:"hdfsClusters"`
+	OsClusters    int `json:"osClusters"`
+	KafkaClusters int `json:"kafkaClusters"`
+	PgBouncers    int `json:"pgBouncers"`
 }
 
 // GetNamespaceResources detects CRDs and other resources in a namespace
@@ -2343,13 +2618,15 @@ func (s *ScheduleService) GetNamespaceResources(ctx context.Context, tenant, nam
 	namespace := fmt.Sprintf("%s-%s", tenant, namespaceSuffix)
 
 	info := &NamespaceResourceInfo{
-		Namespace:      namespace,
-		HasPgCluster:   false,
-		HasHdfsCluster: false,
-		HasPgBouncer:   false,
-		HasVirtualizer: false,
+		Namespace:       namespace,
+		HasPgCluster:    false,
+		HasHdfsCluster:  false,
+		HasOsCluster:    false,
+		HasKafkaCluster: false,
+		HasPgBouncer:    false,
+		HasVirtualizer:  false,
 		ResourceCounts: ResourceCounts{},
-		AutoExclusions: []ExclusionFilter{},
+		AutoExclusions:  []ExclusionFilter{},
 	}
 
 	// List Deployments
@@ -2448,6 +2725,40 @@ func (s *ScheduleService) GetNamespaceResources(ctx context.Context, tenant, nam
 		info.HasPgBouncer = len(pgBouncerList.Items) > 0
 	}
 
+	// Detect OsCluster CRDs
+	osClusterGVR := schema.GroupVersionResource{
+		Group:    "opensearch.stratio.com",
+		Version:  "v1",
+		Resource: "osclusters",
+	}
+	osClusterList := &unstructured.UnstructuredList{}
+	osClusterList.SetGroupVersionKind(schema.GroupVersionKind{
+		Group:   osClusterGVR.Group,
+		Version: osClusterGVR.Version,
+		Kind:    "OsClusterList",
+	})
+	if err := s.client.List(ctx, osClusterList, client.InNamespace(namespace)); err == nil {
+		info.ResourceCounts.OsClusters = len(osClusterList.Items)
+		info.HasOsCluster = len(osClusterList.Items) > 0
+	}
+
+	// Detect KafkaCluster CRDs
+	kafkaClusterGVR := schema.GroupVersionResource{
+		Group:    "kafka.stratio.com",
+		Version:  "v1",
+		Resource: "kafkaclusters",
+	}
+	kafkaClusterList := &unstructured.UnstructuredList{}
+	kafkaClusterList.SetGroupVersionKind(schema.GroupVersionKind{
+		Group:   kafkaClusterGVR.Group,
+		Version: kafkaClusterGVR.Version,
+		Kind:    "KafkaClusterList",
+	})
+	if err := s.client.List(ctx, kafkaClusterList, client.InNamespace(namespace)); err == nil {
+		info.ResourceCounts.KafkaClusters = len(kafkaClusterList.Items)
+		info.HasKafkaCluster = len(kafkaClusterList.Items) > 0
+	}
+
 	// Build auto-exclusions based on detected resources
 	if info.HasPgCluster || info.HasPgBouncer {
 		info.AutoExclusions = append(info.AutoExclusions, ExclusionFilter{
@@ -2481,6 +2792,42 @@ func (s *ScheduleService) GetNamespaceResources(ctx context.Context, tenant, nam
 		info.AutoExclusions = append(info.AutoExclusions, ExclusionFilter{
 			MatchLabels: map[string]string{
 				"app.kubernetes.io/part-of": "hdfs",
+			},
+		})
+	}
+
+	if info.HasOsCluster {
+		info.AutoExclusions = append(info.AutoExclusions, ExclusionFilter{
+			MatchLabels: map[string]string{
+				"app.kubernetes.io/managed-by": "opensearch-operator",
+			},
+		})
+		info.AutoExclusions = append(info.AutoExclusions, ExclusionFilter{
+			MatchLabels: map[string]string{
+				"opensearch.stratio.com/cluster": "true",
+			},
+		})
+		info.AutoExclusions = append(info.AutoExclusions, ExclusionFilter{
+			MatchLabels: map[string]string{
+				"app.kubernetes.io/part-of": "opensearch",
+			},
+		})
+	}
+
+	if info.HasKafkaCluster {
+		info.AutoExclusions = append(info.AutoExclusions, ExclusionFilter{
+			MatchLabels: map[string]string{
+				"app.kubernetes.io/managed-by": "kafka-operator",
+			},
+		})
+		info.AutoExclusions = append(info.AutoExclusions, ExclusionFilter{
+			MatchLabels: map[string]string{
+				"kafka.stratio.com/cluster": "true",
+			},
+		})
+		info.AutoExclusions = append(info.AutoExclusions, ExclusionFilter{
+			MatchLabels: map[string]string{
+				"app.kubernetes.io/part-of": "kafka",
 			},
 		})
 	}

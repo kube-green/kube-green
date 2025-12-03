@@ -17,14 +17,28 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// User represents a user with role
+type User struct {
+	Username string
+	PasswordHash string
+	Role     string // "admin", "operacion", "lectura"
+}
+
 // UserStore manages user authentication data from Kubernetes Secrets
 type UserStore struct {
 	client     client.Client
 	namespace  string
 	secretName string
-	users      map[string]string // username -> password_hash
+	users      map[string]*User // username -> User
 	mu         sync.RWMutex
 }
+
+// Valid roles
+const (
+	RoleAdmin     = "admin"
+	RoleOperacion = "operacion"
+	RoleLectura   = "lectura"
+)
 
 // NewUserStore creates a new UserStore instance
 func NewUserStore(k8sClient client.Client, namespace, secretName string) *UserStore {
@@ -32,7 +46,7 @@ func NewUserStore(k8sClient client.Client, namespace, secretName string) *UserSt
 		client:     k8sClient,
 		namespace:  namespace,
 		secretName: secretName,
-		users:      make(map[string]string),
+		users:      make(map[string]*User),
 	}
 }
 
@@ -53,12 +67,13 @@ func (us *UserStore) LoadUsers(ctx context.Context) error {
 		return fmt.Errorf("users key not found in secret")
 	}
 
-	// Parse users (format: username:password_hash, one per line)
+	// Parse users (format: username:password_hash:role, one per line)
+	// Backward compatible: if no role, default to "admin" for existing users
 	scanner := bufio.NewScanner(strings.NewReader(string(usersData)))
 	us.mu.Lock()
 	defer us.mu.Unlock()
 
-	us.users = make(map[string]string)
+	us.users = make(map[string]*User)
 
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
@@ -66,12 +81,26 @@ func (us *UserStore) LoadUsers(ctx context.Context) error {
 			continue // Skip empty lines and comments
 		}
 
-		parts := strings.SplitN(line, ":", 2)
-		if len(parts) == 2 {
+		parts := strings.Split(line, ":")
+		if len(parts) >= 2 {
 			username := strings.TrimSpace(parts[0])
 			passwordHash := strings.TrimSpace(parts[1])
+			role := RoleAdmin // Default role
+			
+			if len(parts) >= 3 {
+				role = strings.TrimSpace(parts[2])
+				// Validate role
+				if role != RoleAdmin && role != RoleOperacion && role != RoleLectura {
+					role = RoleAdmin // Default to admin if invalid
+				}
+			}
+			
 			if username != "" && passwordHash != "" {
-				us.users[username] = passwordHash
+				us.users[username] = &User{
+					Username:     username,
+					PasswordHash: passwordHash,
+					Role:         role,
+				}
 			}
 		}
 	}
@@ -79,31 +108,127 @@ func (us *UserStore) LoadUsers(ctx context.Context) error {
 	return scanner.Err()
 }
 
-// ValidateUser validates a username and password
-func (us *UserStore) ValidateUser(username, password string) bool {
+// ValidateUser validates a username and password, returns user if valid
+func (us *UserStore) ValidateUser(username, password string) (*User, bool) {
 	us.mu.RLock()
 	defer us.mu.RUnlock()
 
-	storedHash, exists := us.users[username]
+	user, exists := us.users[username]
 	if !exists {
-		return false
+		return nil, false
 	}
 
-	err := bcrypt.CompareHashAndPassword([]byte(storedHash), []byte(password))
-	return err == nil
+	err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password))
+	if err != nil {
+		return nil, false
+	}
+
+	return user, true
+}
+
+// GetUser returns a user by username
+func (us *UserStore) GetUser(username string) (*User, bool) {
+	us.mu.RLock()
+	defer us.mu.RUnlock()
+	user, exists := us.users[username]
+	if !exists {
+		return nil, false
+	}
+	// Return a copy to avoid race conditions
+	return &User{
+		Username:     user.Username,
+		PasswordHash: user.PasswordHash,
+		Role:         user.Role,
+	}, true
 }
 
 // CreateUser creates a new user (for admin operations)
-func (us *UserStore) CreateUser(username, password string) error {
+func (us *UserStore) CreateUser(username, password, role string) error {
+	// Validate role
+	if role != RoleAdmin && role != RoleOperacion && role != RoleLectura {
+		return fmt.Errorf("invalid role: %s. Valid roles are: admin, operacion, lectura", role)
+	}
+
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return fmt.Errorf("failed to hash password: %w", err)
 	}
 
 	us.mu.Lock()
-	us.users[username] = string(hash)
+	us.users[username] = &User{
+		Username:     username,
+		PasswordHash: string(hash),
+		Role:         role,
+	}
 	us.mu.Unlock()
 
+	return us.saveUsers(context.Background())
+}
+
+// UpdateUserPassword updates a user's password
+func (us *UserStore) UpdateUserPassword(username, newPassword string) error {
+	us.mu.Lock()
+	defer us.mu.Unlock()
+
+	user, exists := us.users[username]
+	if !exists {
+		return fmt.Errorf("user not found: %s", username)
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("failed to hash password: %w", err)
+	}
+
+	user.PasswordHash = string(hash)
+	return us.saveUsers(context.Background())
+}
+
+// UpdateUserRole updates a user's role
+func (us *UserStore) UpdateUserRole(username, newRole string) error {
+	// Validate role
+	if newRole != RoleAdmin && newRole != RoleOperacion && newRole != RoleLectura {
+		return fmt.Errorf("invalid role: %s. Valid roles are: admin, operacion, lectura", newRole)
+	}
+
+	us.mu.Lock()
+	defer us.mu.Unlock()
+
+	user, exists := us.users[username]
+	if !exists {
+		return fmt.Errorf("user not found: %s", username)
+	}
+
+	user.Role = newRole
+	return us.saveUsers(context.Background())
+}
+
+// ListUsers returns a list of all users (without password hashes)
+func (us *UserStore) ListUsers() []map[string]string {
+	us.mu.RLock()
+	defer us.mu.RUnlock()
+
+	users := make([]map[string]string, 0, len(us.users))
+	for username, user := range us.users {
+		users = append(users, map[string]string{
+			"username": username,
+			"role":     user.Role,
+		})
+	}
+
+	return users
+}
+
+// DeleteUser deletes a user
+func (us *UserStore) DeleteUser(username string) error {
+	us.mu.Lock()
+	defer us.mu.Unlock()
+
+	if _, exists := us.users[username]; !exists {
+		return fmt.Errorf("user not found: %s", username)
+	}
+
+	delete(us.users, username)
 	return us.saveUsers(context.Background())
 }
 
@@ -111,8 +236,8 @@ func (us *UserStore) CreateUser(username, password string) error {
 func (us *UserStore) saveUsers(ctx context.Context) error {
 	us.mu.RLock()
 	var lines []string
-	for username, hash := range us.users {
-		lines = append(lines, fmt.Sprintf("%s:%s", username, hash))
+	for username, user := range us.users {
+		lines = append(lines, fmt.Sprintf("%s:%s:%s", username, user.PasswordHash, user.Role))
 	}
 	us.mu.RUnlock()
 

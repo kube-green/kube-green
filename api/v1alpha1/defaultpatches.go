@@ -4,6 +4,8 @@ package v1alpha1
 // +kubebuilder:rbac:groups=batch,resources=cronjobs,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=postgres.stratio.com,resources=pgbouncer;pgcluster,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=hdfs.stratio.com,resources=hdfscluster,verbs=get;list;watch;update;patch
+// +kubebuilder:rbac:groups=opensearch.stratio.com,resources=oscluster,verbs=get;list;watch;update;patch
+// +kubebuilder:rbac:groups=kafka.stratio.com,resources=kafkacluster,verbs=get;list;watch;update;patch
 
 var DeploymentTarget = PatchTarget{
 	Group: "apps",
@@ -61,6 +63,16 @@ var HDFSClusterTarget = PatchTarget{
 	Kind:  "HDFSCluster",
 }
 
+var OsClusterTarget = PatchTarget{
+	Group: "opensearch.stratio.com",
+	Kind:  "OsCluster",
+}
+
+var KafkaClusterTarget = PatchTarget{
+	Group: "kafka.stratio.com",
+	Kind:  "KafkaCluster",
+}
+
 // Patch para PgBouncer: modifica spec.instances (usa replace porque el campo siempre existe)
 var pgbouncerPatch = Patch{
 	Target: PgBouncerTarget,
@@ -109,5 +121,49 @@ var HdfsclusterWakePatch = Patch{
 	Patch: `
 - op: replace
   path: /metadata/annotations/hdfscluster.stratio.com~1shutdown
+  value: "false"`,
+}
+
+// Patch para OsCluster: anotación shutdown=true (SLEEP)
+// OsCluster se controla por anotación oscluster.stratio.com/shutdown (igual que PgCluster y HDFSCluster).
+// El operador detecta la anotación y escala los recursos a 0.
+var OsclusterSleepPatch = Patch{
+	Target: OsClusterTarget,
+	Patch: `
+- op: add
+  path: /metadata/annotations/oscluster.stratio.com~1shutdown
+  value: "true"`,
+}
+
+// Patch para OsCluster: anotación shutdown=false (WAKE)
+// Usa "replace" porque la anotación ya existe (fue agregada durante SLEEP)
+// El operador detecta la anotación false y restaura los recursos.
+var OsclusterWakePatch = Patch{
+	Target: OsClusterTarget,
+	Patch: `
+- op: replace
+  path: /metadata/annotations/oscluster.stratio.com~1shutdown
+  value: "false"`,
+}
+
+// Patch para KafkaCluster: anotación shutdown=true (SLEEP)
+// KafkaCluster se controla por anotación kafkacluster.stratio.com/shutdown (igual que PgCluster y HDFSCluster).
+// El operador detecta la anotación y escala los recursos a 0.
+var KafkaclusterSleepPatch = Patch{
+	Target: KafkaClusterTarget,
+	Patch: `
+- op: add
+  path: /metadata/annotations/kafkacluster.stratio.com~1shutdown
+  value: "true"`,
+}
+
+// Patch para KafkaCluster: anotación shutdown=false (WAKE)
+// Usa "replace" porque la anotación ya existe (fue agregada durante SLEEP)
+// El operador detecta la anotación false y restaura los recursos.
+var KafkaclusterWakePatch = Patch{
+	Target: KafkaClusterTarget,
+	Patch: `
+- op: replace
+  path: /metadata/annotations/kafkacluster.stratio.com~1shutdown
   value: "false"`,
 }

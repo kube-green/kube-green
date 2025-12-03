@@ -100,6 +100,18 @@ type SleepInfoSpec struct {
 	// +optional
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	SuspendStatefulSetsHdfs *bool `json:"suspendStatefulSetsHdfs,omitempty"`
+	// If SuspendStatefulSetsOpenSearch is set to true, on sleep all OsCluster CRDs in the namespace
+	// will be managed by applying the oscluster.stratio.com/shutdown annotation.
+	// Defaults to false (does not manage OsCluster).
+	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	SuspendStatefulSetsOpenSearch *bool `json:"suspendStatefulSetsOpenSearch,omitempty"`
+	// If SuspendStatefulSetsKafka is set to true, on sleep all KafkaCluster CRDs in the namespace
+	// will be managed by applying the kafkacluster.stratio.com/shutdown annotation.
+	// Defaults to false (does not manage KafkaCluster).
+	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	SuspendStatefulSetsKafka *bool `json:"suspendStatefulSetsKafka,omitempty"`
 	// Patches is a list of json 6902 patches to apply to the target resources.
 	// +optional
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
@@ -237,6 +249,20 @@ func (s SleepInfo) IsHdfsToSuspend() bool {
 		return false
 	}
 	return *s.Spec.SuspendStatefulSetsHdfs
+}
+
+func (s SleepInfo) IsOpenSearchToSuspend() bool {
+	if s.Spec.SuspendStatefulSetsOpenSearch == nil {
+		return false
+	}
+	return *s.Spec.SuspendStatefulSetsOpenSearch
+}
+
+func (s SleepInfo) IsKafkaToSuspend() bool {
+	if s.Spec.SuspendStatefulSetsKafka == nil {
+		return false
+	}
+	return *s.Spec.SuspendStatefulSetsKafka
 }
 
 func (s SleepInfo) GetPatches() []Patch {

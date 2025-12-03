@@ -11,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"github.com/kube-green/kube-green/internal/api/v1/auth"
 )
 
 // APIResponse represents a standard API response
@@ -95,6 +96,7 @@ func (s *Server) handleInfo(c *gin.Context) {
 // @Tags Tenants
 // @Accept json
 // @Produce json
+// @Security BearerAuth
 // @Success 200 {object} APIResponse{data=TenantListResponse}
 // @Failure 500 {object} ErrorResponse
 // @Router /api/v1/tenants [get]
@@ -118,6 +120,7 @@ func (s *Server) handleListTenants(c *gin.Context) {
 // @Tags Schedules
 // @Accept json
 // @Produce json
+// @Security BearerAuth
 // @Success 200 {object} APIResponse
 // @Failure 500 {object} ErrorResponse
 // @Router /api/v1/schedules [get]
@@ -141,6 +144,7 @@ func (s *Server) handleListSchedules(c *gin.Context) {
 // @Tags Schedules
 // @Accept json
 // @Produce json
+// @Security BearerAuth
 // @Param tenant path string true "Tenant name" example:"bdadevdat"
 // @Param namespace query string false "Namespace suffix filter (datastores, apps, rocket, intelligence, airflowsso). Leave empty to get all namespaces" example:"datastores"
 // @Success 200 {object} APIResponse{data=ScheduleResponse} "Schedule information with improved structure"
@@ -210,12 +214,24 @@ type CreateScheduleRequest struct {
 // @Tags Schedules
 // @Accept json
 // @Produce json
+// @Security BearerAuth
 // @Param request body CreateScheduleRequest true "Schedule configuration"
 // @Success 201 {object} APIResponse "Schedule created successfully"
 // @Failure 400 {object} ErrorResponse "Invalid request parameters"
 // @Failure 500 {object} ErrorResponse "Internal server error"
 // @Router /api/v1/schedules [post]
 func (s *Server) handleCreateSchedule(c *gin.Context) {
+	// Check permissions
+	role, exists := c.Get("role")
+	if !exists || !auth.CanCreateSchedule(role.(string)) {
+		c.JSON(http.StatusForbidden, ErrorResponse{
+			Success: false,
+			Error:   "Insufficient permissions. Only admin and operacion roles can create schedules",
+			Code:    http.StatusForbidden,
+		})
+		return
+	}
+
 	var req CreateScheduleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, ErrorResponse{
@@ -305,6 +321,7 @@ type UpdateScheduleRequest struct {
 // @Tags Schedules
 // @Accept json
 // @Produce json
+// @Security BearerAuth
 // @Param tenant path string true "Tenant name" example:"bdadevdat"
 // @Param request body UpdateScheduleRequest true "Schedule configuration (all fields optional)"
 // @Success 200 {object} APIResponse "Schedule updated successfully"
@@ -313,6 +330,17 @@ type UpdateScheduleRequest struct {
 // @Failure 500 {object} ErrorResponse "Internal server error"
 // @Router /api/v1/schedules/{tenant} [put]
 func (s *Server) handleUpdateSchedule(c *gin.Context) {
+	// Check permissions
+	role, exists := c.Get("role")
+	if !exists || !auth.CanCreateSchedule(role.(string)) {
+		c.JSON(http.StatusForbidden, ErrorResponse{
+			Success: false,
+			Error:   "Insufficient permissions. Only admin and operacion roles can update schedules",
+			Code:    http.StatusForbidden,
+		})
+		return
+	}
+
 	tenant := c.Param("tenant")
 	if tenant == "" {
 		c.JSON(http.StatusBadRequest, ErrorResponse{
@@ -399,6 +427,7 @@ func (s *Server) handleUpdateSchedule(c *gin.Context) {
 // @Tags Schedules
 // @Accept json
 // @Produce json
+// @Security BearerAuth
 // @Param tenant path string true "Tenant name" example:"bdadevdat"
 // @Success 200 {object} APIResponse "Schedule deleted successfully"
 // @Failure 400 {object} ErrorResponse "Invalid request parameters"
@@ -406,6 +435,17 @@ func (s *Server) handleUpdateSchedule(c *gin.Context) {
 // @Failure 500 {object} ErrorResponse "Internal server error"
 // @Router /api/v1/schedules/{tenant} [delete]
 func (s *Server) handleDeleteSchedule(c *gin.Context) {
+	// Check permissions
+	role, exists := c.Get("role")
+	if !exists || !auth.CanDeleteSchedule(role.(string)) {
+		c.JSON(http.StatusForbidden, ErrorResponse{
+			Success: false,
+			Error:   "Insufficient permissions. Only admin and operacion roles can delete schedules",
+			Code:    http.StatusForbidden,
+		})
+		return
+	}
+
 	tenant := c.Param("tenant")
 	if tenant == "" {
 		c.JSON(http.StatusBadRequest, ErrorResponse{
@@ -433,6 +473,549 @@ func (s *Server) handleDeleteSchedule(c *gin.Context) {
 	c.JSON(http.StatusOK, APIResponse{
 		Success: true,
 		Message: fmt.Sprintf("Schedule deleted successfully for tenant %s", tenant),
+	})
+}
+
+// handleGetSuspendedServices gets currently suspended services for a tenant
+// @Summary Get suspended services for tenant
+// @Description Returns all currently suspended services (Deployments, StatefulSets, CronJobs) for a specific tenant
+// @Tags Schedules
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param tenant path string true "Tenant name" example:"bdadevdat"
+// @Success 200 {object} APIResponse{data=SuspendedServicesResponse} "Suspended services information"
+// @Failure 400 {object} ErrorResponse "Invalid request parameters"
+// @Failure 404 {object} ErrorResponse "Tenant not found"
+// @Failure 500 {object} ErrorResponse "Internal server error"
+// @Router /api/v1/schedules/{tenant}/suspended [get]
+func (s *Server) handleGetSuspendedServices(c *gin.Context) {
+	tenant := c.Param("tenant")
+	if tenant == "" {
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Success: false,
+			Error:   "tenant parameter is required",
+			Code:    http.StatusBadRequest,
+		})
+		return
+	}
+
+	suspended, err := s.scheduleService.GetSuspendedServices(c.Request.Context(), tenant)
+	if err != nil {
+		if strings.Contains(err.Error(), "no schedules found") {
+			c.JSON(http.StatusNotFound, ErrorResponse{
+				Success: false,
+				Error:   err.Error(),
+				Code:    http.StatusNotFound,
+			})
+			return
+		}
+		s.logger.Error(err, "failed to get suspended services", "tenant", tenant)
+		handleKubernetesError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, APIResponse{
+		Success: true,
+		Data:    suspended,
+	})
+}
+
+// handleGetNextOperation gets the next scheduled operation for a tenant
+// @Summary Get next scheduled operation for tenant
+// @Description Returns the next scheduled sleep or wake operation for a specific tenant
+// @Tags Schedules
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param tenant path string true "Tenant name" example:"bdadevdat"
+// @Success 200 {object} APIResponse{data=NextOperationResponse} "Next operation information"
+// @Failure 400 {object} ErrorResponse "Invalid request parameters"
+// @Failure 404 {object} ErrorResponse "Tenant not found"
+// @Failure 500 {object} ErrorResponse "Internal server error"
+// @Router /api/v1/schedules/{tenant}/next [get]
+func (s *Server) handleGetNextOperation(c *gin.Context) {
+	tenant := c.Param("tenant")
+	if tenant == "" {
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Success: false,
+			Error:   "tenant parameter is required",
+			Code:    http.StatusBadRequest,
+		})
+		return
+	}
+
+	nextOp, err := s.scheduleService.GetNextOperation(c.Request.Context(), tenant)
+	if err != nil {
+		if strings.Contains(err.Error(), "no schedules found") {
+			c.JSON(http.StatusNotFound, ErrorResponse{
+				Success: false,
+				Error:   err.Error(),
+				Code:    http.StatusNotFound,
+			})
+			return
+		}
+		s.logger.Error(err, "failed to get next operation", "tenant", tenant)
+		handleKubernetesError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, APIResponse{
+		Success: true,
+		Data:    nextOp,
+	})
+}
+
+// handleGetAllSuspendedServices gets suspended services for all tenants
+// @Summary Get all suspended services
+// @Description Returns all currently suspended services across all tenants
+// @Tags Schedules
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} APIResponse{data=[]SuspendedServiceInfo} "All suspended services"
+// @Failure 500 {object} ErrorResponse "Internal server error"
+// @Router /api/v1/schedules/suspended [get]
+func (s *Server) handleGetAllSuspendedServices(c *gin.Context) {
+	suspended, err := s.scheduleService.GetAllSuspendedServices(c.Request.Context())
+	if err != nil {
+		s.logger.Error(err, "failed to get all suspended services")
+		handleKubernetesError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, APIResponse{
+		Success: true,
+		Data:    suspended,
+	})
+}
+
+// handleGetAllNextOperations gets the next operation across all tenants
+// @Summary Get next operation across all tenants
+// @Description Returns the earliest next scheduled operation across all tenants
+// @Tags Schedules
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} APIResponse{data=NextOperationResponse} "Next operation information"
+// @Failure 404 {object} ErrorResponse "No scheduled operations found"
+// @Failure 500 {object} ErrorResponse "Internal server error"
+// @Router /api/v1/schedules/next [get]
+func (s *Server) handleGetAllNextOperations(c *gin.Context) {
+	nextOp, err := s.scheduleService.GetAllNextOperations(c.Request.Context())
+	if err != nil {
+		if strings.Contains(err.Error(), "no scheduled operations found") {
+			c.JSON(http.StatusNotFound, ErrorResponse{
+				Success: false,
+				Error:   err.Error(),
+				Code:    http.StatusNotFound,
+			})
+			return
+		}
+		s.logger.Error(err, "failed to get all next operations")
+		handleKubernetesError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, APIResponse{
+		Success: true,
+		Data:    nextOp,
+	})
+}
+
+// handleListUsers lists all users (admin only)
+// @Summary List all users
+// @Description Lists all users in the system. Requires admin role.
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} APIResponse{data=[]UserInfo} "List of users"
+// @Failure 403 {object} ErrorResponse "Forbidden: Admin access required"
+// @Failure 500 {object} ErrorResponse "Internal server error"
+// @Router /api/v1/users [get]
+func (s *Server) handleListUsers(c *gin.Context) {
+	if s.userStore == nil {
+		s.initializeAuth()
+	}
+	if s.userStore == nil {
+		c.JSON(http.StatusServiceUnavailable, ErrorResponse{
+			Success: false,
+			Error:   "User management is not configured",
+			Code:    http.StatusServiceUnavailable,
+		})
+		return
+	}
+
+	// Check if user is admin
+	role, exists := c.Get("role")
+	if !exists || role.(string) != auth.RoleAdmin {
+		c.JSON(http.StatusForbidden, ErrorResponse{
+			Success: false,
+			Error:   "Admin access required",
+			Code:    http.StatusForbidden,
+		})
+		return
+	}
+
+	users := s.userStore.ListUsers()
+	// Convert to UserInfo (without password hash)
+	userInfos := make([]UserInfo, 0, len(users))
+	for _, userMap := range users {
+		userInfos = append(userInfos, UserInfo{
+			Username: userMap["username"],
+			Role:     userMap["role"],
+		})
+	}
+	c.JSON(http.StatusOK, APIResponse{
+		Success: true,
+		Data:    userInfos,
+	})
+}
+
+// UserInfo represents user information (without password)
+// @Description User information returned by the API
+type UserInfo struct {
+	Username string `json:"username" example:"admin"` // Username
+	Role     string `json:"role" example:"admin"`    // User role: admin, operacion, or lectura
+}
+
+// CreateUserRequest represents a request to create a user
+type CreateUserRequest struct {
+	Username string `json:"username" binding:"required"`
+	Password string `json:"password" binding:"required"`
+	Role     string `json:"role" binding:"required"`
+}
+
+// handleCreateUser creates a new user (admin only)
+// @Summary Create a new user
+// @Description Creates a new user with a specified username, password, and role. Requires admin role.
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body CreateUserRequest true "User creation request"
+// @Success 201 {object} APIResponse "User created successfully"
+// @Failure 400 {object} ErrorResponse "Invalid request parameters"
+// @Failure 403 {object} ErrorResponse "Forbidden: Admin access required"
+// @Failure 409 {object} ErrorResponse "Conflict: User already exists"
+// @Failure 500 {object} ErrorResponse "Internal server error"
+// @Router /api/v1/users [post]
+func (s *Server) handleCreateUser(c *gin.Context) {
+	if s.userStore == nil {
+		s.initializeAuth()
+	}
+	if s.userStore == nil {
+		c.JSON(http.StatusServiceUnavailable, ErrorResponse{
+			Success: false,
+			Error:   "User management is not configured",
+			Code:    http.StatusServiceUnavailable,
+		})
+		return
+	}
+
+	// Check if user is admin
+	role, exists := c.Get("role")
+	if !exists || role.(string) != auth.RoleAdmin {
+		c.JSON(http.StatusForbidden, ErrorResponse{
+			Success: false,
+			Error:   "Admin access required",
+			Code:    http.StatusForbidden,
+		})
+		return
+	}
+
+	var req CreateUserRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Success: false,
+			Error:   "Invalid request: " + err.Error(),
+			Code:    http.StatusBadRequest,
+		})
+		return
+	}
+
+	if s.userStore.UserExists(req.Username) {
+		c.JSON(http.StatusConflict, ErrorResponse{
+			Success: false,
+			Error:   "User already exists",
+			Code:    http.StatusConflict,
+		})
+		return
+	}
+
+	if err := s.userStore.CreateUser(req.Username, req.Password, req.Role); err != nil {
+		s.logger.Error(err, "failed to create user", "username", req.Username)
+		c.JSON(http.StatusInternalServerError, ErrorResponse{
+			Success: false,
+			Error:   fmt.Sprintf("Failed to create user: %v", err),
+			Code:    http.StatusInternalServerError,
+		})
+		return
+	}
+
+	c.JSON(http.StatusCreated, APIResponse{
+		Success: true,
+		Message: fmt.Sprintf("User %s created successfully", req.Username),
+	})
+}
+
+// UpdatePasswordRequest represents a request to update a user's password
+type UpdatePasswordRequest struct {
+	Password string `json:"password" binding:"required"`
+}
+
+// handleUpdateUserPassword updates a user's password (admin only)
+// @Summary Update user password
+// @Description Updates a user's password. Requires admin role.
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param username path string true "Username" example:"user1"
+// @Param request body UpdatePasswordRequest true "Password update request"
+// @Success 200 {object} APIResponse "Password updated successfully"
+// @Failure 400 {object} ErrorResponse "Invalid request parameters"
+// @Failure 403 {object} ErrorResponse "Forbidden: Admin access required"
+// @Failure 404 {object} ErrorResponse "User not found"
+// @Failure 500 {object} ErrorResponse "Internal server error"
+// @Router /api/v1/users/{username}/password [put]
+func (s *Server) handleUpdateUserPassword(c *gin.Context) {
+	if s.userStore == nil {
+		s.initializeAuth()
+	}
+	if s.userStore == nil {
+		c.JSON(http.StatusServiceUnavailable, ErrorResponse{
+			Success: false,
+			Error:   "User management is not configured",
+			Code:    http.StatusServiceUnavailable,
+		})
+		return
+	}
+
+	// Check if user is admin
+	role, exists := c.Get("role")
+	if !exists || role.(string) != auth.RoleAdmin {
+		c.JSON(http.StatusForbidden, ErrorResponse{
+			Success: false,
+			Error:   "Admin access required",
+			Code:    http.StatusForbidden,
+		})
+		return
+	}
+
+	username := c.Param("username")
+	if username == "" {
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Success: false,
+			Error:   "Username parameter is required",
+			Code:    http.StatusBadRequest,
+		})
+		return
+	}
+
+	var req UpdatePasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Success: false,
+			Error:   "Invalid request: " + err.Error(),
+			Code:    http.StatusBadRequest,
+		})
+		return
+	}
+
+	if err := s.userStore.UpdateUserPassword(username, req.Password); err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			c.JSON(http.StatusNotFound, ErrorResponse{
+				Success: false,
+				Error:   err.Error(),
+				Code:    http.StatusNotFound,
+			})
+			return
+		}
+		s.logger.Error(err, "failed to update user password", "username", username)
+		c.JSON(http.StatusInternalServerError, ErrorResponse{
+			Success: false,
+			Error:   fmt.Sprintf("Failed to update password: %v", err),
+			Code:    http.StatusInternalServerError,
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, APIResponse{
+		Success: true,
+		Message: fmt.Sprintf("Password updated successfully for user %s", username),
+	})
+}
+
+// UpdateRoleRequest represents a request to update a user's role
+type UpdateRoleRequest struct {
+	Role string `json:"role" binding:"required"`
+}
+
+// handleUpdateUserRole updates a user's role (admin only)
+// @Summary Update user role
+// @Description Updates a user's role. Requires admin role.
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param username path string true "Username" example:"user1"
+// @Param request body UpdateRoleRequest true "Role update request"
+// @Success 200 {object} APIResponse "Role updated successfully"
+// @Failure 400 {object} ErrorResponse "Invalid request parameters"
+// @Failure 403 {object} ErrorResponse "Forbidden: Admin access required"
+// @Failure 404 {object} ErrorResponse "User not found"
+// @Failure 500 {object} ErrorResponse "Internal server error"
+// @Router /api/v1/users/{username}/role [put]
+func (s *Server) handleUpdateUserRole(c *gin.Context) {
+	if s.userStore == nil {
+		s.initializeAuth()
+	}
+	if s.userStore == nil {
+		c.JSON(http.StatusServiceUnavailable, ErrorResponse{
+			Success: false,
+			Error:   "User management is not configured",
+			Code:    http.StatusServiceUnavailable,
+		})
+		return
+	}
+
+	// Check if user is admin
+	role, exists := c.Get("role")
+	if !exists || role.(string) != auth.RoleAdmin {
+		c.JSON(http.StatusForbidden, ErrorResponse{
+			Success: false,
+			Error:   "Admin access required",
+			Code:    http.StatusForbidden,
+		})
+		return
+	}
+
+	username := c.Param("username")
+	if username == "" {
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Success: false,
+			Error:   "Username parameter is required",
+			Code:    http.StatusBadRequest,
+		})
+		return
+	}
+
+	var req UpdateRoleRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Success: false,
+			Error:   "Invalid request: " + err.Error(),
+			Code:    http.StatusBadRequest,
+		})
+		return
+	}
+
+	if err := s.userStore.UpdateUserRole(username, req.Role); err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			c.JSON(http.StatusNotFound, ErrorResponse{
+				Success: false,
+				Error:   err.Error(),
+				Code:    http.StatusNotFound,
+			})
+			return
+		}
+		s.logger.Error(err, "failed to update user role", "username", username)
+		c.JSON(http.StatusInternalServerError, ErrorResponse{
+			Success: false,
+			Error:   fmt.Sprintf("Failed to update role: %v", err),
+			Code:    http.StatusInternalServerError,
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, APIResponse{
+		Success: true,
+		Message: fmt.Sprintf("Role updated successfully for user %s", username),
+	})
+}
+
+// handleDeleteUser deletes a user (admin only)
+// @Summary Delete user
+// @Description Deletes a user from the system. Requires admin role.
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param username path string true "Username" example:"user1"
+// @Success 200 {object} APIResponse "User deleted successfully"
+// @Failure 400 {object} ErrorResponse "Invalid request parameters"
+// @Failure 403 {object} ErrorResponse "Forbidden: Admin access required"
+// @Failure 404 {object} ErrorResponse "User not found"
+// @Failure 500 {object} ErrorResponse "Internal server error"
+// @Router /api/v1/users/{username} [delete]
+func (s *Server) handleDeleteUser(c *gin.Context) {
+	if s.userStore == nil {
+		s.initializeAuth()
+	}
+	if s.userStore == nil {
+		c.JSON(http.StatusServiceUnavailable, ErrorResponse{
+			Success: false,
+			Error:   "User management is not configured",
+			Code:    http.StatusServiceUnavailable,
+		})
+		return
+	}
+
+	// Check if user is admin
+	role, exists := c.Get("role")
+	if !exists || role.(string) != auth.RoleAdmin {
+		c.JSON(http.StatusForbidden, ErrorResponse{
+			Success: false,
+			Error:   "Admin access required",
+			Code:    http.StatusForbidden,
+		})
+		return
+	}
+
+	username := c.Param("username")
+	if username == "" {
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Success: false,
+			Error:   "Username parameter is required",
+			Code:    http.StatusBadRequest,
+		})
+		return
+	}
+
+	// Prevent deleting yourself
+	currentUsername, _ := c.Get("username")
+	if username == currentUsername {
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Success: false,
+			Error:   "Cannot delete your own account",
+			Code:    http.StatusBadRequest,
+		})
+		return
+	}
+
+	if err := s.userStore.DeleteUser(username); err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			c.JSON(http.StatusNotFound, ErrorResponse{
+				Success: false,
+				Error:   err.Error(),
+				Code:    http.StatusNotFound,
+			})
+			return
+		}
+		s.logger.Error(err, "failed to delete user", "username", username)
+		c.JSON(http.StatusInternalServerError, ErrorResponse{
+			Success: false,
+			Error:   fmt.Sprintf("Failed to delete user: %v", err),
+			Code:    http.StatusInternalServerError,
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, APIResponse{
+		Success: true,
+		Message: fmt.Sprintf("User %s deleted successfully", username),
 	})
 }
 
