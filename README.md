@@ -324,7 +324,7 @@ spec:
         kafka.stratio.com/cluster: "true"
 ```
 
-**Wake SleepInfo for PgBouncer** (second stage - 2 minutes after Postgres/HDFS):
+**Wake SleepInfo for PgBouncer** (second stage - 2 minutes after Postgres/HDFS/OpenSearch/Kafka):
 
 ```yaml
 apiVersion: kube-green.com/v1alpha1
