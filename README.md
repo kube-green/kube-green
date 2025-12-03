@@ -132,7 +132,7 @@ spec:
 
 ### Extended CRD Examples
 
-**Note:** The following examples show how to use the extended functionality for managing CRDs (PgCluster, HDFSCluster, PgBouncer) directly without the helper script.
+**Note:** The following examples show how to use the extended functionality for managing CRDs (PgCluster, HDFSCluster, OsCluster, KafkaCluster, PgBouncer) directly without the helper script.
 
 **Example 1: Suspend PostgreSQL cluster using native CRD support**
 
@@ -196,7 +196,51 @@ spec:
   suspendDeploymentsPgbouncer: true
 ```
 
-**Example 4: Staged wake-up for datastores namespace (Postgres, HDFS, PgBouncer, and native deployments)**
+**Example 4: Suspend OpenSearch cluster using native CRD support**
+
+This example suspends an OsCluster CRD by setting the shutdown annotation. The opensearch-operator will handle the actual shutdown:
+
+```yaml
+apiVersion: kube-green.com/v1alpha1
+kind: SleepInfo
+metadata:
+  name: opensearch-schedule
+  namespace: my-namespace
+spec:
+  weekdays: "1-5"
+  sleepAt: "20:00"
+  wakeUpAt: "08:00"
+  timeZone: "America/Bogota"
+  suspendStatefulSetsOpenSearch: true
+  excludeRef:
+    - matchLabels:
+        app.kubernetes.io/managed-by: opensearch-operator
+        opensearch.stratio.com/cluster: "true"
+```
+
+**Example 5: Suspend Kafka cluster using native CRD support**
+
+This example suspends a KafkaCluster CRD by setting the shutdown annotation. The kafka-operator will handle the actual shutdown:
+
+```yaml
+apiVersion: kube-green.com/v1alpha1
+kind: SleepInfo
+metadata:
+  name: kafka-schedule
+  namespace: my-namespace
+spec:
+  weekdays: "1-5"
+  sleepAt: "20:00"
+  wakeUpAt: "08:00"
+  timeZone: "America/Bogota"
+  suspendStatefulSetsKafka: true
+  excludeRef:
+    - matchLabels:
+        app.kubernetes.io/managed-by: kafka-operator
+        kafka.stratio.com/cluster: "true"
+```
+
+**Example 6: Staged wake-up for datastores namespace (Postgres, HDFS, OpenSearch, Kafka, PgBouncer, and native deployments)**
 
 This example uses separate SleepInfos with shared annotations to implement staged wake-up. The `pair-id` and `pair-role` annotations allow the wake SleepInfos to find restore patches from the sleep SleepInfo:
 
@@ -221,6 +265,8 @@ spec:
   suspendDeploymentsPgbouncer: true
   suspendStatefulSetsPostgres: true
   suspendStatefulSetsHdfs: true
+  suspendStatefulSetsOpenSearch: true
+  suspendStatefulSetsKafka: true
   excludeRef:
     - matchLabels:
         app.kubernetes.io/managed-by: postgres-operator
@@ -230,15 +276,23 @@ spec:
         app.kubernetes.io/managed-by: hdfs-operator
     - matchLabels:
         hdfs.stratio.com/cluster: "true"
+    - matchLabels:
+        app.kubernetes.io/managed-by: opensearch-operator
+    - matchLabels:
+        opensearch.stratio.com/cluster: "true"
+    - matchLabels:
+        app.kubernetes.io/managed-by: kafka-operator
+    - matchLabels:
+        kafka.stratio.com/cluster: "true"
 ```
 
-**Wake SleepInfo for Postgres and HDFS** (first stage - 5 minutes before others):
+**Wake SleepInfo for Postgres, HDFS, OpenSearch, and Kafka** (first stage - 5 minutes before others):
 
 ```yaml
 apiVersion: kube-green.com/v1alpha1
 kind: SleepInfo
 metadata:
-  name: wake-datastores-pg-hdfs
+  name: wake-datastores-pg-hdfs-opensearch-kafka
   namespace: my-datastores
   annotations:
     kube-green.stratio.com/pair-id: "my-datastores"
@@ -249,6 +303,8 @@ spec:
   timeZone: "America/Bogota"
   suspendStatefulSetsPostgres: true
   suspendStatefulSetsHdfs: true
+  suspendStatefulSetsOpenSearch: true
+  suspendStatefulSetsKafka: true
   excludeRef:
     - matchLabels:
         app.kubernetes.io/managed-by: postgres-operator
@@ -258,6 +314,14 @@ spec:
         app.kubernetes.io/managed-by: hdfs-operator
     - matchLabels:
         hdfs.stratio.com/cluster: "true"
+    - matchLabels:
+        app.kubernetes.io/managed-by: opensearch-operator
+    - matchLabels:
+        opensearch.stratio.com/cluster: "true"
+    - matchLabels:
+        app.kubernetes.io/managed-by: kafka-operator
+    - matchLabels:
+        kafka.stratio.com/cluster: "true"
 ```
 
 **Wake SleepInfo for PgBouncer** (second stage - 2 minutes after Postgres/HDFS):
@@ -306,9 +370,17 @@ spec:
         app.kubernetes.io/managed-by: hdfs-operator
     - matchLabels:
         hdfs.stratio.com/cluster: "true"
+    - matchLabels:
+        app.kubernetes.io/managed-by: opensearch-operator
+    - matchLabels:
+        opensearch.stratio.com/cluster: "true"
+    - matchLabels:
+        app.kubernetes.io/managed-by: kafka-operator
+    - matchLabels:
+        kafka.stratio.com/cluster: "true"
 ```
 
-**Note:** The staged wake-up ensures services start in the correct order: Postgres/HDFS first (needed by all), then PgBouncer (depends on Postgres), and finally native deployments (depend on databases).
+**Note:** The staged wake-up ensures services start in the correct order: Postgres/HDFS/OpenSearch/Kafka first (needed by all), then PgBouncer (depends on Postgres), and finally native deployments (depend on databases).
 
 To see other examples, go to [our docs](https://kube-green.dev/docs/configuration/#examples).
 
