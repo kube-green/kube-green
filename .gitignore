@@ -41,3 +41,4 @@ template.output.yaml
 
 # Swagger generated docs
 internal/api/v1/docs/
+charts/kube-green/*.tgz
