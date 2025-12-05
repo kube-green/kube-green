@@ -60,6 +60,22 @@ manager:
       metricRelabelings: []
       # -- Prometheus [RelabelConfigs] to apply to samples before scraping
       relabelings: []
+  # -- REST API configuration
+  api:
+    # -- Enable the REST API server
+    enabled: false
+    # -- Port for the REST API server
+    port: 8080
+    # -- Enable CORS for the REST API
+    cors: false
+  # -- Authentication configuration
+  auth:
+    # -- Enable JWT authentication for the REST API
+    enabled: false
+    # -- Secret name containing JWT secret (key: secret)
+    jwtSecretName: "kube-green-jwt"
+    # -- Secret name containing user credentials (key: users)
+    usersSecretName: "kube-green-users"
 
 # -- List of secrets used to access private image repositories.
 imagePullSecrets: []
@@ -117,6 +133,10 @@ rbac:
     name: kube-green-manager-role-custom-aggregate
     # -- Rules to add to the custom ClusterRole.
     rules: []
+  # -- Extended RBAC for CRDs (Postgres, HDFS, OpenSearch, Kafka)
+  extendedCRDs:
+    # -- Enable extended RBAC for CRDs (PgCluster, HDFSCluster, OsCluster, KafkaCluster, PgBouncer)
+    enabled: false
 
 crds:
   # This option decides if the CRDs should be installed as part of the Helm installation.

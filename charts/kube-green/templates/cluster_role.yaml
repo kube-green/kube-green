@@ -68,6 +68,57 @@ rules:
   - get
   - patch
   - update
+{{- if .Values.rbac.extendedCRDs.enabled }}
+- apiGroups:
+  - postgres.stratio.com
+  resources:
+  - pgclusters
+  - pgbouncers
+  verbs:
+  - get
+  - list
+  - watch
+  - patch
+  - update
+- apiGroups:
+  - hdfs.stratio.com
+  resources:
+  - hdfsclusters
+  verbs:
+  - get
+  - list
+  - watch
+  - patch
+  - update
+- apiGroups:
+  - opensearch.stratio.com
+  resources:
+  - osclusters
+  verbs:
+  - get
+  - list
+  - watch
+  - patch
+  - update
+- apiGroups:
+  - kafka.stratio.com
+  resources:
+  - kafkaclusters
+  verbs:
+  - get
+  - list
+  - watch
+  - patch
+  - update
+- apiGroups:
+  - ""
+  resources:
+  - namespaces
+  verbs:
+  - get
+  - list
+  - watch
+{{- end }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
