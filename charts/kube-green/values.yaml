@@ -7,11 +7,11 @@ fullnameOverride: ""
 manager:
   image:
     # -- The Docker image repository for the kube-green manager application.
-    repository: kubegreen/kube-green
+    repository: yeramirez/kube-green
     # -- Defines the image pull policy. Avoids pulling the image if it's already present.
     pullPolicy: IfNotPresent
     # -- The specific image tag of the kube-green manager to use.
-    tag: "0.7.1"
+    tag: "0.7.16-backend-46558d9"
   # -- Extra arguments to pass to the manager container.
   extraArgs: []
     # - --sleep-delta=60
