@@ -76,7 +76,7 @@ endif
 # CONTAINER_TOOL defines the container tool to be used for building images.
 # Be aware that the target commands are only tested with Docker which is
 # scaffolded by default. However, you might want to replace it to use other
-# tools. (i.e. podman) in that case, test require updates as now hardcoded to docker.
+# tools. (i.e. podman).
 CONTAINER_TOOL ?= docker
 
 # Setting SHELL to bash allows bash commands to be executed by recipes.
@@ -153,12 +153,12 @@ e2e-test-kustomize: manifests generate kustomize
 	@$(KUSTOMIZE) build ./config/e2e-test/ -o /tmp/kube-green-e2e-test.yaml
 	@rm -rf ./tests/integration/tests-logs/
 	@echo "==> Generated K8s resource file with Kustomize"
-	INSTALLATION_MODE=kustomize go test -tags=e2e ./tests/integration/ -count 1 $(OPTION)
+	CONTAINER_TOOL=$(CONTAINER_TOOL) INSTALLATION_MODE=kustomize go test -tags=e2e ./tests/integration/ -count 1 $(OPTION)
 
 .PHONY: e2e-test
 e2e-test:
 	@rm -rf ./tests/integration/tests-logs/
-	go test -tags=e2e ./tests/integration/ -count 1 $(OPTION)
+	CONTAINER_TOOL=$(CONTAINER_TOOL) go test -tags=e2e ./tests/integration/ -count 1 $(OPTION)
 
 ##@ Build
 
@@ -362,7 +362,7 @@ bundle: manifests kustomize operator-sdk ## Generate bundle manifests and metada
 
 .PHONY: bundle-build
 bundle-build: ## Build the bundle image.
-	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
+	$(CONTAINER_TOOL) build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
 
 .PHONY: bundle-push
 bundle-push: ## Push the bundle image.
@@ -385,7 +385,7 @@ endif
 # https://github.com/operator-framework/community-operators/blob/7f1438c/docs/packaging-operator.md#updating-your-existing-operator
 .PHONY: catalog-build
 catalog-build: opm ## Build a catalog image.
-	$(OPM) index add --container-tool docker --mode semver --tag $(CATALOG_IMG) --bundles $(BUNDLE_IMGS) $(FROM_INDEX_OPT)
+	$(OPM) index add --container-tool $(CONTAINER_TOOL) --mode semver --tag $(CATALOG_IMG) --bundles $(BUNDLE_IMGS) $(FROM_INDEX_OPT)
 
 # Push the catalog image.
 .PHONY: catalog-push
