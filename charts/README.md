@@ -27,7 +27,7 @@ This example shows how to use this Helm Chart with ArgoCD.
 
 ### Prerequisites
 
-- [ArgoCD GitOps setup](https://codefresh.io/learn/argo-cd/)
+- [ArgoCD GitOps setup](https://argo-cd.readthedocs.io/en/stable/getting_started/)
 
 ### Configuration
 
