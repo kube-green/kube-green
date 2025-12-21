@@ -21,9 +21,63 @@ helm upgrade kube-green \
 ./charts/kube-green --install
 ```
 
+## Deploy Kube-green Helm Chart with ArgoCD
+
+This example shows how to use this Helm Chart with ArgoCD.
+
+### Prerequisites
+
+- [ArgoCD GitOps setup](https://argo-cd.readthedocs.io/en/stable/getting_started/)
+
+### Configuration
+
+The following Application configuration can be used to deploy the helm chart using ArgoCD with a GitOps structure. Important parts of this are the `ServerSideApply` and `ignoreDifferences` configurations to have a clean Application state.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kube-green
+spec:
+  project: project
+  destination:
+    namespace: kube-green
+    name: 'cluster'
+
+  sources: 
+    # Helm
+    - repoURL: 'https://kube-green.github.io/helm-charts/'
+      chart: kube-green
+      targetRevision: 0.7.*
+      helm:
+        valueFiles:
+          - $values/deployments/kube-green/values/values-main.yaml
+    - repoURL: 'https://github.com/organisation/gitops.git'
+      ref: values
+      targetRevision: 'main'
+    # Kustomize location for SleepInfo configurations
+    - repoURL: 'https://github.com/organisation/gitops.git'
+      path: ./deployments/kube-green/base
+      targetRevision: 'main'
+
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+       # Required for the CRD annotation
+      - ServerSideApply=true
+
+  ignoreDifferences:
+  # Required because the control plane automatically fills in the rules
+  - group: rbac.authorization.k8s.io
+    kind: ClusterRole
+    name: kube-green-manager-role
+    jsonPointers:
+    - /rules
+```
+
 ## Deploy Kube-Green Helm Chart with Terraform
 
-This example show how to use [Terraform Helm Chart Provider](https://developer.hashicorp.com/terraform/tutorials/kubernetes/helm-provider) to deploy `kube-green` on Kubernetes Clusters. 
+This example shows how to use [Terraform Helm Chart Provider](https://developer.hashicorp.com/terraform/tutorials/kubernetes/helm-provider) to deploy `kube-green` on Kubernetes Clusters. 
 
 ### Prerequisites
 
