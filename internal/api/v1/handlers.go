@@ -5,13 +5,14 @@ Copyright 2025.
 package v1
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"github.com/kube-green/kube-green/internal/api/v1/auth"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 // APIResponse represents a standard API response
@@ -193,19 +194,19 @@ func (s *Server) handleGetSchedule(c *gin.Context) {
 // CreateScheduleRequest represents a request to create a schedule
 // @Description Request to create a new sleep/wake schedule for a tenant
 type CreateScheduleRequest struct {
-	Tenant        string       `json:"tenant" binding:"required" example:"bdadevdat"`  // Tenant name (e.g., bdadevdat, bdadevprd)
-	Off           string       `json:"off" binding:"required" example:"22:00"`         // Sleep time in local timezone (HH:MM format, 24-hour)
-	On            string       `json:"on" binding:"required" example:"06:00"`          // Wake time in local timezone (HH:MM format, 24-hour)
-	Weekdays      string       `json:"weekdays,omitempty" example:"lunes-viernes"`     // Days of week (human format: "lunes-viernes", or numeric: "1-5")
-	SleepDays     string       `json:"sleepDays,omitempty" example:"viernes"`          // Optional: specific days for sleep (overrides weekdays)
-	WakeDays      string       `json:"wakeDays,omitempty" example:"lunes"`             // Optional: specific days for wake (overrides weekdays)
-	WeekdaysSleep string       `json:"weekdaysSleep,omitempty" example:"viernes"`     // Frontend format: specific days for sleep (mapped to SleepDays)
-	WeekdaysWake  string       `json:"weekdaysWake,omitempty" example:"lunes"`          // Frontend format: specific days for wake (mapped to WakeDays)
-	Namespaces    []string     `json:"namespaces,omitempty" example:"datastores,apps"` // Optional: limit to specific namespaces (datastores, apps, rocket, intelligence, airflowsso)
-	Delays        *DelayConfig `json:"delays,omitempty"`                               // Optional: custom delays for staggered wake-up (e.g., {"pgHdfsDelay": "0m", "pgbouncerDelay": "5m", "deploymentsDelay": "7m"})
-	ScheduleName  string       `json:"scheduleName,omitempty" example:"horario-laboral"` // Optional: name to identify this schedule (allows multiple schedules per namespace)
+	Tenant        string       `json:"tenant" binding:"required" example:"bdadevdat"`                      // Tenant name (e.g., bdadevdat, bdadevprd)
+	Off           string       `json:"off" binding:"required" example:"22:00"`                             // Sleep time in local timezone (HH:MM format, 24-hour)
+	On            string       `json:"on" binding:"required" example:"06:00"`                              // Wake time in local timezone (HH:MM format, 24-hour)
+	Weekdays      string       `json:"weekdays,omitempty" example:"lunes-viernes"`                         // Days of week (human format: "lunes-viernes", or numeric: "1-5")
+	SleepDays     string       `json:"sleepDays,omitempty" example:"viernes"`                              // Optional: specific days for sleep (overrides weekdays)
+	WakeDays      string       `json:"wakeDays,omitempty" example:"lunes"`                                 // Optional: specific days for wake (overrides weekdays)
+	WeekdaysSleep string       `json:"weekdaysSleep,omitempty" example:"viernes"`                          // Frontend format: specific days for sleep (mapped to SleepDays)
+	WeekdaysWake  string       `json:"weekdaysWake,omitempty" example:"lunes"`                             // Frontend format: specific days for wake (mapped to WakeDays)
+	Namespaces    []string     `json:"namespaces,omitempty" example:"datastores,apps"`                     // Optional: limit to specific namespaces (datastores, apps, rocket, intelligence, airflowsso)
+	Delays        *DelayConfig `json:"delays,omitempty"`                                                   // Optional: custom delays for staggered wake-up (e.g., {"pgHdfsDelay": "0m", "pgbouncerDelay": "5m", "deploymentsDelay": "7m"})
+	ScheduleName  string       `json:"scheduleName,omitempty" example:"horario-laboral"`                   // Optional: name to identify this schedule (allows multiple schedules per namespace)
 	Description   string       `json:"description,omitempty" example:"Horario laboral de lunes a viernes"` // Optional: description of the schedule
-	Apply         bool         `json:"apply,omitempty"`                                // Always applies to cluster (field is ignored but kept for compatibility)
+	Apply         bool         `json:"apply,omitempty"`                                                    // Always applies to cluster (field is ignored but kept for compatibility)
 }
 
 // handleCreateSchedule creates a new schedule
@@ -259,15 +260,15 @@ func (s *Server) handleCreateSchedule(c *gin.Context) {
 		sleepDays = req.WeekdaysSleep
 		s.logger.Info("Mapped weekdaysSleep to sleepDays", "weekdaysSleep", req.WeekdaysSleep, "sleepDays", sleepDays)
 	}
-	
+
 	wakeDays := req.WakeDays
 	if wakeDays == "" && req.WeekdaysWake != "" {
 		wakeDays = req.WeekdaysWake
 		s.logger.Info("Mapped weekdaysWake to wakeDays", "weekdaysWake", req.WeekdaysWake, "wakeDays", wakeDays)
 	}
-	
-	s.logger.Info("handleCreateSchedule: weekdays mapping", 
-		"weekdaysSleep", req.WeekdaysSleep, 
+
+	s.logger.Info("handleCreateSchedule: weekdays mapping",
+		"weekdaysSleep", req.WeekdaysSleep,
 		"weekdaysWake", req.WeekdaysWake,
 		"sleepDays", sleepDays,
 		"wakeDays", wakeDays,
@@ -289,6 +290,14 @@ func (s *Server) handleCreateSchedule(c *gin.Context) {
 
 	if err := s.scheduleService.CreateSchedule(c.Request.Context(), serviceReq); err != nil {
 		s.logger.Error(err, "failed to create schedule", "tenant", req.Tenant)
+		if errors.Is(err, ErrScheduleOverlap) || errors.Is(err, ErrNamespaceAsleep) {
+			c.JSON(http.StatusBadRequest, ErrorResponse{
+				Success: false,
+				Error:   err.Error(),
+				Code:    http.StatusBadRequest,
+			})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, ErrorResponse{
 			Success: false,
 			Error:   fmt.Sprintf("Failed to create schedule: %v", err),
@@ -411,6 +420,14 @@ func (s *Server) handleUpdateSchedule(c *gin.Context) {
 	// Update schedule
 	if err := s.scheduleService.UpdateSchedule(c.Request.Context(), tenant, createReq); err != nil {
 		s.logger.Error(err, "failed to update schedule", "tenant", tenant)
+		if errors.Is(err, ErrScheduleOverlap) || errors.Is(err, ErrNamespaceAsleep) {
+			c.JSON(http.StatusBadRequest, ErrorResponse{
+				Success: false,
+				Error:   err.Error(),
+				Code:    http.StatusBadRequest,
+			})
+			return
+		}
 		handleKubernetesError(c, err)
 		return
 	}
@@ -677,7 +694,7 @@ func (s *Server) handleListUsers(c *gin.Context) {
 // @Description User information returned by the API
 type UserInfo struct {
 	Username string `json:"username" example:"admin"` // Username
-	Role     string `json:"role" example:"admin"`    // User role: admin, operacion, or lectura
+	Role     string `json:"role" example:"admin"`     // User role: admin, operacion, or lectura
 }
 
 // CreateUserRequest represents a request to create a user
@@ -1021,7 +1038,7 @@ func (s *Server) handleDeleteUser(c *gin.Context) {
 
 // handleKubernetesError converts Kubernetes API errors to HTTP responses
 func handleKubernetesError(c *gin.Context, err error) {
-	if errors.IsNotFound(err) {
+	if k8serrors.IsNotFound(err) {
 		c.JSON(http.StatusNotFound, ErrorResponse{
 			Success: false,
 			Error:   err.Error(),
@@ -1030,7 +1047,7 @@ func handleKubernetesError(c *gin.Context, err error) {
 		return
 	}
 
-	if errors.IsConflict(err) {
+	if k8serrors.IsConflict(err) {
 		c.JSON(http.StatusConflict, ErrorResponse{
 			Success: false,
 			Error:   err.Error(),
@@ -1055,27 +1072,27 @@ type ExclusionFilter struct {
 // DelayConfig represents delay configuration for staged wake-up
 type DelayConfig struct {
 	PgHdfsDelay      string `json:"pgHdfsDelay,omitempty"`      // Delay for PgCluster + HDFSCluster (e.g., "0m", "5m")
-	PgbouncerDelay   string `json:"pgbouncerDelay,omitempty"`  // Delay for PgBouncer (e.g., "5m")
+	PgbouncerDelay   string `json:"pgbouncerDelay,omitempty"`   // Delay for PgBouncer (e.g., "5m")
 	DeploymentsDelay string `json:"deploymentsDelay,omitempty"` // Delay for Deployments (e.g., "7m")
 }
 
 // NamespaceScheduleRequest represents a request to create/update a schedule for a specific namespace
 type NamespaceScheduleRequest struct {
-	Tenant        string            `json:"tenant" binding:"required"`
-	Namespace     string            `json:"namespace" binding:"required"`
-	Off           string            `json:"off" binding:"required"`
-	On            string            `json:"on" binding:"required"`
-	Weekdays      string            `json:"weekdays,omitempty"`
-	WeekdaysSleep string            `json:"weekdaysSleep,omitempty"`
-	WeekdaysWake  string            `json:"weekdaysWake,omitempty"`
-	ScheduleName  string            `json:"scheduleName,omitempty"`
-	Description   string            `json:"description,omitempty"`
-	Delays        *DelayConfig      `json:"delays,omitempty"`
+	Tenant        string               `json:"tenant" binding:"required"`
+	Namespace     string               `json:"namespace" binding:"required"`
+	Off           string               `json:"off" binding:"required"`
+	On            string               `json:"on" binding:"required"`
+	Weekdays      string               `json:"weekdays,omitempty"`
+	WeekdaysSleep string               `json:"weekdaysSleep,omitempty"`
+	WeekdaysWake  string               `json:"weekdaysWake,omitempty"`
+	ScheduleName  string               `json:"scheduleName,omitempty"`
+	Description   string               `json:"description,omitempty"`
+	Delays        *DelayConfig         `json:"delays,omitempty"`
 	Exclusions    []NamespaceExclusion `json:"exclusions,omitempty"`
 }
 
 // NamespaceExclusion represents an exclusion for a specific namespace
 type NamespaceExclusion struct {
-	Namespace string         `json:"namespace"`
+	Namespace string          `json:"namespace"`
 	Filter    ExclusionFilter `json:"filter"`
 }

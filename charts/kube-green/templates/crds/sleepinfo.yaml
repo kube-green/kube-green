@@ -146,6 +146,10 @@ spec:
                   statefulset of the namespace will not be suspended. By default StatefulSet
                   will be suspended.
                 type: boolean
+              suspendStatefulSetsOsDashboards:
+                description: If SuspendStatefulSetsOsDashboards is set to true, on sleep all OsDashboards
+                  CRDs in the namespace will be managed by modifying spec.replicas.
+                type: boolean
               timeZone:
                 description: |-
                   Time zone to set the schedule, in IANA time zone identifier.

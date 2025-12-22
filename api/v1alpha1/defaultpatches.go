@@ -4,7 +4,7 @@ package v1alpha1
 // +kubebuilder:rbac:groups=batch,resources=cronjobs,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=postgres.stratio.com,resources=pgbouncer;pgcluster,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=hdfs.stratio.com,resources=hdfscluster,verbs=get;list;watch;update;patch
-// +kubebuilder:rbac:groups=opensearch.stratio.com,resources=oscluster,verbs=get;list;watch;update;patch
+// +kubebuilder:rbac:groups=opensearch.stratio.com,resources=oscluster;osdashboardses,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=kafka.stratio.com,resources=kafkacluster,verbs=get;list;watch;update;patch
 
 var DeploymentTarget = PatchTarget{
@@ -66,6 +66,11 @@ var HDFSClusterTarget = PatchTarget{
 var OsClusterTarget = PatchTarget{
 	Group: "opensearch.stratio.com",
 	Kind:  "OsCluster",
+}
+
+var OsDashboardsTarget = PatchTarget{
+	Group: "opensearch.stratio.com",
+	Kind:  "OsDashboards",
 }
 
 var KafkaClusterTarget = PatchTarget{
@@ -144,6 +149,15 @@ var OsclusterWakePatch = Patch{
 - op: replace
   path: /metadata/annotations/oscluster.stratio.com~1shutdown
   value: "false"`,
+}
+
+// Patch para OsDashboards: modifica spec.replicas (usa replace porque el campo siempre existe)
+var OsdashboardsPatch = Patch{
+	Target: OsDashboardsTarget,
+	Patch: `
+- op: replace
+  path: /spec/replicas
+  value: 0`,
 }
 
 // Patch para KafkaCluster: anotación shutdown=true (SLEEP)

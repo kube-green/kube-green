@@ -64,3 +64,4 @@ func CanManageUsers(role string) bool {
 	return role == RoleAdmin
 }
 
+

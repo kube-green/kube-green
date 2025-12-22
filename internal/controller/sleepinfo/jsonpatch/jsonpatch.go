@@ -105,10 +105,10 @@ func (g managedResources) Sleep(ctx context.Context) error {
 			// Some examples are:
 			// - Pod managed by ReplicaSet managed by Deployment
 			// - Pod managed by Job managed by CronJob
-			// EXCEPCIÓN: No saltar CRDs (PgBouncer, PgCluster, HDFSCluster, OsCluster, KafkaCluster) aunque tengan ownerReferences,
+			// EXCEPCIÓN: No saltar CRDs (PgBouncer, PgCluster, HDFSCluster, OsCluster, OsDashboards, KafkaCluster) aunque tengan ownerReferences,
 			// ya que estos son recursos de nivel superior que debemos gestionar directamente.
 			resourceKind := resource.GetKind()
-			isCRD := resourceKind == "PgBouncer" || resourceKind == "PgCluster" || resourceKind == "HDFSCluster" || resourceKind == "OsCluster" || resourceKind == "KafkaCluster"
+			isCRD := resourceKind == "PgBouncer" || resourceKind == "PgCluster" || resourceKind == "HDFSCluster" || resourceKind == "OsCluster" || resourceKind == "OsDashboards" || resourceKind == "KafkaCluster"
 
 			if metav1.GetControllerOfNoCopy(&resource) != nil && !isCRD {
 				g.logger.Info("resource is managed by another controller, skipped",
@@ -142,7 +142,7 @@ func (g managedResources) Sleep(ctx context.Context) error {
 				currentResource.SetGroupVersionKind(resource.GroupVersionKind())
 				currentResource.SetName(resource.GetName())
 				currentResource.SetNamespace(resource.GetNamespace())
-				
+
 				// Re-read current state from cluster (might be modified from previous attempt)
 				if err := resourceWrapper.Client.Get(ctx, client.ObjectKeyFromObject(currentResource), currentResource); err != nil {
 					g.logger.Error(err, "failed to re-read resource after patch failure, using original state",
@@ -165,7 +165,7 @@ func (g managedResources) Sleep(ctx context.Context) error {
 						)
 						continue
 					}
-					
+
 					// Create restore patch from current state (might be modified) to original state
 					restorePatchFromCurrent, err := jsonpatch.CreateMergePatch(currentState, original)
 					if err != nil {
@@ -175,7 +175,7 @@ func (g managedResources) Sleep(ctx context.Context) error {
 						)
 						continue
 					}
-					
+
 					restorePatchString := string(restorePatchFromCurrent)
 					// Only save if it's not empty (resource was actually modified)
 					if restorePatchString != "{}" {
@@ -267,10 +267,10 @@ func (g managedResources) WakeUp(ctx context.Context) error {
 
 		for _, resource := range resourceWrapper.data {
 			// Skip resources managed by another controller
-			// EXCEPCIÓN: No saltar CRDs (PgBouncer, PgCluster, HDFSCluster, OsCluster, KafkaCluster) aunque tengan ownerReferences,
+			// EXCEPCIÓN: No saltar CRDs (PgBouncer, PgCluster, HDFSCluster, OsCluster, OsDashboards, KafkaCluster) aunque tengan ownerReferences,
 			// ya que estos son recursos de nivel superior que debemos gestionar directamente.
 			resourceKind := resource.GetKind()
-			isCRD := resourceKind == "PgBouncer" || resourceKind == "PgCluster" || resourceKind == "HDFSCluster" || resourceKind == "OsCluster" || resourceKind == "KafkaCluster"
+			isCRD := resourceKind == "PgBouncer" || resourceKind == "PgCluster" || resourceKind == "HDFSCluster" || resourceKind == "OsCluster" || resourceKind == "OsDashboards" || resourceKind == "KafkaCluster"
 
 			if metav1.GetControllerOfNoCopy(&resource) != nil && !isCRD {
 				g.logger.Info("resource is managed by another controller, skipped",

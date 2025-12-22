@@ -6,6 +6,7 @@ package v1
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"strconv"
@@ -37,6 +38,11 @@ type ScheduleService struct {
 	client client.Client
 	logger logger
 }
+
+var (
+	ErrScheduleOverlap = errors.New("schedule overlap")
+	ErrNamespaceAsleep = errors.New("namespace is asleep by another schedule")
+)
 
 type logger interface {
 	Info(msg string, keysAndValues ...interface{})
@@ -154,6 +160,10 @@ func (s *ScheduleService) CreateSchedule(ctx context.Context, req CreateSchedule
 				return err
 			}
 		}
+	}
+
+	if err := s.validateScheduleOverlap(ctx, req.Tenant, selectedNamespaces, wdSleepUTC, offConv.TimeUTC, onConv.TimeUTC, req.ScheduleName); err != nil {
+		return err
 	}
 
 	// 8. Create SleepInfo objects for each namespace
@@ -573,19 +583,19 @@ func (s *ScheduleService) createDatastoresSleepInfosWithExclusions(ctx context.C
 				Annotations: sleepAnnotations,
 			},
 			Spec: kubegreenv1alpha1.SleepInfoSpec{
-				Weekdays:                      wdSleep,
-				SleepTime:                     offUTC,
-				TimeZone:                      "UTC",
-				SuspendDeployments:            &suspendDeployments,
-				SuspendStatefulSets:           &suspendStatefulSets,
-				SuspendCronjobs:               suspendCronJobs,
-				SuspendDeploymentsPgbouncer:   &suspendPgbouncer,
-				SuspendStatefulSetsPostgres:   &suspendPostgres,
-				SuspendStatefulSetsHdfs:       &suspendHdfs,
-				SuspendStatefulSetsOpenSearch: &suspendOpenSearch,
+				Weekdays:                        wdSleep,
+				SleepTime:                       offUTC,
+				TimeZone:                        "UTC",
+				SuspendDeployments:              &suspendDeployments,
+				SuspendStatefulSets:             &suspendStatefulSets,
+				SuspendCronjobs:                 suspendCronJobs,
+				SuspendDeploymentsPgbouncer:     &suspendPgbouncer,
+				SuspendStatefulSetsPostgres:     &suspendPostgres,
+				SuspendStatefulSetsHdfs:         &suspendHdfs,
+				SuspendStatefulSetsOpenSearch:   &suspendOpenSearch,
 				SuspendStatefulSetsOsDashboards: &suspendOsDashboards,
-				SuspendStatefulSetsKafka:      &suspendKafka,
-				ExcludeRef:                    excludeRefs,
+				SuspendStatefulSetsKafka:        &suspendKafka,
+				ExcludeRef:                      excludeRefs,
 			},
 		}
 
@@ -622,19 +632,19 @@ func (s *ScheduleService) createDatastoresSleepInfosWithExclusions(ctx context.C
 				Annotations: wakePgHdfsAnnotations,
 			},
 			Spec: kubegreenv1alpha1.SleepInfoSpec{
-				Weekdays:                      wdWake,
-				SleepTime:                     onPgHDFS,
-				TimeZone:                      "UTC",
-				SuspendDeployments:            &suspendDeploymentsFalse,
-				SuspendStatefulSets:           &suspendStatefulSetsFalse,
-				SuspendCronjobs:               suspendCronJobsFalse,
-				SuspendDeploymentsPgbouncer:   &suspendPgbouncerFalse,
-				SuspendStatefulSetsPostgres:   &suspendPostgres,
-				SuspendStatefulSetsHdfs:       &suspendHdfs,
-				SuspendStatefulSetsOpenSearch: &suspendOpenSearch,
+				Weekdays:                        wdWake,
+				SleepTime:                       onPgHDFS,
+				TimeZone:                        "UTC",
+				SuspendDeployments:              &suspendDeploymentsFalse,
+				SuspendStatefulSets:             &suspendStatefulSetsFalse,
+				SuspendCronjobs:                 suspendCronJobsFalse,
+				SuspendDeploymentsPgbouncer:     &suspendPgbouncerFalse,
+				SuspendStatefulSetsPostgres:     &suspendPostgres,
+				SuspendStatefulSetsHdfs:         &suspendHdfs,
+				SuspendStatefulSetsOpenSearch:   &suspendOpenSearch,
 				SuspendStatefulSetsOsDashboards: &suspendOsDashboards,
-				SuspendStatefulSetsKafka:      &suspendKafka,
-				ExcludeRef:                    excludeRefs,
+				SuspendStatefulSetsKafka:        &suspendKafka,
+				ExcludeRef:                      excludeRefs,
 			},
 		}
 
@@ -744,19 +754,19 @@ func (s *ScheduleService) createDatastoresSleepInfosWithExclusions(ctx context.C
 				Annotations: sleepAnnotations,
 			},
 			Spec: kubegreenv1alpha1.SleepInfoSpec{
-				Weekdays:                      wdSleep,
-				SleepTime:                     offUTC,
-				TimeZone:                      "UTC",
-				SuspendDeployments:            &suspendDeployments,
-				SuspendStatefulSets:           &suspendStatefulSets,
-				SuspendCronjobs:               suspendCronJobs,
-				SuspendDeploymentsPgbouncer:   &suspendPgbouncer,
-				SuspendStatefulSetsPostgres:   &suspendPostgres,
-				SuspendStatefulSetsHdfs:       &suspendHdfs,
-				SuspendStatefulSetsOpenSearch: &suspendOpenSearch,
+				Weekdays:                        wdSleep,
+				SleepTime:                       offUTC,
+				TimeZone:                        "UTC",
+				SuspendDeployments:              &suspendDeployments,
+				SuspendStatefulSets:             &suspendStatefulSets,
+				SuspendCronjobs:                 suspendCronJobs,
+				SuspendDeploymentsPgbouncer:     &suspendPgbouncer,
+				SuspendStatefulSetsPostgres:     &suspendPostgres,
+				SuspendStatefulSetsHdfs:         &suspendHdfs,
+				SuspendStatefulSetsOpenSearch:   &suspendOpenSearch,
 				SuspendStatefulSetsOsDashboards: &suspendOsDashboards,
-				SuspendStatefulSetsKafka:      &suspendKafka,
-				ExcludeRef:                    excludeRefs,
+				SuspendStatefulSetsKafka:        &suspendKafka,
+				ExcludeRef:                      excludeRefs,
 			},
 		}
 
@@ -793,19 +803,19 @@ func (s *ScheduleService) createDatastoresSleepInfosWithExclusions(ctx context.C
 				Annotations: wakePgHdfsAnnotations,
 			},
 			Spec: kubegreenv1alpha1.SleepInfoSpec{
-				Weekdays:                      wdWake,
-				SleepTime:                     onPgHDFS,
-				TimeZone:                      "UTC",
-				SuspendDeployments:            &suspendDeploymentsFalse,
-				SuspendStatefulSets:           &suspendStatefulSetsFalse,
-				SuspendCronjobs:               suspendCronJobsFalse,
-				SuspendDeploymentsPgbouncer:   &suspendPgbouncerFalse,
-				SuspendStatefulSetsPostgres:   &suspendPostgres,
-				SuspendStatefulSetsHdfs:       &suspendHdfs,
-				SuspendStatefulSetsOpenSearch: &suspendOpenSearch,
+				Weekdays:                        wdWake,
+				SleepTime:                       onPgHDFS,
+				TimeZone:                        "UTC",
+				SuspendDeployments:              &suspendDeploymentsFalse,
+				SuspendStatefulSets:             &suspendStatefulSetsFalse,
+				SuspendCronjobs:                 suspendCronJobsFalse,
+				SuspendDeploymentsPgbouncer:     &suspendPgbouncerFalse,
+				SuspendStatefulSetsPostgres:     &suspendPostgres,
+				SuspendStatefulSetsHdfs:         &suspendHdfs,
+				SuspendStatefulSetsOpenSearch:   &suspendOpenSearch,
 				SuspendStatefulSetsOsDashboards: &suspendOsDashboards,
-				SuspendStatefulSetsKafka:      &suspendKafka,
-				ExcludeRef:                    excludeRefs,
+				SuspendStatefulSetsKafka:        &suspendKafka,
+				ExcludeRef:                      excludeRefs,
 			},
 		}
 
@@ -1993,6 +2003,45 @@ func (s *ScheduleService) UpdateSchedule(ctx context.Context, tenant string, req
 	// IMPORTANTE: Eliminar SleepInfos antiguos ANTES de crear los nuevos
 	// Esto asegura que los cambios se reflejen correctamente, especialmente cuando cambian los weekdays
 	// o cuando se cambia de un schedule único a múltiples SleepInfos (o viceversa)
+	if req.Off != "" && req.On != "" {
+		wdDefault := "0-6"
+		userTZ := TZLocal
+		offConv, err := ToUTCHHMM(req.Off, userTZ)
+		if err != nil {
+			return fmt.Errorf("invalid off time: %w", err)
+		}
+
+		onConv, err := ToUTCHHMM(req.On, userTZ)
+		if err != nil {
+			return fmt.Errorf("invalid on time: %w", err)
+		}
+
+		wdSleep := wdDefault
+		if req.SleepDays != "" {
+			var err error
+			wdSleep, err = HumanWeekdaysToKube(req.SleepDays)
+			if err != nil {
+				return fmt.Errorf("invalid sleepDays: %w", err)
+			}
+		} else if req.Weekdays != "" {
+			var err error
+			wdSleep, err = HumanWeekdaysToKube(req.Weekdays)
+			if err != nil {
+				return fmt.Errorf("invalid weekdays: %w", err)
+			}
+		}
+
+		wdSleepUTC, err := ShiftWeekdaysStr(wdSleep, offConv.DayShift)
+		if err != nil {
+			return fmt.Errorf("failed to shift sleep weekdays: %w", err)
+		}
+
+		selectedNamespaces := normalizeNamespaces(req.Namespaces)
+		if err := s.validateScheduleOverlap(ctx, tenant, selectedNamespaces, wdSleepUTC, offConv.TimeUTC, onConv.TimeUTC, req.ScheduleName); err != nil {
+			return err
+		}
+	}
+
 	if err := s.DeleteSchedule(ctx, tenant, filterNamespace); err != nil {
 		// Si no se encuentran schedules, está bien - crearemos nuevos
 		if !strings.Contains(err.Error(), "not found") && !strings.Contains(err.Error(), "no schedules found") {
@@ -3005,6 +3054,10 @@ func (s *ScheduleService) CreateNamespaceSchedule(ctx context.Context, req Names
 		return fmt.Errorf("failed to shift wake weekdays: %w", err)
 	}
 
+	if err := s.validateScheduleOverlap(ctx, req.Tenant, map[string]bool{req.Namespace: true}, wdSleepUTC, offConv.TimeUTC, onConv.TimeUTC, req.ScheduleName); err != nil {
+		return err
+	}
+
 	// 5. Calculate staggered wake times based on delays
 	onPgHDFS := onConv.TimeUTC
 	onPgBouncer := onConv.TimeUTC
@@ -3095,6 +3148,35 @@ func (s *ScheduleService) CreateNamespaceSchedule(ctx context.Context, req Names
 
 // UpdateNamespaceSchedule updates SleepInfos for a specific namespace
 func (s *ScheduleService) UpdateNamespaceSchedule(ctx context.Context, req NamespaceScheduleRequest) error {
+	if req.Off != "" && req.On != "" {
+		userTZ := TZLocal
+		offConv, err := ToUTCHHMM(req.Off, userTZ)
+		if err != nil {
+			return fmt.Errorf("invalid off time: %w", err)
+		}
+		onConv, err := ToUTCHHMM(req.On, userTZ)
+		if err != nil {
+			return fmt.Errorf("invalid on time: %w", err)
+		}
+
+		wdSleep := req.WeekdaysSleep
+		if wdSleep == "" {
+			wdSleep = "0-6"
+		}
+		wdSleepKube, err := HumanWeekdaysToKube(wdSleep)
+		if err != nil {
+			return fmt.Errorf("invalid sleep weekdays: %w", err)
+		}
+		wdSleepUTC, err := ShiftWeekdaysStr(wdSleepKube, offConv.DayShift)
+		if err != nil {
+			return fmt.Errorf("failed to shift sleep weekdays: %w", err)
+		}
+
+		if err := s.validateScheduleOverlap(ctx, req.Tenant, map[string]bool{req.Namespace: true}, wdSleepUTC, offConv.TimeUTC, onConv.TimeUTC, req.ScheduleName); err != nil {
+			return err
+		}
+	}
+
 	// Delete existing schedule first
 	if err := s.DeleteNamespaceSchedule(ctx, req.Tenant, req.Namespace); err != nil {
 		// If not found, that's okay - we'll create new
@@ -3251,6 +3333,266 @@ func (s *ScheduleService) DeleteNamespaceSchedule(ctx context.Context, tenant, n
 		if err := s.client.Delete(ctx, &si); err != nil {
 			return fmt.Errorf("failed to delete SleepInfo %s: %w", si.Name, err)
 		}
+	}
+
+	return nil
+}
+
+type scheduleInterval struct {
+	startDay     int
+	startMinutes int
+	endDay       int
+	endMinutes   int
+}
+
+type schedulePair struct {
+	sleep *SleepInfoSummary
+	wake  *SleepInfoSummary
+}
+
+func parseWeekdaysToArray(weekdays string) []int {
+	days := []int{}
+	if weekdays == "" {
+		return days
+	}
+	if strings.Contains(weekdays, "-") {
+		parts := strings.Split(weekdays, "-")
+		if len(parts) != 2 {
+			return days
+		}
+		start, err1 := strconv.Atoi(strings.TrimSpace(parts[0]))
+		end, err2 := strconv.Atoi(strings.TrimSpace(parts[1]))
+		if err1 != nil || err2 != nil {
+			return days
+		}
+		for i := start; i <= end; i++ {
+			days = append(days, i)
+		}
+		return days
+	}
+	for _, part := range strings.Split(weekdays, ",") {
+		day, err := strconv.Atoi(strings.TrimSpace(part))
+		if err == nil {
+			days = append(days, day)
+		}
+	}
+	return days
+}
+
+func timeToMinutes(timeStr string) int {
+	parts := strings.Split(timeStr, ":")
+	if len(parts) != 2 {
+		return 0
+	}
+	hour, err1 := strconv.Atoi(parts[0])
+	minute, err2 := strconv.Atoi(parts[1])
+	if err1 != nil || err2 != nil {
+		return 0
+	}
+	return hour*60 + minute
+}
+
+func buildIntervals(weekdays []int, startTime, endTime string) []scheduleInterval {
+	startMinutes := timeToMinutes(startTime)
+	endMinutes := timeToMinutes(endTime)
+	intervals := make([]scheduleInterval, 0, len(weekdays))
+	for _, day := range weekdays {
+		crossesMidnight := endMinutes <= startMinutes
+		endDay := day
+		if crossesMidnight {
+			endDay = (day + 1) % 7
+		}
+		intervals = append(intervals, scheduleInterval{
+			startDay:     day,
+			startMinutes: startMinutes,
+			endDay:       endDay,
+			endMinutes:   endMinutes,
+		})
+	}
+	return intervals
+}
+
+func intervalToSegments(interval scheduleInterval) []struct {
+	day   int
+	start int
+	end   int
+} {
+	if interval.startDay == interval.endDay {
+		return []struct {
+			day   int
+			start int
+			end   int
+		}{{day: interval.startDay, start: interval.startMinutes, end: interval.endMinutes}}
+	}
+	return []struct {
+		day   int
+		start int
+		end   int
+	}{
+		{day: interval.startDay, start: interval.startMinutes, end: 24 * 60},
+		{day: interval.endDay, start: 0, end: interval.endMinutes},
+	}
+}
+
+func intervalsOverlap(a, b scheduleInterval) bool {
+	aSegments := intervalToSegments(a)
+	bSegments := intervalToSegments(b)
+	for _, aSeg := range aSegments {
+		for _, bSeg := range bSegments {
+			if aSeg.day == bSeg.day && aSeg.start < bSeg.end && bSeg.start < aSeg.end {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func isNowWithinInterval(nowDay, nowMinutes int, interval scheduleInterval) bool {
+	for _, seg := range intervalToSegments(interval) {
+		if nowDay == seg.day && nowMinutes >= seg.start && nowMinutes < seg.end {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *ScheduleService) validateScheduleOverlap(
+	ctx context.Context,
+	tenant string,
+	namespaces map[string]bool,
+	sleepWeekdaysUTC string,
+	offUTC string,
+	onUTC string,
+	scheduleName string,
+) error {
+	if len(namespaces) == 0 || sleepWeekdaysUTC == "" || offUTC == "" || onUTC == "" {
+		return nil
+	}
+
+	existing, err := s.GetSchedule(ctx, tenant)
+	if err != nil {
+		if strings.Contains(err.Error(), "no schedules found") {
+			return nil
+		}
+		return err
+	}
+
+	candidateDays := parseWeekdaysToArray(sleepWeekdaysUTC)
+	if len(candidateDays) == 0 {
+		return nil
+	}
+
+	candidateIntervals := buildIntervals(candidateDays, offUTC, onUTC)
+	now := time.Now().UTC()
+	nowDay := int(now.Weekday())
+	nowMinutes := now.Hour()*60 + now.Minute()
+
+	overlaps := []string{}
+	isAsleepByOther := false
+
+	for namespace, nsInfo := range existing.Namespaces {
+		if !namespaces[namespace] {
+			continue
+		}
+
+		grouped := map[string]*schedulePair{}
+		for i := range nsInfo.Schedule {
+			sched := nsInfo.Schedule[i]
+			key := sched.ScheduleName
+			if key == "" {
+				key = sched.Name
+			}
+			if scheduleName != "" && key == scheduleName {
+				continue
+			}
+			if grouped[key] == nil {
+				grouped[key] = &schedulePair{}
+			}
+			switch sched.Role {
+			case "sleep":
+				grouped[key].sleep = &sched
+			case "wake":
+				grouped[key].wake = &sched
+			default:
+				if strings.HasPrefix(sched.Name, "sleep-") {
+					grouped[key].sleep = &sched
+				} else {
+					grouped[key].wake = &sched
+				}
+			}
+		}
+
+		for key, group := range grouped {
+			if group.sleep == nil {
+				continue
+			}
+
+			sleepTime := group.sleep.Time
+			if sleepTime == "" {
+				continue
+			}
+
+			wakeTime := sleepTime
+			if group.wake != nil && group.wake.Time != "" {
+				wakeTime = group.wake.Time
+			}
+
+			sleepDays := parseWeekdaysToArray(group.sleep.Weekdays)
+			if len(sleepDays) == 0 {
+				continue
+			}
+
+			existingIntervals := buildIntervals(sleepDays, sleepTime, wakeTime)
+			for _, candidate := range candidateIntervals {
+				for _, existingInterval := range existingIntervals {
+					if intervalsOverlap(candidate, existingInterval) {
+						overlaps = append(overlaps, fmt.Sprintf("%s → %s", namespace, key))
+						goto nextSchedule
+					}
+				}
+			}
+
+		nextSchedule:
+			for _, interval := range existingIntervals {
+				if isNowWithinInterval(nowDay, nowMinutes, interval) {
+					isAsleepByOther = true
+					break
+				}
+			}
+		}
+	}
+
+	if len(overlaps) > 0 {
+		namespaceList := make([]string, 0, len(namespaces))
+		for ns := range namespaces {
+			namespaceList = append(namespaceList, ns)
+		}
+		sort.Strings(namespaceList)
+		return fmt.Errorf(
+			"%w: solapamiento detectado en UTC para tenant=%s schedule=%s namespaces=%s. Conflictos: %s. Acciones: ajusta días/horas o usa namespaces distintos.",
+			ErrScheduleOverlap,
+			tenant,
+			scheduleName,
+			strings.Join(namespaceList, ","),
+			strings.Join(overlaps, ", "),
+		)
+	}
+
+	if isAsleepByOther {
+		now := time.Now().UTC().Format("2006-01-02 15:04 MST")
+		namespaceList := make([]string, 0, len(namespaces))
+		for ns := range namespaces {
+			namespaceList = append(namespaceList, ns)
+		}
+		sort.Strings(namespaceList)
+		return fmt.Errorf(
+			"%w: el namespace está apagado por otro schedule en este momento (UTC %s) para tenant=%s schedule=%s namespaces=%s. Acciones: espera al wake o ajusta el schedule existente.",
+			ErrNamespaceAsleep,
+			now,
+			tenant,
+			scheduleName,
+			strings.Join(namespaceList, ","),
+		)
 	}
 
 	return nil

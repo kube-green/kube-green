@@ -106,6 +106,12 @@ type SleepInfoSpec struct {
 	// +optional
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	SuspendStatefulSetsOpenSearch *bool `json:"suspendStatefulSetsOpenSearch,omitempty"`
+	// If SuspendStatefulSetsOsDashboards is set to true, on sleep all OsDashboards CRDs in the namespace
+	// will be managed by modifying spec.replicas (similar to native deployments with spec.replicas).
+	// Defaults to false (does not manage OsDashboards).
+	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	SuspendStatefulSetsOsDashboards *bool `json:"suspendStatefulSetsOsDashboards,omitempty"`
 	// If SuspendStatefulSetsKafka is set to true, on sleep all KafkaCluster CRDs in the namespace
 	// will be managed by applying the kafkacluster.stratio.com/shutdown annotation.
 	// Defaults to false (does not manage KafkaCluster).
@@ -258,6 +264,13 @@ func (s SleepInfo) IsOpenSearchToSuspend() bool {
 	return *s.Spec.SuspendStatefulSetsOpenSearch
 }
 
+func (s SleepInfo) IsOsDashboardsToSuspend() bool {
+	if s.Spec.SuspendStatefulSetsOsDashboards == nil {
+		return false
+	}
+	return *s.Spec.SuspendStatefulSetsOsDashboards
+}
+
 func (s SleepInfo) IsKafkaToSuspend() bool {
 	if s.Spec.SuspendStatefulSetsKafka == nil {
 		return false
@@ -279,6 +292,9 @@ func (s SleepInfo) GetPatches() []Patch {
 	// EXTENSIÓN: Patches para CRDs
 	if s.IsPgbouncerToSuspend() {
 		patches = append(patches, pgbouncerPatch)
+	}
+	if s.IsOsDashboardsToSuspend() {
+		patches = append(patches, OsdashboardsPatch)
 	}
 	// NOTA: Patches para PgCluster y HDFSCluster se agregan dinámicamente según operación (SLEEP/WAKE)
 	// en el controller, ya que dependen de la anotación (true para sleep, false para wake)

@@ -94,6 +94,7 @@ rules:
   - opensearch.stratio.com
   resources:
   - osclusters
+  - osdashboardses
   verbs:
   - get
   - list
