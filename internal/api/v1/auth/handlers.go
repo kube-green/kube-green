@@ -5,6 +5,7 @@ Copyright 2025.
 package auth
 
 import (
+	"encoding/json"
 	"net/http"
 	"os"
 	"time"
@@ -25,10 +26,10 @@ type RefreshRequest struct {
 
 // AuthHandler handles authentication endpoints
 type AuthHandler struct {
-	userStore      *UserStore
-	jwtSecret      []byte
-	accessExpiry   time.Duration
-	refreshExpiry  time.Duration
+	userStore     *UserStore
+	jwtSecret     []byte
+	accessExpiry  time.Duration
+	refreshExpiry time.Duration
 }
 
 // GetJWTSecret returns the JWT secret
@@ -63,10 +64,19 @@ func NewAuthHandler(userStore *UserStore, jwtSecret []byte) *AuthHandler {
 // Note: Swagger annotations are in server.go handleAuthLogin, not here
 func (h *AuthHandler) HandleLogin(c *gin.Context) {
 	var req LoginRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	decoder := json.NewDecoder(c.Request.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
 			"error":   "Invalid request: " + err.Error(),
+		})
+		return
+	}
+	if req.Username == "" || req.Password == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Invalid request: username and password are required",
 		})
 		return
 	}
@@ -102,10 +112,19 @@ func (h *AuthHandler) HandleLogin(c *gin.Context) {
 // Note: Swagger annotations are in server.go handleAuthRefresh, not here
 func (h *AuthHandler) HandleRefresh(c *gin.Context) {
 	var req RefreshRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	decoder := json.NewDecoder(c.Request.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
 			"error":   "Invalid request: " + err.Error(),
+		})
+		return
+	}
+	if req.RefreshToken == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Invalid request: refreshToken is required",
 		})
 		return
 	}
@@ -174,4 +193,3 @@ func (h *AuthHandler) HandleMe(c *gin.Context) {
 		},
 	})
 }
-

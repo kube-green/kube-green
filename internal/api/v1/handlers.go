@@ -440,7 +440,7 @@ func (s *Server) handleUpdateSchedule(c *gin.Context) {
 
 // handleDeleteSchedule deletes a schedule
 // @Summary Delete a schedule
-// @Description Deletes all SleepInfo configurations and associated secrets for a tenant across all namespaces
+// @Description Deletes SleepInfo configurations and associated secrets for a tenant. Optional filters: namespace, scheduleName.
 // @Tags Schedules
 // @Accept json
 // @Produce json
@@ -450,6 +450,8 @@ func (s *Server) handleUpdateSchedule(c *gin.Context) {
 // @Failure 400 {object} ErrorResponse "Invalid request parameters"
 // @Failure 404 {object} ErrorResponse "Schedule not found"
 // @Failure 500 {object} ErrorResponse "Internal server error"
+// @Param namespace query string false "Namespace suffix (optional)" example:"apps"
+// @Param scheduleName query string false "Schedule name (optional)" example:"apagado-tenant-bdaqa"
 // @Router /api/v1/schedules/{tenant} [delete]
 func (s *Server) handleDeleteSchedule(c *gin.Context) {
 	// Check permissions
@@ -473,7 +475,16 @@ func (s *Server) handleDeleteSchedule(c *gin.Context) {
 		return
 	}
 
-	if err := s.scheduleService.DeleteSchedule(c.Request.Context(), tenant); err != nil {
+	filterNamespace := c.Query("namespace")
+	scheduleName := c.Query("scheduleName")
+	var err error
+	if scheduleName != "" {
+		err = s.scheduleService.DeleteScheduleByName(c.Request.Context(), tenant, scheduleName, filterNamespace)
+	} else {
+		err = s.scheduleService.DeleteSchedule(c.Request.Context(), tenant, filterNamespace)
+	}
+
+	if err != nil {
 		if strings.Contains(err.Error(), "no schedules found") {
 			c.JSON(http.StatusNotFound, ErrorResponse{
 				Success: false,
@@ -484,6 +495,28 @@ func (s *Server) handleDeleteSchedule(c *gin.Context) {
 		}
 		s.logger.Error(err, "failed to delete schedule", "tenant", tenant)
 		handleKubernetesError(c, err)
+		return
+	}
+
+	if scheduleName != "" && filterNamespace != "" {
+		c.JSON(http.StatusOK, APIResponse{
+			Success: true,
+			Message: fmt.Sprintf("Schedule deleted successfully for tenant %s (namespace %s, schedule %s)", tenant, filterNamespace, scheduleName),
+		})
+		return
+	}
+	if scheduleName != "" {
+		c.JSON(http.StatusOK, APIResponse{
+			Success: true,
+			Message: fmt.Sprintf("Schedule deleted successfully for tenant %s (schedule %s)", tenant, scheduleName),
+		})
+		return
+	}
+	if filterNamespace != "" {
+		c.JSON(http.StatusOK, APIResponse{
+			Success: true,
+			Message: fmt.Sprintf("Schedule deleted successfully for tenant %s (namespace %s)", tenant, filterNamespace),
+		})
 		return
 	}
 

@@ -35,6 +35,31 @@ Este documento mantiene el registro de versiones y cambios de este fork personal
 
 ---
 
+## [0.7.18] - 2025-12-23
+
+### 🐛 Correcciones
+
+- **Login colgado en /api/v1/auth/login**:
+  - Se reemplazó `ShouldBindJSON` por un `json.Decoder` explícito para evitar bloqueos.
+  - Validación adicional de campos requeridos.
+  - Archivo modificado: `internal/api/v1/auth/handlers.go`
+
+- **Update password colgado (deadlock)**:
+  - Se liberó el lock antes de `saveUsers()` para evitar bloqueo por doble lock.
+  - Archivos modificados: `internal/api/v1/auth/users.go`
+
+### ✅ Resultado
+
+- Login responde correctamente y ya no se queda esperando.
+- Actualización de contraseña completa sin bloqueo.
+
+### 📦 Imagen Docker
+
+- **Repositorio**: `yeramirez/kube-green:0.7.16-backend-6e7e00b4`
+- **Fecha de publicación**: 2025-12-23
+
+---
+
 ## [0.7.8] - 2025-01-19
 
 ### 🐛 Correcciones Críticas

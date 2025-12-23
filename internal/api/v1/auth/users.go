@@ -19,9 +19,9 @@ import (
 
 // User represents a user with role
 type User struct {
-	Username string
+	Username     string
 	PasswordHash string
-	Role     string // "admin", "operacion", "lectura"
+	Role         string // "admin", "operacion", "lectura"
 }
 
 // UserStore manages user authentication data from Kubernetes Secrets
@@ -86,7 +86,7 @@ func (us *UserStore) LoadUsers(ctx context.Context) error {
 			username := strings.TrimSpace(parts[0])
 			passwordHash := strings.TrimSpace(parts[1])
 			role := RoleAdmin // Default role
-			
+
 			if len(parts) >= 3 {
 				role = strings.TrimSpace(parts[2])
 				// Validate role
@@ -94,7 +94,7 @@ func (us *UserStore) LoadUsers(ctx context.Context) error {
 					role = RoleAdmin // Default to admin if invalid
 				}
 			}
-			
+
 			if username != "" && passwordHash != "" {
 				us.users[username] = &User{
 					Username:     username,
@@ -168,19 +168,20 @@ func (us *UserStore) CreateUser(username, password, role string) error {
 // UpdateUserPassword updates a user's password
 func (us *UserStore) UpdateUserPassword(username, newPassword string) error {
 	us.mu.Lock()
-	defer us.mu.Unlock()
-
 	user, exists := us.users[username]
 	if !exists {
+		us.mu.Unlock()
 		return fmt.Errorf("user not found: %s", username)
 	}
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
 	if err != nil {
+		us.mu.Unlock()
 		return fmt.Errorf("failed to hash password: %w", err)
 	}
 
 	user.PasswordHash = string(hash)
+	us.mu.Unlock()
 	return us.saveUsers(context.Background())
 }
 
@@ -192,14 +193,14 @@ func (us *UserStore) UpdateUserRole(username, newRole string) error {
 	}
 
 	us.mu.Lock()
-	defer us.mu.Unlock()
-
 	user, exists := us.users[username]
 	if !exists {
+		us.mu.Unlock()
 		return fmt.Errorf("user not found: %s", username)
 	}
 
 	user.Role = newRole
+	us.mu.Unlock()
 	return us.saveUsers(context.Background())
 }
 
@@ -222,13 +223,13 @@ func (us *UserStore) ListUsers() []map[string]string {
 // DeleteUser deletes a user
 func (us *UserStore) DeleteUser(username string) error {
 	us.mu.Lock()
-	defer us.mu.Unlock()
-
 	if _, exists := us.users[username]; !exists {
+		us.mu.Unlock()
 		return fmt.Errorf("user not found: %s", username)
 	}
 
 	delete(us.users, username)
+	us.mu.Unlock()
 	return us.saveUsers(context.Background())
 }
 
@@ -277,4 +278,3 @@ func (us *UserStore) UserExists(username string) bool {
 	_, exists := us.users[username]
 	return exists
 }
-

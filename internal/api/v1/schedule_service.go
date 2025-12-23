@@ -2066,17 +2066,30 @@ func (s *ScheduleService) UpdateSchedule(ctx context.Context, tenant string, req
 	return s.CreateSchedule(ctx, req)
 }
 
-// DeleteSchedule deletes all SleepInfos for a tenant
-func (s *ScheduleService) DeleteSchedule(ctx context.Context, tenant string, namespaceSuffix ...string) error {
+func matchesScheduleName(si kubegreenv1alpha1.SleepInfo, scheduleName string) bool {
+	if scheduleName == "" {
+		return true
+	}
+	if si.Annotations != nil {
+		if name := si.Annotations["kube-green.stratio.com/schedule-name"]; name == scheduleName {
+			return true
+		}
+		if name := si.Annotations["kube-green.com/schedule-name"]; name == scheduleName {
+			return true
+		}
+	}
+	if si.Name == scheduleName {
+		return true
+	}
+	normalized := strings.TrimPrefix(strings.TrimPrefix(si.Name, "sleep-"), "wake-")
+	return normalized == scheduleName
+}
+
+func (s *ScheduleService) deleteSchedules(ctx context.Context, tenant, filterNamespace, scheduleName string) error {
 	// List all SleepInfos
 	sleepInfoList := &kubegreenv1alpha1.SleepInfoList{}
 	if err := s.client.List(ctx, sleepInfoList); err != nil {
 		return fmt.Errorf("failed to list SleepInfos: %w", err)
-	}
-
-	var filterNamespace string
-	if len(namespaceSuffix) > 0 && namespaceSuffix[0] != "" {
-		filterNamespace = namespaceSuffix[0]
 	}
 
 	// Find and delete all SleepInfos for the tenant
@@ -2097,6 +2110,10 @@ func (s *ScheduleService) DeleteSchedule(ctx context.Context, tenant string, nam
 
 		// Filter by namespace suffix if provided
 		if filterNamespace != "" && suffix != filterNamespace {
+			continue
+		}
+
+		if scheduleName != "" && !matchesScheduleName(si, scheduleName) {
 			continue
 		}
 
@@ -2131,17 +2148,47 @@ func (s *ScheduleService) DeleteSchedule(ctx context.Context, tenant string, nam
 
 	if deletedCount == 0 {
 		if filterNamespace != "" {
+			if scheduleName != "" {
+				return fmt.Errorf("no schedules found for tenant: %s with schedule: %s in namespace: %s", tenant, scheduleName, filterNamespace)
+			}
 			return fmt.Errorf("no schedules found for tenant: %s in namespace: %s", tenant, filterNamespace)
+		}
+		if scheduleName != "" {
+			return fmt.Errorf("no schedules found for tenant: %s with schedule: %s", tenant, scheduleName)
 		}
 		return fmt.Errorf("no schedules found for tenant: %s", tenant)
 	}
 
 	if filterNamespace != "" {
-		s.logger.Info("Deleted schedules for tenant and namespace", "tenant", tenant, "namespace", filterNamespace, "count", deletedCount)
+		if scheduleName != "" {
+			s.logger.Info("Deleted schedules for tenant, namespace, and schedule", "tenant", tenant, "namespace", filterNamespace, "scheduleName", scheduleName, "count", deletedCount)
+		} else {
+			s.logger.Info("Deleted schedules for tenant and namespace", "tenant", tenant, "namespace", filterNamespace, "count", deletedCount)
+		}
+	} else if scheduleName != "" {
+		s.logger.Info("Deleted schedules for tenant and schedule", "tenant", tenant, "scheduleName", scheduleName, "count", deletedCount)
 	} else {
 		s.logger.Info("Deleted schedules for tenant", "tenant", tenant, "count", deletedCount)
 	}
 	return nil
+}
+
+// DeleteSchedule deletes all SleepInfos for a tenant
+func (s *ScheduleService) DeleteSchedule(ctx context.Context, tenant string, namespaceSuffix ...string) error {
+	var filterNamespace string
+	if len(namespaceSuffix) > 0 && namespaceSuffix[0] != "" {
+		filterNamespace = namespaceSuffix[0]
+	}
+	return s.deleteSchedules(ctx, tenant, filterNamespace, "")
+}
+
+// DeleteScheduleByName deletes SleepInfos for a tenant matching a schedule name
+func (s *ScheduleService) DeleteScheduleByName(ctx context.Context, tenant, scheduleName string, namespaceSuffix ...string) error {
+	var filterNamespace string
+	if len(namespaceSuffix) > 0 && namespaceSuffix[0] != "" {
+		filterNamespace = namespaceSuffix[0]
+	}
+	return s.deleteSchedules(ctx, tenant, filterNamespace, scheduleName)
 }
 
 // TenantInfo represents a discovered tenant
