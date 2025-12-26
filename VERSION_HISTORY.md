@@ -4,6 +4,18 @@ Este documento mantiene el registro de versiones y cambios de este fork personal
 
 ---
 
+## [Unreleased] - 2025-12-26
+
+### 🐛 Correcciones Críticas
+
+- **UpdateSchedule preserva restore patches en edits**:
+  - **Problema**: Un edit de horarios eliminaba SleepInfos y secretos, perdiendo las replicas originales (restore patches).
+  - **Solución**: Cuando el edit mantiene `scheduleName` y namespaces, se preservan los SleepInfos existentes y se evita borrar secretos.
+  - **Resultado**: Cambios de hora (ej. mover wake de 7 a 9) no pierden réplicas y permiten encendido correcto.
+  - Archivo modificado: `internal/api/v1/schedule_service.go`
+
+---
+
 ## [0.7.18] - 2025-12-22
 
 ### ✨ Nuevas Funcionalidades

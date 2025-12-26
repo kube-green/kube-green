@@ -59,6 +59,10 @@ func NewScheduleService(c client.Client, l logger) *ScheduleService {
 
 // CreateSchedule creates SleepInfo objects for the tenant
 func (s *ScheduleService) CreateSchedule(ctx context.Context, req CreateScheduleRequest) error {
+	return s.createSchedule(ctx, req, false)
+}
+
+func (s *ScheduleService) createSchedule(ctx context.Context, req CreateScheduleRequest, skipScheduleNameValidation bool) error {
 	s.logger.Info("CreateSchedule CALLED", "tenant", req.Tenant, "off", req.Off, "on", req.On, "weekdays", req.Weekdays, "sleepDays", req.SleepDays, "wakeDays", req.WakeDays, "namespaces", fmt.Sprintf("%v", req.Namespaces))
 
 	// 1. Normalize weekdays
@@ -153,7 +157,7 @@ func (s *ScheduleService) CreateSchedule(ctx context.Context, req CreateSchedule
 	// 6. Build excludeRef from exclusions (no exclusions in CreateScheduleRequest, use defaults)
 
 	// 7. Validate scheduleName uniqueness if provided
-	if req.ScheduleName != "" {
+	if req.ScheduleName != "" && !skipScheduleNameValidation {
 		for suffix := range selectedNamespaces {
 			namespace := fmt.Sprintf("%s-%s", req.Tenant, suffix)
 			if err := s.validateScheduleNameUniqueness(ctx, namespace, req.ScheduleName); err != nil {
@@ -2003,6 +2007,58 @@ func (s *ScheduleService) UpdateSchedule(ctx context.Context, tenant string, req
 	// IMPORTANTE: Eliminar SleepInfos antiguos ANTES de crear los nuevos
 	// Esto asegura que los cambios se reflejen correctamente, especialmente cuando cambian los weekdays
 	// o cuando se cambia de un schedule único a múltiples SleepInfos (o viceversa)
+	// EXCEPCIÓN: Si el edit solo ajusta horarios (mismo scheduleName y namespaces),
+	// se preservan SleepInfos para no perder restore patches.
+	existingScheduleName := ""
+	existingNamespaces := map[string]bool{}
+	if existingSchedule != nil {
+		for nsSuffix, nsInfo := range existingSchedule.Namespaces {
+			existingNamespaces[nsSuffix] = true
+			if existingScheduleName != "" {
+				continue
+			}
+			for _, sched := range nsInfo.Schedule {
+				if sched.ScheduleName != "" {
+					existingScheduleName = sched.ScheduleName
+					break
+				}
+				if sched.Annotations != nil {
+					if name, ok := sched.Annotations["kube-green.stratio.com/schedule-name"]; ok && name != "" {
+						existingScheduleName = name
+						break
+					}
+				}
+			}
+		}
+	}
+
+	requestedNamespaces := map[string]bool{}
+	for _, ns := range req.Namespaces {
+		if ns != "" {
+			requestedNamespaces[ns] = true
+		}
+	}
+
+	sameNamespaces := len(existingNamespaces) == len(requestedNamespaces)
+	if sameNamespaces {
+		for ns := range existingNamespaces {
+			if !requestedNamespaces[ns] {
+				sameNamespaces = false
+				break
+			}
+		}
+	}
+
+	scheduleNameMatches := req.ScheduleName == existingScheduleName
+	if existingScheduleName == "" && req.ScheduleName == "" {
+		scheduleNameMatches = true
+	}
+
+	preserveExisting := existingSchedule != nil && sameNamespaces && scheduleNameMatches
+	if preserveExisting {
+		s.logger.Info("UpdateSchedule: preserving existing SleepInfos to keep restore patches", "tenant", tenant, "scheduleName", req.ScheduleName, "namespaces", strings.Join(req.Namespaces, ","))
+	}
+
 	if req.Off != "" && req.On != "" {
 		wdDefault := "0-6"
 		userTZ := TZLocal
@@ -2042,11 +2098,13 @@ func (s *ScheduleService) UpdateSchedule(ctx context.Context, tenant string, req
 		}
 	}
 
-	if err := s.DeleteSchedule(ctx, tenant, filterNamespace); err != nil {
-		// Si no se encuentran schedules, está bien - crearemos nuevos
-		if !strings.Contains(err.Error(), "not found") && !strings.Contains(err.Error(), "no schedules found") {
-			s.logger.Info("Failed to delete existing schedules before update (will continue)", "error", err, "tenant", tenant, "namespace", filterNamespace)
-			// Continuar de todas formas - CreateSchedule usará createOrUpdateSleepInfo que actualizará si existen
+	if !preserveExisting {
+		if err := s.DeleteSchedule(ctx, tenant, filterNamespace); err != nil {
+			// Si no se encuentran schedules, está bien - crearemos nuevos
+			if !strings.Contains(err.Error(), "not found") && !strings.Contains(err.Error(), "no schedules found") {
+				s.logger.Info("Failed to delete existing schedules before update (will continue)", "error", err, "tenant", tenant, "namespace", filterNamespace)
+				// Continuar de todas formas - CreateSchedule usará createOrUpdateSleepInfo que actualizará si existen
+			}
 		}
 	}
 
@@ -2063,7 +2121,7 @@ func (s *ScheduleService) UpdateSchedule(ctx context.Context, tenant string, req
 
 	req.Tenant = tenant
 	s.logger.Info("UpdateSchedule: calling CreateSchedule", "tenant", tenant, "namespaces", strings.Join(req.Namespaces, ","), "off", req.Off, "on", req.On, "weekdays", req.Weekdays, "sleepDays", req.SleepDays, "wakeDays", req.WakeDays, "scheduleName", req.ScheduleName, "description", req.Description)
-	return s.CreateSchedule(ctx, req)
+	return s.createSchedule(ctx, req, preserveExisting)
 }
 
 func matchesScheduleName(si kubegreenv1alpha1.SleepInfo, scheduleName string) bool {
