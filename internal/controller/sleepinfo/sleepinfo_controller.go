@@ -23,6 +23,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
@@ -293,7 +294,43 @@ func (r *SleepInfoReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		r.Clock = realClock{}
 	}
 
-	pred := predicate.GenerationChangedPredicate{}
+	pred := predicate.Funcs{
+		CreateFunc: func(event.CreateEvent) bool {
+			return true
+		},
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			if e.ObjectOld == nil || e.ObjectNew == nil {
+				return false
+			}
+			if e.ObjectOld.GetGeneration() != e.ObjectNew.GetGeneration() {
+				return true
+			}
+			oldAnn := e.ObjectOld.GetAnnotations()
+			newAnn := e.ObjectNew.GetAnnotations()
+			oldAction := ""
+			newAction := ""
+			if oldAnn != nil {
+				oldAction = strings.ToLower(strings.TrimSpace(oldAnn[manualActionAnnotation]))
+			}
+			if newAnn != nil {
+				newAction = strings.ToLower(strings.TrimSpace(newAnn[manualActionAnnotation]))
+			}
+			if newAction != oldAction && (newAction == "sleep" || newAction == "wake") {
+				return true
+			}
+			if newAction != "" && oldAnn != nil && newAnn != nil &&
+				newAnn[manualActionTimeAnnotion] != oldAnn[manualActionTimeAnnotion] {
+				return true
+			}
+			return false
+		},
+		DeleteFunc: func(event.DeleteEvent) bool {
+			return false
+		},
+		GenericFunc: func(event.GenericEvent) bool {
+			return false
+		},
+	}
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&kubegreenv1alpha1.SleepInfo{}).
 		Named("kubegreen-sleepinfo").
