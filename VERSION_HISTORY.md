@@ -13,6 +13,10 @@ Este documento mantiene el registro de versiones y cambios de este fork personal
   - **Solución**: Cuando el edit mantiene `scheduleName` y namespaces, se preservan los SleepInfos existentes y se evita borrar secretos.
   - **Resultado**: Cambios de hora (ej. mover wake de 7 a 9) no pierden réplicas y permiten encendido correcto.
   - Archivo modificado: `internal/api/v1/schedule_service.go`
+- **Acción manual dispara reconciliación**:
+  - **Problema**: El controller filtraba updates por `GenerationChangedPredicate`, por lo que un update de anotaciones no ejecutaba el wake/sleep manual.
+  - **Solución**: Se permite reconciliar cuando cambia `kube-green.stratio.com/manual-action` o su timestamp.
+  - Archivo modificado: `internal/controller/sleepinfo/sleepinfo_controller.go`
 
 ### ✨ Nuevas Funcionalidades
 
