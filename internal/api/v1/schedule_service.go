@@ -1899,7 +1899,7 @@ func (s *ScheduleService) UpdateSchedule(ctx context.Context, tenant string, req
 							offConv, err := FromClusterToUserTimezone(sleepTimeUTC, clusterTZ, userTZ)
 							if err == nil {
 								// Aplicar shift inverso (negativo) para convertir de UTC a user timezone
-								wdSleepUser, err := ShiftWeekdaysStr(sleepSchedule.Weekdays, -offConv.DayShift)
+								wdSleepUser, err := ShiftWeekdaysStr(sleepSchedule.Weekdays, offConv.DayShift)
 								if err == nil {
 									// Convertir de formato Kube (0-6) a formato Human (0-6 pero puede ser range o comma-separated)
 									// El formato ya debería estar en formato correcto, solo necesitamos asegurarnos
@@ -1948,7 +1948,7 @@ func (s *ScheduleService) UpdateSchedule(ctx context.Context, tenant string, req
 							onConv, err := FromClusterToUserTimezone(wakeTimeUTC, clusterTZ, userTZ)
 							if err == nil {
 								// Aplicar shift inverso (negativo) para convertir de UTC a user timezone
-								wdWakeUser, err := ShiftWeekdaysStr(wakeSchedule.Weekdays, -onConv.DayShift)
+								wdWakeUser, err := ShiftWeekdaysStr(wakeSchedule.Weekdays, onConv.DayShift)
 								if err == nil {
 									req.WakeDays = wdWakeUser
 									s.logger.Info("UpdateSchedule: converted WakeDays from UTC to user timezone", "from_utc", wakeSchedule.Weekdays, "to_user", req.WakeDays, "dayShift", -onConv.DayShift, "wakeTimeUTC", wakeTimeUTC)

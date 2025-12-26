@@ -320,6 +320,8 @@ type UpdateScheduleRequest struct {
 	Weekdays   string   `json:"weekdays,omitempty" example:"1-5"`      // Days of week (human format: "lunes-viernes", or numeric: "1-5")
 	SleepDays  string   `json:"sleepDays,omitempty" example:"viernes"` // Optional: specific days for sleep (overrides weekdays)
 	WakeDays   string   `json:"wakeDays,omitempty" example:"lunes"`    // Optional: specific days for wake (overrides weekdays)
+	WeekdaysSleep string `json:"weekdaysSleep,omitempty" example:"viernes"` // Frontend format: specific days for sleep (mapped to sleepDays)
+	WeekdaysWake  string `json:"weekdaysWake,omitempty" example:"lunes"`    // Frontend format: specific days for wake (mapped to wakeDays)
 	Namespaces []string `json:"namespaces,omitempty" example:"apps"`   // Optional: limit to specific namespaces
 	Apply      bool     `json:"apply,omitempty"`                       // Always applies to cluster (field is ignored)
 }
@@ -380,14 +382,27 @@ func (s *Server) handleUpdateSchedule(c *gin.Context) {
 		return
 	}
 
+	// Map frontend format (weekdaysSleep/weekdaysWake) to backend format (sleepDays/wakeDays)
+	sleepDays := req.SleepDays
+	if sleepDays == "" && req.WeekdaysSleep != "" {
+		sleepDays = req.WeekdaysSleep
+		s.logger.Info("Mapped weekdaysSleep to sleepDays (update)", "weekdaysSleep", req.WeekdaysSleep, "sleepDays", sleepDays)
+	}
+
+	wakeDays := req.WakeDays
+	if wakeDays == "" && req.WeekdaysWake != "" {
+		wakeDays = req.WeekdaysWake
+		s.logger.Info("Mapped weekdaysWake to wakeDays (update)", "weekdaysWake", req.WeekdaysWake, "wakeDays", wakeDays)
+	}
+
 	// Convert UpdateScheduleRequest to CreateScheduleRequest
 	createReq := CreateScheduleRequest{
 		Tenant:     tenant,
 		Off:        req.Off,
 		On:         req.On,
 		Weekdays:   req.Weekdays,
-		SleepDays:  req.SleepDays,
-		WakeDays:   req.WakeDays,
+		SleepDays:  sleepDays,
+		WakeDays:   wakeDays,
 		Namespaces: req.Namespaces,
 	}
 
