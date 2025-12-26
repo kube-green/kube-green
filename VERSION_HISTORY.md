@@ -17,6 +17,10 @@ Este documento mantiene el registro de versiones y cambios de este fork personal
   - **Problema**: El controller filtraba updates por `GenerationChangedPredicate`, por lo que un update de anotaciones no ejecutaba el wake/sleep manual.
   - **Solución**: Se permite reconciliar cuando cambia `kube-green.stratio.com/manual-action` o su timestamp.
   - Archivo modificado: `internal/controller/sleepinfo/sleepinfo_controller.go`
+- **Preserva restore patches en WAKE**:
+  - **Problema**: Un WAKE actualizaba el secret y eliminaba `original-resource-info`.
+  - **Solución**: Mantener el restore existente si no es operación SLEEP.
+  - Archivo modificado: `internal/controller/sleepinfo/secrets.go`
 
 ### ✨ Nuevas Funcionalidades
 
