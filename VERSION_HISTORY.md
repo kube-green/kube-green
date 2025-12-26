@@ -14,6 +14,18 @@ Este documento mantiene el registro de versiones y cambios de este fork personal
   - **Resultado**: Cambios de hora (ej. mover wake de 7 a 9) no pierden réplicas y permiten encendido correcto.
   - Archivo modificado: `internal/api/v1/schedule_service.go`
 
+### ✨ Nuevas Funcionalidades
+
+- **Acción manual Sleep/Wake**:
+  - **Nuevo endpoint**: `POST /api/v1/schedules/{tenant}/manual`
+  - Permite ejecutar sleep/wake inmediato sin cambiar horarios.
+  - Archivos: `internal/api/v1/handlers.go`, `internal/api/v1/server.go`, `internal/api/v1/schedule_service.go`
+
+- **Restore de emergencia**:
+  - Se guarda un secret de respaldo `sleepinfo-restore-<name>` con `original-resource-info`.
+  - En WAKE, si el secret principal no tiene restore patches, se usa el respaldo.
+  - Archivos: `internal/controller/sleepinfo/secrets.go`, `internal/controller/sleepinfo/sleepinfo_controller.go`
+
 ---
 
 ## [0.7.18] - 2025-12-22

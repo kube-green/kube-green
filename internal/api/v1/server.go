@@ -155,12 +155,13 @@ func (s *Server) setupRoutes() {
 	v1 := s.router.Group("/api/v1/schedules")
 	{
 		v1.GET("", s.handleListSchedules)
-		v1.GET("/suspended", s.handleGetAllSuspendedServices)      // Aggregate endpoint for all tenants
-		v1.GET("/next", s.handleGetAllNextOperations)                // Aggregate endpoint for all tenants
+		v1.GET("/suspended", s.handleGetAllSuspendedServices) // Aggregate endpoint for all tenants
+		v1.GET("/next", s.handleGetAllNextOperations)         // Aggregate endpoint for all tenants
 		v1.GET("/:tenant", s.handleGetSchedule)
 		v1.GET("/:tenant/suspended", s.handleGetSuspendedServices)
 		v1.GET("/:tenant/next", s.handleGetNextOperation)
 		v1.POST("", s.handleCreateSchedule)
+		v1.POST("/:tenant/manual", s.handleManualScheduleAction)
 		v1.PUT("/:tenant", s.handleUpdateSchedule)
 		v1.DELETE("/:tenant", s.handleDeleteSchedule)
 

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	kubegreenv1alpha1 "github.com/kube-green/kube-green/api/v1alpha1"
+	"github.com/kube-green/kube-green/internal/controller/sleepinfo/jsonpatch"
 	"github.com/kube-green/kube-green/internal/controller/sleepinfo/resource"
 
 	"github.com/go-logr/logr"
@@ -29,6 +30,10 @@ func (r *SleepInfoReconciler) getSecret(ctx context.Context, secretName, namespa
 
 func getSecretName(name string) string {
 	return fmt.Sprintf("sleepinfo-%s", name)
+}
+
+func getRestoreSecretName(name string) string {
+	return fmt.Sprintf("sleepinfo-restore-%s", name)
 }
 
 func (r SleepInfoReconciler) upsertSecret(
@@ -93,5 +98,70 @@ func (r SleepInfoReconciler) upsertSecret(
 		}
 		logger.Info("secret updated")
 	}
+
+	if data, ok := newSecret.Data[originalJSONPatchDataKey]; ok && len(data) > 0 {
+		if err := r.upsertRestoreSecret(ctx, namespace, sleepInfo, data); err != nil {
+			logger.Error(err, "failed to upsert emergency restore secret")
+		}
+	}
 	return nil
+}
+
+func (r *SleepInfoReconciler) upsertRestoreSecret(ctx context.Context, namespace string, sleepInfo *kubegreenv1alpha1.SleepInfo, data []byte) error {
+	secretName := getRestoreSecretName(sleepInfo.Name)
+	restoreSecret := &v1.Secret{}
+	err := r.Get(ctx, client.ObjectKey{
+		Namespace: namespace,
+		Name:      secretName,
+	}, restoreSecret)
+	if err != nil && client.IgnoreNotFound(err) != nil {
+		return err
+	}
+
+	newSecret := &v1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Secret",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretName,
+			Namespace: namespace,
+			Labels: map[string]string{
+				"app.kubernetes.io/managed-by":             r.ManagerName,
+				"kube-green.stratio.com/emergency-restore": "true",
+			},
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion: kubegreenv1alpha1.GroupVersion.String(),
+					Kind:       "SleepInfo",
+					Name:       sleepInfo.Name,
+					UID:        sleepInfo.UID,
+				},
+			},
+		},
+		Data: map[string][]byte{
+			originalJSONPatchDataKey: data,
+		},
+		StringData: map[string]string{
+			"saved-at": time.Now().Format(time.RFC3339),
+		},
+	}
+
+	if err != nil && client.IgnoreNotFound(err) == nil {
+		return r.Create(ctx, newSecret)
+	}
+	newSecret.ResourceVersion = restoreSecret.ResourceVersion
+	return r.Update(ctx, newSecret)
+}
+
+func (r *SleepInfoReconciler) getEmergencyRestorePatches(ctx context.Context, sleepInfo *kubegreenv1alpha1.SleepInfo, namespace string) (map[string]jsonpatch.RestorePatches, error) {
+	secretName := getRestoreSecretName(sleepInfo.Name)
+	secret := &v1.Secret{}
+	if err := r.Get(ctx, client.ObjectKey{Namespace: namespace, Name: secretName}, secret); err != nil {
+		return nil, client.IgnoreNotFound(err)
+	}
+	if secret == nil || secret.Data == nil {
+		return nil, nil
+	}
+	return jsonpatch.GetOriginalInfoToRestore(secret.Data[originalJSONPatchDataKey])
 }

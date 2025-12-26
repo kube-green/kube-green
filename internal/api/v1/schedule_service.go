@@ -2124,6 +2124,58 @@ func (s *ScheduleService) UpdateSchedule(ctx context.Context, tenant string, req
 	return s.createSchedule(ctx, req, preserveExisting)
 }
 
+// TriggerManualAction sets a manual sleep/wake action on matching SleepInfos.
+func (s *ScheduleService) TriggerManualAction(ctx context.Context, tenant, action, scheduleName, namespaceSuffix string) error {
+	action = strings.ToLower(strings.TrimSpace(action))
+	if action != "sleep" && action != "wake" {
+		return fmt.Errorf("invalid action: %s (expected sleep or wake)", action)
+	}
+
+	sleepInfoList := &kubegreenv1alpha1.SleepInfoList{}
+	if err := s.client.List(ctx, sleepInfoList); err != nil {
+		return fmt.Errorf("failed to list SleepInfos: %w", err)
+	}
+
+	updated := 0
+	for i := range sleepInfoList.Items {
+		si := &sleepInfoList.Items[i]
+		nsParts := strings.Split(si.Namespace, "-")
+		if len(nsParts) < 2 {
+			continue
+		}
+		tenantFromNS := strings.Join(nsParts[:len(nsParts)-1], "-")
+		if tenantFromNS != tenant {
+			continue
+		}
+
+		suffix := nsParts[len(nsParts)-1]
+		if namespaceSuffix != "" && suffix != namespaceSuffix {
+			continue
+		}
+
+		if scheduleName != "" && !matchesScheduleName(*si, scheduleName) {
+			continue
+		}
+
+		if si.Annotations == nil {
+			si.Annotations = make(map[string]string)
+		}
+		si.Annotations["kube-green.stratio.com/manual-action"] = action
+		si.Annotations["kube-green.stratio.com/manual-at"] = time.Now().Format(time.RFC3339)
+
+		if err := s.client.Update(ctx, si); err != nil {
+			return fmt.Errorf("failed to update SleepInfo %s: %w", si.Name, err)
+		}
+		updated++
+	}
+
+	if updated == 0 {
+		return fmt.Errorf("no schedules found for tenant: %s", tenant)
+	}
+
+	return nil
+}
+
 func matchesScheduleName(si kubegreenv1alpha1.SleepInfo, scheduleName string) bool {
 	if scheduleName == "" {
 		return true

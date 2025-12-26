@@ -7,6 +7,7 @@ package sleepinfo
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	kubegreenv1alpha1 "github.com/kube-green/kube-green/api/v1alpha1"
@@ -33,6 +34,9 @@ const (
 
 	sleepOperation  = "SLEEP"
 	wakeUpOperation = "WAKE_UP"
+
+	manualActionAnnotation   = "kube-green.stratio.com/manual-action"
+	manualActionTimeAnnotion = "kube-green.stratio.com/manual-at"
 )
 
 // SleepInfoReconciler reconciles a SleepInfo object
@@ -104,10 +108,24 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 	now := r.Now()
 
+	manualAction := ""
+	if sleepInfo.Annotations != nil {
+		manualAction = strings.ToLower(strings.TrimSpace(sleepInfo.Annotations[manualActionAnnotation]))
+	}
+
 	isToExecute, nextSchedule, requeueAfter, err := r.getNextSchedule(log, sleepInfoData, now)
 	if err != nil {
 		log.Error(err, "unable to update deployment with 0 replicas")
 		return ctrl.Result{}, err
+	}
+	if manualAction == "sleep" || manualAction == "wake" {
+		if manualAction == "sleep" {
+			sleepInfoData.CurrentOperationType = sleepOperation
+		} else {
+			sleepInfoData.CurrentOperationType = wakeUpOperation
+		}
+		isToExecute = true
+		log.Info("manual action requested", "action", manualAction, "sleepinfo", sleepInfo.Name)
 	}
 	scheduleLog := log.WithValues("now", r.Now(), "next run", nextSchedule, "requeue", requeueAfter)
 
@@ -136,6 +154,15 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 					restorePatches[key] = patches
 				}
 			}
+		}
+	}
+	if sleepInfoData.IsWakeUpOperation() && len(restorePatches) == 0 {
+		backupPatches, err := r.getEmergencyRestorePatches(ctx, sleepInfo, req.Namespace)
+		if err != nil {
+			log.Error(err, "failed to get emergency restore patches")
+		} else if backupPatches != nil && len(backupPatches) > 0 {
+			restorePatches = backupPatches
+			log.Info("using emergency restore patches", "count", len(backupPatches))
 		}
 	}
 
@@ -249,6 +276,12 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		}, nil
 	}
 
+	if manualAction == "sleep" || manualAction == "wake" {
+		if err := r.clearManualAction(ctx, sleepInfo); err != nil {
+			log.Error(err, "failed to clear manual action annotation")
+		}
+	}
+
 	return ctrl.Result{
 		RequeueAfter: requeueAfter,
 	}, nil
@@ -269,6 +302,18 @@ func (r *SleepInfoReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		}).
 		WithEventFilter(pred).
 		Complete(r)
+}
+
+func (r *SleepInfoReconciler) clearManualAction(ctx context.Context, sleepInfo *kubegreenv1alpha1.SleepInfo) error {
+	if sleepInfo.Annotations == nil {
+		return nil
+	}
+	if _, exists := sleepInfo.Annotations[manualActionAnnotation]; !exists {
+		return nil
+	}
+	delete(sleepInfo.Annotations, manualActionAnnotation)
+	delete(sleepInfo.Annotations, manualActionTimeAnnotion)
+	return r.Update(ctx, sleepInfo)
 }
 
 func (r *SleepInfoReconciler) getSleepInfo(ctx context.Context, req ctrl.Request) (*kubegreenv1alpha1.SleepInfo, error) {
