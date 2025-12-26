@@ -85,6 +85,13 @@ func (r SleepInfoReconciler) upsertSecret(
 		newSecret.Data = map[string][]byte{
 			originalJSONPatchDataKey: data,
 		}
+	} else if secret != nil && secret.Data != nil {
+		// Preserve restore info on non-sleep operations (e.g. wake/manual).
+		if data, ok := secret.Data[originalJSONPatchDataKey]; ok && len(data) > 0 {
+			newSecret.Data = map[string][]byte{
+				originalJSONPatchDataKey: data,
+			}
+		}
 	}
 
 	if secret == nil {
