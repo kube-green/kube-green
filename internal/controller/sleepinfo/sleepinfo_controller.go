@@ -20,6 +20,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -38,6 +39,8 @@ const (
 
 	manualActionAnnotation   = "kube-green.stratio.com/manual-action"
 	manualActionTimeAnnotion = "kube-green.stratio.com/manual-at"
+
+	manualActionTTL = 5 * time.Minute
 )
 
 // SleepInfoReconciler reconciles a SleepInfo object
@@ -110,8 +113,12 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	now := r.Now()
 
 	manualAction := ""
+	manualActionAt := ""
+	manualActionValid := false
+	manualActionShouldClear := false
 	if sleepInfo.Annotations != nil {
 		manualAction = strings.ToLower(strings.TrimSpace(sleepInfo.Annotations[manualActionAnnotation]))
+		manualActionAt = strings.TrimSpace(sleepInfo.Annotations[manualActionTimeAnnotion])
 	}
 
 	isToExecute, nextSchedule, requeueAfter, err := r.getNextSchedule(log, sleepInfoData, now)
@@ -119,7 +126,24 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		log.Error(err, "unable to update deployment with 0 replicas")
 		return ctrl.Result{}, err
 	}
+
 	if manualAction == "sleep" || manualAction == "wake" {
+		manualActionValid = true
+		if manualActionAt != "" {
+			parsedAt, err := time.Parse(time.RFC3339, manualActionAt)
+			if err != nil {
+				log.Info("manual action timestamp invalid, ignoring manual action", "manualAt", manualActionAt, "sleepinfo", sleepInfo.Name)
+				manualActionValid = false
+				manualActionShouldClear = true
+			} else if now.Sub(parsedAt) > manualActionTTL {
+				log.Info("manual action expired, ignoring manual action", "manualAt", manualActionAt, "sleepinfo", sleepInfo.Name)
+				manualActionValid = false
+				manualActionShouldClear = true
+			}
+		}
+	}
+
+	if manualActionValid {
 		if manualAction == "sleep" {
 			sleepInfoData.CurrentOperationType = sleepOperation
 		} else {
@@ -277,7 +301,7 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		}, nil
 	}
 
-	if manualAction == "sleep" || manualAction == "wake" {
+	if manualActionValid || manualActionShouldClear {
 		if err := r.clearManualAction(ctx, sleepInfo); err != nil {
 			log.Error(err, "failed to clear manual action annotation")
 		}
@@ -342,15 +366,22 @@ func (r *SleepInfoReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func (r *SleepInfoReconciler) clearManualAction(ctx context.Context, sleepInfo *kubegreenv1alpha1.SleepInfo) error {
-	if sleepInfo.Annotations == nil {
-		return nil
-	}
-	if _, exists := sleepInfo.Annotations[manualActionAnnotation]; !exists {
-		return nil
-	}
-	delete(sleepInfo.Annotations, manualActionAnnotation)
-	delete(sleepInfo.Annotations, manualActionTimeAnnotion)
-	return r.Update(ctx, sleepInfo)
+	key := client.ObjectKeyFromObject(sleepInfo)
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		latest := &kubegreenv1alpha1.SleepInfo{}
+		if err := r.Get(ctx, key, latest); err != nil {
+			return err
+		}
+		if latest.Annotations == nil {
+			return nil
+		}
+		if _, exists := latest.Annotations[manualActionAnnotation]; !exists {
+			return nil
+		}
+		delete(latest.Annotations, manualActionAnnotation)
+		delete(latest.Annotations, manualActionTimeAnnotion)
+		return r.Update(ctx, latest)
+	})
 }
 
 func (r *SleepInfoReconciler) getSleepInfo(ctx context.Context, req ctrl.Request) (*kubegreenv1alpha1.SleepInfo, error) {
