@@ -21,6 +21,10 @@ Este documento mantiene el registro de versiones y cambios de este fork personal
   - **Problema**: Un WAKE actualizaba el secret y eliminaba `original-resource-info`.
   - **Solución**: Mantener el restore existente si no es operación SLEEP.
   - Archivo modificado: `internal/controller/sleepinfo/secrets.go`
+- **Habilita endpoints de namespaces**:
+  - **Problema**: El editor recibía 404 al cargar servicios/recursos por namespace.
+  - **Solución**: Se activan `/api/v1/namespaces/:tenant/services` y `/api/v1/namespaces/:tenant/resources`.
+  - Archivos modificados: `internal/api/v1/server.go`, `internal/api/v1/handlers.go`
 
 ### ✨ Nuevas Funcionalidades
 

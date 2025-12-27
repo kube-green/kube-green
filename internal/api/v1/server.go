@@ -146,10 +146,8 @@ func (s *Server) setupRoutes() {
 	}
 
 	// Namespace services endpoints
-	// TODO: Implement handleGetNamespaceServices
-	// s.router.GET("/api/v1/namespaces/:tenant/services", s.handleGetNamespaceServices)
-	// TODO: Implement handleGetNamespaceResources
-	// s.router.GET("/api/v1/namespaces/:tenant/resources", s.handleGetNamespaceResources)
+	s.router.GET("/api/v1/namespaces/:tenant/services", s.handleGetNamespaceServices)
+	s.router.GET("/api/v1/namespaces/:tenant/resources", s.handleGetNamespaceResources)
 
 	// Schedule management endpoints
 	v1 := s.router.Group("/api/v1/schedules")

@@ -115,6 +115,82 @@ func (s *Server) handleListTenants(c *gin.Context) {
 	})
 }
 
+// handleGetNamespaceServices lists services in a tenant namespace
+// @Summary Get services for a namespace
+// @Description Lists deployments, statefulsets and cronjobs for a tenant namespace
+// @Tags Namespaces
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param tenant path string true "Tenant name" example:"bdaqa"
+// @Param namespace query string true "Namespace suffix" example:"apps"
+// @Success 200 {object} APIResponse{data=NamespaceServicesResponse}
+// @Failure 400 {object} ErrorResponse "Invalid request parameters"
+// @Failure 500 {object} ErrorResponse "Internal server error"
+// @Router /api/v1/namespaces/{tenant}/services [get]
+func (s *Server) handleGetNamespaceServices(c *gin.Context) {
+	tenant := c.Param("tenant")
+	namespace := c.Query("namespace")
+	if tenant == "" || namespace == "" {
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Success: false,
+			Error:   "tenant and namespace parameters are required",
+			Code:    http.StatusBadRequest,
+		})
+		return
+	}
+
+	services, err := s.scheduleService.GetNamespaceServices(c.Request.Context(), tenant, namespace)
+	if err != nil {
+		s.logger.Error(err, "failed to get namespace services", "tenant", tenant, "namespace", namespace)
+		handleKubernetesError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, APIResponse{
+		Success: true,
+		Data:    services,
+	})
+}
+
+// handleGetNamespaceResources detects resources in a tenant namespace
+// @Summary Get resources for a namespace
+// @Description Detects CRDs and resource counts for a tenant namespace
+// @Tags Namespaces
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param tenant path string true "Tenant name" example:"bdaqa"
+// @Param namespace query string true "Namespace suffix" example:"apps"
+// @Success 200 {object} APIResponse{data=NamespaceResourceInfo}
+// @Failure 400 {object} ErrorResponse "Invalid request parameters"
+// @Failure 500 {object} ErrorResponse "Internal server error"
+// @Router /api/v1/namespaces/{tenant}/resources [get]
+func (s *Server) handleGetNamespaceResources(c *gin.Context) {
+	tenant := c.Param("tenant")
+	namespace := c.Query("namespace")
+	if tenant == "" || namespace == "" {
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Success: false,
+			Error:   "tenant and namespace parameters are required",
+			Code:    http.StatusBadRequest,
+		})
+		return
+	}
+
+	resources, err := s.scheduleService.GetNamespaceResources(c.Request.Context(), tenant, namespace)
+	if err != nil {
+		s.logger.Error(err, "failed to get namespace resources", "tenant", tenant, "namespace", namespace)
+		handleKubernetesError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, APIResponse{
+		Success: true,
+		Data:    resources,
+	})
+}
+
 // handleListSchedules lists all schedules
 // @Summary List all schedules
 // @Description Lists all SleepInfo schedules across all namespaces
