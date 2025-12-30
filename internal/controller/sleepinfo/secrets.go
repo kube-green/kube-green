@@ -13,6 +13,8 @@ import (
 	"github.com/go-logr/logr"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -132,6 +134,14 @@ func (r SleepInfoReconciler) upsertSecret(
 				logger.Error(err, "failed to serialize merged restore patches, using current data")
 			}
 		}
+		if missingCount, err := r.validateRestoreCoverage(ctx, sleepInfo, namespace, mergedData); err != nil {
+			logger.Error(err, "restore coverage check failed")
+		} else if missingCount > 0 {
+			logger.Info("restore coverage missing resources", "count", missingCount)
+			if err := r.setRestoreIncomplete(ctx, sleepInfo, true); err != nil {
+				logger.Error(err, "failed to set restore incomplete annotation")
+			}
+		}
 		newSecret.Data = map[string][]byte{
 			originalJSONPatchDataKey: mergedData,
 		}
@@ -231,6 +241,91 @@ func (r *SleepInfoReconciler) getEmergencyRestorePatches(ctx context.Context, sl
 		return nil, nil
 	}
 	return jsonpatch.GetOriginalInfoToRestore(secret.Data[originalJSONPatchDataKey])
+}
+
+func (r *SleepInfoReconciler) validateRestoreCoverage(
+	ctx context.Context,
+	sleepInfo *kubegreenv1alpha1.SleepInfo,
+	namespace string,
+	data []byte,
+) (int, error) {
+	restore, err := jsonpatch.GetOriginalInfoToRestore(data)
+	if err != nil {
+		return 0, err
+	}
+	if restore == nil {
+		restore = map[string]jsonpatch.RestorePatches{}
+	}
+	targets := []kubegreenv1alpha1.PatchTarget{
+		kubegreenv1alpha1.PgBouncerTarget,
+		kubegreenv1alpha1.OsDashboardsTarget,
+		kubegreenv1alpha1.HDFSClusterTarget,
+		kubegreenv1alpha1.PgClusterTarget,
+	}
+	missingCount := 0
+	for _, target := range targets {
+		if !r.sleepInfoHandlesTarget(sleepInfo, target) {
+			continue
+		}
+		names, err := r.listResourceNames(ctx, namespace, target)
+		if err != nil {
+			return missingCount, err
+		}
+		patches := restore[target.String()]
+		for _, name := range names {
+			if _, ok := patches[name]; !ok {
+				missingCount++
+			}
+		}
+	}
+	return missingCount, nil
+}
+
+func (r *SleepInfoReconciler) listResourceNames(ctx context.Context, namespace string, target kubegreenv1alpha1.PatchTarget) ([]string, error) {
+	gvk, ok := r.resourceListGVK(target)
+	if !ok {
+		return nil, nil
+	}
+	list := &unstructured.UnstructuredList{}
+	list.SetGroupVersionKind(gvk)
+	if err := r.List(ctx, list, client.InNamespace(namespace)); err != nil {
+		return nil, err
+	}
+	names := make([]string, 0, len(list.Items))
+	for _, item := range list.Items {
+		names = append(names, item.GetName())
+	}
+	return names, nil
+}
+
+func (r *SleepInfoReconciler) sleepInfoHandlesTarget(sleepInfo *kubegreenv1alpha1.SleepInfo, target kubegreenv1alpha1.PatchTarget) bool {
+	switch target {
+	case kubegreenv1alpha1.PgBouncerTarget:
+		return sleepInfo.IsPgbouncerToSuspend()
+	case kubegreenv1alpha1.OsDashboardsTarget:
+		return sleepInfo.IsOsDashboardsToSuspend()
+	case kubegreenv1alpha1.HDFSClusterTarget:
+		return sleepInfo.IsHdfsToSuspend()
+	case kubegreenv1alpha1.PgClusterTarget:
+		return sleepInfo.IsPostgresToSuspend()
+	default:
+		return false
+	}
+}
+
+func (r *SleepInfoReconciler) resourceListGVK(target kubegreenv1alpha1.PatchTarget) (schema.GroupVersionKind, bool) {
+	switch target {
+	case kubegreenv1alpha1.PgBouncerTarget:
+		return schema.GroupVersionKind{Group: "postgres.stratio.com", Version: "v1", Kind: "PgBouncerList"}, true
+	case kubegreenv1alpha1.OsDashboardsTarget:
+		return schema.GroupVersionKind{Group: "opensearch.stratio.com", Version: "v1", Kind: "OsDashboardsList"}, true
+	case kubegreenv1alpha1.HDFSClusterTarget:
+		return schema.GroupVersionKind{Group: "hdfs.stratio.com", Version: "v1", Kind: "HDFSClusterList"}, true
+	case kubegreenv1alpha1.PgClusterTarget:
+		return schema.GroupVersionKind{Group: "postgres.stratio.com", Version: "v1", Kind: "PgClusterList"}, true
+	default:
+		return schema.GroupVersionKind{}, false
+	}
 }
 
 func countRestorePatchesFromBytes(data []byte) int {
