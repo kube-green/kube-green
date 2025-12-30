@@ -2,6 +2,7 @@ package sleepinfo
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -82,8 +83,44 @@ func (r SleepInfoReconciler) upsertSecret(
 			logger.Error(err, "failed to get original resource info to save")
 			return err
 		}
+		mergedData := data
+		if len(sleepInfoData.OriginalGenericResourceInfo) > 0 {
+			// Preserve previous restore patches for resources not captured in this sleep.
+			var current map[string]jsonpatch.RestorePatches
+			if len(data) > 0 {
+				if err := json.Unmarshal(data, &current); err != nil {
+					logger.Error(err, "failed to unmarshal restore patches, falling back to previous data")
+					current = nil
+				}
+			}
+			if current == nil {
+				current = map[string]jsonpatch.RestorePatches{}
+			}
+			mergedCount := 0
+			for kind, patches := range sleepInfoData.OriginalGenericResourceInfo {
+				if _, ok := current[kind]; !ok {
+					current[kind] = patches
+					mergedCount += len(patches)
+					continue
+				}
+				for name, patch := range patches {
+					if _, ok := current[kind][name]; !ok {
+						current[kind][name] = patch
+						mergedCount++
+					}
+				}
+			}
+			if mergedCount > 0 {
+				logger.Info("preserved restore patches from previous secret", "count", mergedCount)
+			}
+			if serialized, err := json.Marshal(current); err == nil {
+				mergedData = serialized
+			} else {
+				logger.Error(err, "failed to serialize merged restore patches, using current data")
+			}
+		}
 		newSecret.Data = map[string][]byte{
-			originalJSONPatchDataKey: data,
+			originalJSONPatchDataKey: mergedData,
 		}
 	} else if secret != nil && secret.Data != nil {
 		// Preserve restore info on non-sleep operations (e.g. wake/manual).
