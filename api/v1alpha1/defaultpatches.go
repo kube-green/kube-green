@@ -151,12 +151,12 @@ var OsclusterWakePatch = Patch{
   value: "false"`,
 }
 
-// Patch para OsDashboards: modifica spec.replicas (usa replace porque el campo siempre existe)
+// Patch para OsDashboards: modifica spec.instances (usa replace porque el campo siempre existe)
 var OsdashboardsPatch = Patch{
 	Target: OsDashboardsTarget,
 	Patch: `
 - op: replace
-  path: /spec/replicas
+  path: /spec/instances
   value: 0`,
 }
 
