@@ -13,6 +13,7 @@ import (
 	"github.com/go-logr/logr"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -84,6 +85,18 @@ func (r SleepInfoReconciler) upsertSecret(
 			return err
 		}
 		mergedData := data
+		newCount := countRestorePatchesFromBytes(data)
+		prevCount := countRestorePatchesFromMap(sleepInfoData.OriginalGenericResourceInfo)
+		if newCount < prevCount {
+			logger.Info("restore patches reduced after sleep, preserving previous restore", "newCount", newCount, "prevCount", prevCount)
+			if err := r.setRestoreIncomplete(ctx, sleepInfo, true); err != nil {
+				logger.Error(err, "failed to set restore incomplete annotation")
+			}
+		} else if prevCount > 0 {
+			if err := r.setRestoreIncomplete(ctx, sleepInfo, false); err != nil {
+				logger.Error(err, "failed to clear restore incomplete annotation")
+			}
+		}
 		if len(sleepInfoData.OriginalGenericResourceInfo) > 0 {
 			// Preserve previous restore patches for resources not captured in this sleep.
 			var current map[string]jsonpatch.RestorePatches
@@ -194,6 +207,16 @@ func (r *SleepInfoReconciler) upsertRestoreSecret(ctx context.Context, namespace
 	if err != nil && client.IgnoreNotFound(err) == nil {
 		return r.Create(ctx, newSecret)
 	}
+	if restoreSecret.Data != nil {
+		if existing := restoreSecret.Data[originalJSONPatchDataKey]; len(existing) > 0 {
+			existingCount := countRestorePatchesFromBytes(existing)
+			newCount := countRestorePatchesFromBytes(data)
+			if newCount < existingCount {
+				// Keep the most complete emergency restore data.
+				newSecret.Data[originalJSONPatchDataKey] = existing
+			}
+		}
+	}
 	newSecret.ResourceVersion = restoreSecret.ResourceVersion
 	return r.Update(ctx, newSecret)
 }
@@ -208,4 +231,48 @@ func (r *SleepInfoReconciler) getEmergencyRestorePatches(ctx context.Context, sl
 		return nil, nil
 	}
 	return jsonpatch.GetOriginalInfoToRestore(secret.Data[originalJSONPatchDataKey])
+}
+
+func countRestorePatchesFromBytes(data []byte) int {
+	if len(data) == 0 {
+		return 0
+	}
+	parsed := map[string]jsonpatch.RestorePatches{}
+	if err := json.Unmarshal(data, &parsed); err != nil {
+		return 0
+	}
+	return countRestorePatchesFromMap(parsed)
+}
+
+func countRestorePatchesFromMap(data map[string]jsonpatch.RestorePatches) int {
+	total := 0
+	for _, patches := range data {
+		total += len(patches)
+	}
+	return total
+}
+
+func (r *SleepInfoReconciler) setRestoreIncomplete(ctx context.Context, sleepInfo *kubegreenv1alpha1.SleepInfo, incomplete bool) error {
+	key := client.ObjectKeyFromObject(sleepInfo)
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		latest := &kubegreenv1alpha1.SleepInfo{}
+		if err := r.Get(ctx, key, latest); err != nil {
+			return err
+		}
+		if latest.Annotations == nil {
+			latest.Annotations = map[string]string{}
+		}
+		const (
+			restoreIncompleteKey = "kube-green.stratio.com/restore-incomplete"
+			restoreIncompleteAt  = "kube-green.stratio.com/restore-incomplete-at"
+		)
+		if incomplete {
+			latest.Annotations[restoreIncompleteKey] = "true"
+			latest.Annotations[restoreIncompleteAt] = time.Now().Format(time.RFC3339)
+		} else {
+			delete(latest.Annotations, restoreIncompleteKey)
+			delete(latest.Annotations, restoreIncompleteAt)
+		}
+		return r.Update(ctx, latest)
+	})
 }
