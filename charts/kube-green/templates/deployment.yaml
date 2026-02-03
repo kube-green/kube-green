@@ -47,7 +47,7 @@ spec:
           {{- toYaml . | nindent 8 }}
         {{- end }}
         command:
-        - /kube-green
+        - /manager
         image: {{ include "image" .Values.manager.image }}
         imagePullPolicy: {{ .Values.manager.image.pullPolicy }}
         livenessProbe:
