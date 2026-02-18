@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-logr/logr"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -100,6 +101,11 @@ func (r SleepInfoReconciler) upsertSecret(
 			}
 		}
 		if len(sleepInfoData.OriginalGenericResourceInfo) > 0 {
+			resourcesPresentByTarget, err := r.listCurrentResourcesByTarget(ctx, namespace, sleepInfo)
+			if err != nil {
+				logger.Error(err, "failed to list current resources by target, preserving all previous restore patches")
+				resourcesPresentByTarget = nil
+			}
 			// Preserve previous restore patches for resources not captured in this sleep.
 			var current map[string]jsonpatch.RestorePatches
 			if len(data) > 0 {
@@ -114,12 +120,23 @@ func (r SleepInfoReconciler) upsertSecret(
 			mergedCount := 0
 			for kind, patches := range sleepInfoData.OriginalGenericResourceInfo {
 				if _, ok := current[kind]; !ok {
-					current[kind] = patches
-					mergedCount += len(patches)
-					continue
+					current[kind] = map[string]string{}
 				}
 				for name, patch := range patches {
 					if _, ok := current[kind][name]; !ok {
+						// If the resource exists now but no restore patch was generated in this sleep cycle,
+						// it means it's already in the desired sleep state. Preserve no stale restore patch.
+						if resourcesPresentByTarget != nil {
+							if names, exists := resourcesPresentByTarget[kind]; exists {
+								if _, found := names[name]; found {
+									logger.Info("dropping stale restore patch for resource already in sleep state",
+										"target", kind,
+										"resource", name,
+									)
+									continue
+								}
+							}
+						}
 						current[kind][name] = patch
 						mergedCount++
 					}
@@ -345,6 +362,45 @@ func countRestorePatchesFromMap(data map[string]jsonpatch.RestorePatches) int {
 		total += len(patches)
 	}
 	return total
+}
+
+func (r *SleepInfoReconciler) listCurrentResourcesByTarget(
+	ctx context.Context,
+	namespace string,
+	sleepInfo *kubegreenv1alpha1.SleepInfo,
+) (map[string]map[string]struct{}, error) {
+	result := map[string]map[string]struct{}{}
+	seenTargets := map[string]struct{}{}
+
+	for _, patchData := range sleepInfo.GetPatches() {
+		targetKey := patchData.Target.String()
+		if _, exists := seenTargets[targetKey]; exists {
+			continue
+		}
+		seenTargets[targetKey] = struct{}{}
+
+		restMapping, err := r.Client.RESTMapper().RESTMapping(patchData.Target.GroupKind())
+		if meta.IsNoMatchError(err) {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+
+		resourceList := &unstructured.UnstructuredList{}
+		resourceList.SetGroupVersionKind(restMapping.GroupVersionKind)
+		if err := r.List(ctx, resourceList, client.InNamespace(namespace)); err != nil {
+			return nil, err
+		}
+
+		names := map[string]struct{}{}
+		for _, item := range resourceList.Items {
+			names[item.GetName()] = struct{}{}
+		}
+		result[targetKey] = names
+	}
+
+	return result, nil
 }
 
 func (r *SleepInfoReconciler) setRestoreIncomplete(ctx context.Context, sleepInfo *kubegreenv1alpha1.SleepInfo, incomplete bool) error {
