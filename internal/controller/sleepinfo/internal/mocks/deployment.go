@@ -49,6 +49,12 @@ func Deployment(opts DeploymentOptions) ResourceMock[appsv1.Deployment] {
 							{
 								Name:  "container",
 								Image: "my-image",
+								Env: []v1.EnvVar{
+									{
+										Name:  "TEST_ENV",
+										Value: "test-value",
+									},
+								},
 							},
 						},
 					},

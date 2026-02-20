@@ -21,6 +21,9 @@ func testBeforeEach(runID string) env.FeatureFunc {
 		require.NoError(t, err)
 		c = c.WithClient(c.Client())
 
+		// Clear setup options from previous tests to ensure each feature starts fresh
+		ctx = withSetupOptions(ctx, setupOptions{})
+
 		return testutil.CreateNamespace(ctx, c, t, runID)
 	}
 }

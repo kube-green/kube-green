@@ -9,6 +9,7 @@ OS                =$(shell go env GOOS)
 ARCH              =$(shell go env GOARCH)
 GIT_SHA           =$(shell git rev-parse HEAD)
 BUILD_PATH        := cmd/main.go
+TEST_PATH         := ./...
 
 # Export only the variables needed by external tools like goreleaser
 export BUILD_PATH
@@ -137,7 +138,7 @@ lint-config: golangci-lint ## Verify golangci-lint linter configuration
 .PHONY: test
 test: manifests generate fmt vet gotestsum envtest ## Run tests.
 	@echo "Running tests with kubernetes version $(KIND_K8S_VERSION)..."
-	KIND_K8S_VERSION=$(KIND_K8S_VERSION) $(GOTESTSUM) -- $(GO_TEST_ARGS) -race ./...
+	KIND_K8S_VERSION=$(KIND_K8S_VERSION) $(GOTESTSUM) -- $(GO_TEST_ARGS) -race $(TEST_PATH)
 
 .PHONY: coverage
 coverage:
