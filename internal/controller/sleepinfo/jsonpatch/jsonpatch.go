@@ -137,12 +137,20 @@ func (g managedResources) Sleep(ctx context.Context) error {
 
 			resourceWrapper.restorePatches[resource.GetName()] = restorePatchString
 
-			res := &unstructured.Unstructured{}
-			if err := json.Unmarshal(modified, &res.Object); err != nil {
+			// Create forward merge patch containing only the changed fields
+			forwardPatch, err := jsonpatch.CreateMergePatch(original, modified)
+			if err != nil {
 				return fmt.Errorf("%w: %s", ErrJSONPatch, err)
 			}
 
-			if err := resourceWrapper.SSAPatch(ctx, res); err != nil {
+			// Build sparse object with identifiers + changed fields only
+			// This ensures SSA only claims ownership of fields we actually modify
+			sparseObj, err := buildSparseApplyObject(resource, forwardPatch)
+			if err != nil {
+				return fmt.Errorf("%w: %s", ErrJSONPatch, err)
+			}
+
+			if err := resourceWrapper.SSAPatch(ctx, sparseObj); err != nil {
 				return fmt.Errorf("%w: %s", ErrJSONPatch, err)
 			}
 			resourceWrapper.isCacheInvalid = true
@@ -251,4 +259,30 @@ func GetOriginalInfoToRestore(data []byte) (map[string]RestorePatches, error) {
 	}
 
 	return resourcePatches, nil
+}
+
+// buildSparseApplyObject creates a sparse unstructured object containing only:
+// - Required identifiers (apiVersion, kind, metadata.name, metadata.namespace)
+// - The fields that were actually changed (from the merge patch)
+// This ensures that SSA only claims ownership of the fields we modify.
+func buildSparseApplyObject(resource unstructured.Unstructured, mergePatch []byte) (*unstructured.Unstructured, error) {
+	var patchMap map[string]any
+	if err := json.Unmarshal(mergePatch, &patchMap); err != nil {
+		return nil, err
+	}
+
+	sparse := &unstructured.Unstructured{Object: map[string]any{}}
+
+	for key, value := range patchMap {
+		err := unstructured.SetNestedField(sparse.Object, value, key)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	sparse.SetGroupVersionKind(resource.GroupVersionKind())
+	sparse.SetName(resource.GetName())
+	sparse.SetNamespace(resource.GetNamespace())
+
+	return sparse, nil
 }

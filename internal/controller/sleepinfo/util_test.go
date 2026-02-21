@@ -44,7 +44,7 @@ type originalResources struct {
 	sleepInfo v1alpha1.SleepInfo
 }
 
-func createSleepInfoCRD(t *testing.T, ctx context.Context, c *envconf.Config, sleepInfo *v1alpha1.SleepInfo) v1alpha1.SleepInfo {
+func createSleepInfoCR(t *testing.T, ctx context.Context, c *envconf.Config, sleepInfo *v1alpha1.SleepInfo) v1alpha1.SleepInfo {
 	t.Helper()
 
 	r, err := resources.New(c.Client().RESTConfig())
@@ -82,7 +82,7 @@ func expectSleepInfoCreationToFail(t *testing.T, ctx context.Context, c *envconf
 func setupNamespaceWithResources(t *testing.T, ctx context.Context, cfg *envconf.Config, sleepInfoToCreate *v1alpha1.SleepInfo, reconciler SleepInfoReconciler, opts setupOptions) (ctrl.Request, originalResources) {
 	t.Helper()
 
-	sleepInfo := createSleepInfoCRD(t, ctx, cfg, sleepInfoToCreate)
+	sleepInfo := createSleepInfoCR(t, ctx, cfg, sleepInfoToCreate)
 
 	originalDeployments := upsertDeployments(t, ctx, cfg, false)
 
