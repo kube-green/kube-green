@@ -9,6 +9,7 @@ OS                =$(shell go env GOOS)
 ARCH              =$(shell go env GOARCH)
 GIT_SHA           =$(shell git rev-parse HEAD)
 BUILD_PATH        := cmd/main.go
+TEST_PATH         := ./...
 
 # Export only the variables needed by external tools like goreleaser
 export BUILD_PATH
@@ -57,6 +58,10 @@ ifeq ($(USE_IMAGE_DIGESTS), true)
     BUNDLE_GEN_FLAGS += --use-image-digests
 endif
 
+# OPENSHIFT_VERSIONS defines the OpenShift versions supported by the operator.
+# TODO: consider update support versions or move to fbc build.
+OPENSHIFT_VERSIONS ?= 4.15-4.20
+
 # Image URL to use all building/pushing image targets
 IMG ?= $(DOCKER_IMAGE_NAME):$(VERSION)
 # KIND_K8S_VERSION refers to the version of Kind to use.
@@ -72,7 +77,7 @@ endif
 # CONTAINER_TOOL defines the container tool to be used for building images.
 # Be aware that the target commands are only tested with Docker which is
 # scaffolded by default. However, you might want to replace it to use other
-# tools. (i.e. podman)
+# tools. (i.e. podman).
 CONTAINER_TOOL ?= docker
 
 # Setting SHELL to bash allows bash commands to be executed by recipes.
@@ -133,7 +138,7 @@ lint-config: golangci-lint ## Verify golangci-lint linter configuration
 .PHONY: test
 test: manifests generate fmt vet gotestsum envtest ## Run tests.
 	@echo "Running tests with kubernetes version $(KIND_K8S_VERSION)..."
-	KIND_K8S_VERSION=$(KIND_K8S_VERSION) $(GOTESTSUM) -- $(GO_TEST_ARGS) -race ./...
+	KIND_K8S_VERSION=$(KIND_K8S_VERSION) $(GOTESTSUM) -- $(GO_TEST_ARGS) -race $(TEST_PATH)
 
 .PHONY: coverage
 coverage:
@@ -149,12 +154,12 @@ e2e-test-kustomize: manifests generate kustomize
 	@$(KUSTOMIZE) build ./config/e2e-test/ -o /tmp/kube-green-e2e-test.yaml
 	@rm -rf ./tests/integration/tests-logs/
 	@echo "==> Generated K8s resource file with Kustomize"
-	INSTALLATION_MODE=kustomize go test -tags=e2e ./tests/integration/ -count 1 $(OPTION)
+	CONTAINER_TOOL=$(CONTAINER_TOOL) INSTALLATION_MODE=kustomize go test -tags=e2e ./tests/integration/ -count 1 $(OPTION)
 
 .PHONY: e2e-test
 e2e-test:
 	@rm -rf ./tests/integration/tests-logs/
-	go test -tags=e2e ./tests/integration/ -count 1 $(OPTION)
+	CONTAINER_TOOL=$(CONTAINER_TOOL) go test -tags=e2e ./tests/integration/ -count 1 $(OPTION)
 
 ##@ Build
 
@@ -264,6 +269,7 @@ GOTESTSUM_VERSION ?= v1.13.0
 GOLANGCI_LINT_VERSION ?= v2.5.0
 OPERATOR_SDK_VERSION ?= v1.41.1
 GORELEASER_VERSION ?= v2.12.6
+YQ_VERSION ?= v4.52.2
 
 .PHONY: kustomize
 kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
@@ -294,6 +300,10 @@ $(ENVTEST): $(LOCALBIN)
 goreleaser: $(GORELEASER) ## Download goreleaser locally if necessary.
 $(GORELEASER): $(LOCALBIN)
 	$(call go-install-tool,$(GORELEASER),github.com/goreleaser/goreleaser/v2,$(GORELEASER_VERSION))
+
+yq: $(YQ) ## Download yq locally if necessary.
+$(YQ): $(LOCALBIN)
+	$(call go-install-tool,$(YQ),github.com/mikefarah/yq/v4,$(YQ_VERSION))
 
 # go-install-tool will 'go install' any package with custom target and name of binary, if it doesn't exist
 # $1 - target path with name of binary
@@ -350,14 +360,15 @@ bundle: manifests kustomize operator-sdk ## Generate bundle manifests and metada
 	$(OPERATOR_SDK) generate kustomize manifests --interactive=false -q
 	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
 	$(KUSTOMIZE) build config/manifests | $(OPERATOR_SDK) generate bundle $(BUNDLE_GEN_FLAGS)
-# This sed remove seccompProfile, since it not passes openshift 4.10 tests. Remove it when this version
-# will be unsupported
-	sed -i '' -e '/seccompProfile/,/RuntimeDefault/d' ./bundle/manifests/kube-green.clusterserviceversion.yaml
+# Add OpenShift annotations to bundle metadata
+	@echo "  # OpenShift annotations." >> ./bundle/metadata/annotations.yaml
+	@echo "  com.redhat.openshift.versions: $(OPENSHIFT_VERSIONS)" >> ./bundle/metadata/annotations.yaml
+	@echo "" >> ./bundle/metadata/annotations.yaml
 	$(OPERATOR_SDK) bundle validate ./bundle
 
 .PHONY: bundle-build
 bundle-build: ## Build the bundle image.
-	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
+	$(CONTAINER_TOOL) build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
 
 .PHONY: bundle-push
 bundle-push: ## Push the bundle image.
@@ -375,12 +386,23 @@ ifneq ($(origin CATALOG_BASE_IMG), undefined)
 FROM_INDEX_OPT := --from-index $(CATALOG_BASE_IMG)
 endif
 
-# Build a catalog image by adding bundle images to an empty catalog using the operator package manager tool, 'opm'.
-# This recipe invokes 'opm' in 'semver' bundle add mode. For more information on add modes, see:
-# https://github.com/operator-framework/community-operators/blob/7f1438c/docs/packaging-operator.md#updating-your-existing-operator
+.PHONY: catalog-clean
+catalog-clean: ## Clean up catalog files and Dockerfile
+	rm -rf catalog
+
+.PHONY: catalog-prepare
+catalog-prepare: catalog-clean opm yq ## Prepare catalog directory.
+	mkdir -p catalog
+	cp config/catalog/catalog-template.yaml catalog/catalog-template.yaml
+	./hack/update-catalog-template.sh catalog/catalog-template.yaml $(VERSION)
+	$(OPM) alpha render-template basic -o yaml catalog/catalog-template.yaml > catalog/catalog.yaml
+	$(OPM) validate catalog
+	cat catalog/catalog-template.yaml
+
+# Build a catalog image
 .PHONY: catalog-build
-catalog-build: opm ## Build a catalog image.
-	$(OPM) index add --container-tool docker --mode semver --tag $(CATALOG_IMG) --bundles $(BUNDLE_IMGS) $(FROM_INDEX_OPT)
+catalog-build: catalog-prepare
+	$(CONTAINER_TOOL) build --no-cache --load -f catalog.Dockerfile -t $(CATALOG_IMG) .
 
 # Push the catalog image.
 .PHONY: catalog-push

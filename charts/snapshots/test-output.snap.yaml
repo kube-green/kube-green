@@ -79,6 +79,13 @@ spec:
                       description: Name which identify the kubernetes resource.
                       type: string
                   type: object
+                  x-kubernetes-validations:
+                  - message: Must have either matchLabels (with empty name/apiVersion/kind)
+                      or name+apiVersion+kind (with empty matchLabels), but not both
+                    rule: 'has(self.matchLabels) ? (!has(self.name) && !has(self.apiVersion)
+                      && !has(self.kind)) : (has(self.name) && has(self.apiVersion)
+                      && has(self.kind))'
+                maxItems: 100
                 type: array
               includeRef:
                 description: |-
@@ -105,6 +112,13 @@ spec:
                       description: Name which identify the kubernetes resource.
                       type: string
                   type: object
+                  x-kubernetes-validations:
+                  - message: Must have either matchLabels (with empty name/apiVersion/kind)
+                      or name+apiVersion+kind (with empty matchLabels), but not both
+                    rule: 'has(self.matchLabels) ? (!has(self.name) && !has(self.apiVersion)
+                      && !has(self.kind)) : (has(self.name) && has(self.apiVersion)
+                      && has(self.kind))'
+                maxItems: 100
                 type: array
               patches:
                 description: Patches is a list of json 6902 patches to apply to the
@@ -140,6 +154,7 @@ spec:
 
                   Accept cron schedule for both hour and minute.
                   For example, *:*/2 is set to configure a run every even minute.
+                pattern: ^[0-9*,/-]+:[0-9*,/-]+$
                 type: string
               suspendCronJobs:
                 description: If SuspendCronjobs is set to true, on sleep the cronjobs
@@ -169,6 +184,7 @@ spec:
                   Accept cron schedule for both hour and minute.
                   For example, *:*/2 is set to configure a run every even minute.
                   It is not required.
+                pattern: ^[0-9*,/-]+:[0-9*,/-]+$
                 type: string
               weekdays:
                 description: |-
@@ -176,6 +192,7 @@ spec:
 
 
                   For example, to configure a schedule from monday to friday, set it to "1-5"
+                pattern: ^[0-6*,/-]+$
                 type: string
             required:
             - sleepAt
@@ -601,6 +618,13 @@ spec:
     kind: Issuer
     name: kube-green-selfsigned-issuer
   secretName: webhook-server-cert
+  # Explicitly set privateKey.rotationPolicy to Never to maintain backward compatibility
+  # with cert-manager <1.18. In 1.18+, the default changed from Never to Always.
+  privateKey:
+    rotationPolicy: Never
+  # Explicitly set revisionHistoryLimit to preserve previous behavior.
+  # In cert-manager 1.18+, the default changed from unlimited to 1.
+  revisionHistoryLimit: 1
 ---
 # Source: kube-green/templates/cert-manager.yaml
 apiVersion: cert-manager.io/v1
@@ -616,6 +640,13 @@ spec:
     kind: Issuer
     name: kube-green-selfsigned-issuer
   secretName: metrics-server-cert
+  # Explicitly set privateKey.rotationPolicy to Never to maintain backward compatibility
+  # with cert-manager <1.18. In 1.18+, the default changed from Never to Always.
+  privateKey:
+    rotationPolicy: Never
+  # Explicitly set revisionHistoryLimit to preserve previous behavior.
+  # In cert-manager 1.18+, the default changed from unlimited to 1.
+  revisionHistoryLimit: 1
 ---
 # Source: kube-green/templates/cert-manager.yaml
 apiVersion: cert-manager.io/v1

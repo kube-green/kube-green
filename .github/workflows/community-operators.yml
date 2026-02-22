@@ -18,6 +18,10 @@ on:
         type: string
         description: operator name
         default: kube-green
+      fbc-enabled:
+        type: boolean
+        description: Enable FBC auto-release by generating release-config.yaml
+        default: false
     secrets:
       PERSONAL_ACCESS_TOKEN:
         required: true
@@ -26,7 +30,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.ref_type == 'tag' && startsWith(github.ref_name, 'v') && !contains(github.ref_name, '-')
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           path: ${{ inputs.name }}
       - name: Update community-operator fork
@@ -34,7 +38,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
       - name: Checkout community-operator folder
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: ${{ inputs.community-operator-repo }}
           path: community-operators
@@ -44,10 +48,33 @@ jobs:
           echo "VERSION=${TAG#v}" >> $GITHUB_ENV
       - name: create folder to community-operators if not exists
         run: mkdir -p ./community-operators/operators/${{ inputs.name }}/${VERSION}
+      - name: Generate release-config.yaml for FBC
+        if: inputs.fbc-enabled
+        run: |
+          BUNDLE_DIR="./${{ inputs.name }}/bundle"
+          CSV_FILE="${BUNDLE_DIR}/manifests/kube-green.clusterserviceversion.yaml"
+          RELEASE_CONFIG="${BUNDLE_DIR}/release-config.yaml"
+
+          # Extract previous version from CSV replaces field
+          PREVIOUS_VERSION=$(grep -oP 'replaces: kube-green\.v\K[0-9.]+' "${CSV_FILE}" || echo "")
+
+          if [[ -n "${PREVIOUS_VERSION}" ]]; then
+            cat > "${RELEASE_CONFIG}" << EOF
+          catalog_templates:
+            - template_name: basic-template.yaml
+              channels:
+                - alpha
+              replaces: kube-green.v${PREVIOUS_VERSION}
+          EOF
+            echo "Generated ${RELEASE_CONFIG} with replaces: kube-green.v${PREVIOUS_VERSION}"
+          else
+            echo "Error: No replaces field found in CSV, cannot generate release-config.yaml"
+            exit 1
+          fi
       - name: copy bundle folder from ${{ inputs.name }} to community-operators
         run: cp -R ${{ inputs.source-path }} ./community-operators/operators/${{ inputs.name }}/${VERSION}/
       - name: Create Pull Request
-        uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e # v7.0.8
+        uses: peter-evans/create-pull-request@c0f553fe549906ede9cf27b5156039d195d2ece0 # v8.1.0
         with:
           path: community-operators
           signoff: true

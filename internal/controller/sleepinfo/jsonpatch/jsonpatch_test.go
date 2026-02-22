@@ -1077,3 +1077,168 @@ func getNewResourceWithPatchToRestore(t *testing.T, client client.Client, sleepI
 	require.True(t, ok)
 	return generic
 }
+
+func TestBuildSparseApplyObject(t *testing.T) {
+	t.Run("correctly builds sparse object with spec.replicas change", func(t *testing.T) {
+		resource := unstructured.Unstructured{
+			Object: map[string]any{
+				"apiVersion": "apps/v1",
+				"kind":       "Deployment",
+				"metadata": map[string]any{
+					"name":      "test-deploy",
+					"namespace": "test-ns",
+					"labels": map[string]any{
+						"app": "test",
+					},
+				},
+				"spec": map[string]any{
+					"replicas": int64(3),
+					"selector": map[string]any{
+						"matchLabels": map[string]any{
+							"app": "test",
+						},
+					},
+				},
+			},
+		}
+
+		mergePatch := []byte(`{"spec":{"replicas":0}}`)
+
+		sparse, err := buildSparseApplyObject(resource, mergePatch)
+		require.NoError(t, err)
+
+		// Should contain identifiers
+		require.Equal(t, "apps/v1", sparse.GetAPIVersion())
+		require.Equal(t, "Deployment", sparse.GetKind())
+		require.Equal(t, "test-deploy", sparse.GetName())
+		require.Equal(t, "test-ns", sparse.GetNamespace())
+
+		// Should have spec.replicas
+		replicas, found, err := unstructured.NestedFloat64(sparse.Object, "spec", "replicas")
+		require.NoError(t, err)
+		require.True(t, found)
+		require.Equal(t, float64(0), replicas)
+
+		// Should NOT have spec.selector (not changed)
+		_, found, _ = unstructured.NestedMap(sparse.Object, "spec", "selector")
+		require.False(t, found)
+
+		// Should NOT have metadata.labels (not changed)
+		require.Nil(t, sparse.GetLabels())
+	})
+
+	t.Run("correctly handles metadata annotations change", func(t *testing.T) {
+		resource := unstructured.Unstructured{
+			Object: map[string]any{
+				"apiVersion": "keda.sh/v1alpha1",
+				"kind":       "ScaledObject",
+				"metadata": map[string]any{
+					"name":      "test-scaledobject",
+					"namespace": "test-ns",
+					"annotations": map[string]any{
+						"existing": "annotation",
+					},
+				},
+			},
+		}
+
+		mergePatch := []byte(`{"metadata":{"annotations":{"autoscaling.keda.sh/paused-replicas":"0"}}}`)
+
+		sparse, err := buildSparseApplyObject(resource, mergePatch)
+		require.NoError(t, err)
+
+		// Should preserve name/namespace
+		require.Equal(t, "test-scaledobject", sparse.GetName())
+		require.Equal(t, "test-ns", sparse.GetNamespace())
+
+		// Should have the new annotation
+		annotations, found, err := unstructured.NestedStringMap(sparse.Object, "metadata", "annotations")
+		require.NoError(t, err)
+		require.True(t, found)
+		require.Equal(t, "0", annotations["autoscaling.keda.sh/paused-replicas"])
+	})
+
+	t.Run("handles CronJob suspend change", func(t *testing.T) {
+		resource := unstructured.Unstructured{
+			Object: map[string]any{
+				"apiVersion": "batch/v1",
+				"kind":       "CronJob",
+				"metadata": map[string]any{
+					"name":      "test-cronjob",
+					"namespace": "test-ns",
+				},
+				"spec": map[string]any{
+					"schedule": "0 * * * *",
+					"suspend":  false,
+					"jobTemplate": map[string]any{
+						"spec": map[string]any{
+							"template": map[string]any{},
+						},
+					},
+				},
+			},
+		}
+
+		mergePatch := []byte(`{"spec":{"suspend":true}}`)
+
+		sparse, err := buildSparseApplyObject(resource, mergePatch)
+		require.NoError(t, err)
+
+		// Should have spec.suspend
+		suspend, found, err := unstructured.NestedBool(sparse.Object, "spec", "suspend")
+		require.NoError(t, err)
+		require.True(t, found)
+		require.True(t, suspend)
+
+		// Should NOT have spec.schedule or spec.jobTemplate
+		_, found, _ = unstructured.NestedString(sparse.Object, "spec", "schedule")
+		require.False(t, found)
+		_, found, _ = unstructured.NestedMap(sparse.Object, "spec", "jobTemplate")
+		require.False(t, found)
+	})
+
+	t.Run("handles empty merge patch", func(t *testing.T) {
+		resource := unstructured.Unstructured{
+			Object: map[string]any{
+				"apiVersion": "apps/v1",
+				"kind":       "Deployment",
+				"metadata": map[string]any{
+					"name":      "test-deploy",
+					"namespace": "test-ns",
+				},
+			},
+		}
+
+		mergePatch := []byte(`{}`)
+
+		sparse, err := buildSparseApplyObject(resource, mergePatch)
+		require.NoError(t, err)
+
+		// Should only contain identifiers
+		require.Equal(t, "apps/v1", sparse.GetAPIVersion())
+		require.Equal(t, "Deployment", sparse.GetKind())
+		require.Equal(t, "test-deploy", sparse.GetName())
+		require.Equal(t, "test-ns", sparse.GetNamespace())
+
+		// Should have exactly 4 fields: apiVersion, kind, metadata (with name, namespace)
+		require.Len(t, sparse.Object, 3) // apiVersion, kind, metadata
+	})
+
+	t.Run("returns error for invalid JSON", func(t *testing.T) {
+		resource := unstructured.Unstructured{
+			Object: map[string]any{
+				"apiVersion": "apps/v1",
+				"kind":       "Deployment",
+				"metadata": map[string]any{
+					"name":      "test-deploy",
+					"namespace": "test-ns",
+				},
+			},
+		}
+
+		mergePatch := []byte(`{invalid json}`)
+
+		_, err := buildSparseApplyObject(resource, mergePatch)
+		require.Error(t, err)
+	})
+}

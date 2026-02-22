@@ -29,12 +29,17 @@ var (
 
 const (
 	kindClusterName                  = "kube-green-e2e"
-	kubegreenTestImage               = "kubegreen/kube-green:e2e-test"
+	kubegreenTestImageRepository     = "localhost/kubegreen/kube-green"
+	kubegreenTestImageTag            = "e2e-test"
 	kindVersionVariableName          = "KIND_K8S_VERSION"
 	kindNodeImage                    = "kindest/node"
 	disableDeleteClusterVariableName = "DISABLE_DELETE_CLUSTER"
 	installationModeVariableName     = "INSTALLATION_MODE"
 	kubeGreenInstallationMode        = "helm"
+	containerToolVariableName        = "CONTAINER_TOOL"
+	containerToolDocker              = "docker"
+	containerToolPodman              = "podman"
+	defaultContainerTool             = containerToolDocker
 )
 
 func TestMain(m *testing.M) {
@@ -58,8 +63,8 @@ func TestMain(m *testing.M) {
 		createKindClusterWithVersion(kindClusterName, "testdata/kind-config.test.yaml"),
 		setContextOrPanic(kindClusterName),
 		testutil.GetClusterVersion(),
-		buildDockerImage(kubegreenTestImage),
-		envfuncs.LoadDockerImageToCluster(kindClusterName, kubegreenTestImage),
+		buildContainerImage(),
+		loadImageToCluster(kindClusterName),
 		installKubeGreen(),
 	)
 
@@ -73,19 +78,62 @@ func TestMain(m *testing.M) {
 	os.Exit(testenv.Run(m))
 }
 
-func buildDockerImage(image string) env.Func {
+func getContainerTool() string {
+	if tool, ok := os.LookupEnv(containerToolVariableName); ok {
+		return tool
+	}
+	return defaultContainerTool
+}
+
+// getTestImage returns the test image name with the local registry prefix.
+// Uses localhost registry to clearly indicate this is a local test image.
+func getTestImage() string {
+	return kubegreenTestImageRepository + ":" + kubegreenTestImageTag
+}
+
+func buildContainerImage() env.Func {
 	return func(ctx context.Context, c *envconf.Config) (context.Context, error) {
+		containerTool := getContainerTool()
+		image := getTestImage()
 		e := gexe.New()
 		p := e.NewProc("make build").SetWorkDir("../..").Run()
 		if p.Err() != nil {
 			return ctx, fmt.Errorf("make build: %s", p.Result())
 		}
-		p = e.RunProc(fmt.Sprintf(`docker build -t %s ../../`, image))
+		p = e.RunProc(fmt.Sprintf(`%s build -t %s ../../`, containerTool, image))
 		if p.Err() != nil {
-			return ctx, fmt.Errorf("docker: build %s: %s", p.Err(), p.Result())
+			return ctx, fmt.Errorf("%s build %s: %s", containerTool, p.Err(), p.Result())
 		}
-		fmt.Printf("kube-green docker image %s created\n", image)
+		fmt.Printf("kube-green container image %s created with %s\n", image, containerTool)
 		return ctx, nil
+	}
+}
+
+func loadImageToCluster(clusterName string) env.Func {
+	return func(ctx context.Context, c *envconf.Config) (context.Context, error) {
+		containerTool := getContainerTool()
+		image := getTestImage()
+
+		if containerTool == containerToolPodman {
+			// Save image to tar archive
+			archivePath := "/tmp/kube-green-e2e.tar"
+			e := gexe.New()
+			p := e.RunProc(fmt.Sprintf("%s save -o %s %s", containerToolPodman, archivePath, image))
+			if p.Err() != nil {
+				return ctx, fmt.Errorf("%s save: %s", containerToolPodman, p.Result())
+			}
+
+			// Load archive into kind using e2e-framework
+			ctx, err := envfuncs.LoadImageArchiveToCluster(clusterName, archivePath)(ctx, c)
+
+			// Clean up tar file
+			os.Remove(archivePath)
+
+			return ctx, err
+		}
+
+		// Docker: use existing e2e-framework function
+		return envfuncs.LoadDockerImageToCluster(clusterName, image)(ctx, c)
 	}
 }
 
@@ -162,7 +210,8 @@ func installWithHelmChart() env.Func {
 			helm.WithChart("../../charts/kube-green"),
 			helm.WithNamespace("kube-green-system"),
 			helm.WithArgs(
-				"--set", "manager.image.tag=e2e-test",
+				"--set", fmt.Sprintf("manager.image.repository=%s", kubegreenTestImageRepository),
+				"--set", fmt.Sprintf("manager.image.tag=%s", kubegreenTestImageTag),
 				"--set", "certManager.enabled=false",
 				"--set", "jobsCert.enabled=true",
 

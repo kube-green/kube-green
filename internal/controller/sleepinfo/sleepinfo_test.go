@@ -48,7 +48,7 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 	zeroDeployments := features.New("with zero deployments").
 		WithSetup("create SleepInfo", func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 			t.Helper()
-			createSleepInfoCRD(t, ctx, c, getDefaultSleepInfo(sleepInfoName, c.Namespace()))
+			createSleepInfoCR(t, ctx, c, getDefaultSleepInfo(sleepInfoName, c.Namespace()))
 
 			return ctx
 		}).
@@ -347,7 +347,7 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 
 	deployedWhenShouldBeTriggered := features.New("SleepInfo deployed when should be triggered").
 		Setup(func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
-			createSleepInfoCRD(t, ctx, c, getDefaultSleepInfo(sleepInfoName, c.Namespace()))
+			createSleepInfoCR(t, ctx, c, getDefaultSleepInfo(sleepInfoName, c.Namespace()))
 			deployments := upsertDeployments(t, ctx, c, false)
 
 			req := reconcile.Request{
@@ -725,6 +725,51 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 		}).
 		Feature()
 
+	verifyManagedFields := features.New("verify SSA only claims modified fields").
+		Setup(func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+			sleepInfo := getDefaultSleepInfo(sleepInfoName, c.Namespace())
+			return reconciliationSetup(t, ctx, c, mockNow, sleepInfo)
+		}).
+		Assess("sleep", func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+			assert := getAssertOperation(t, ctx)
+			ctx = withAssertOperation(ctx, assert.withScheduleAndExpectedSchedule(sleepTime).withRequeue(14*60+1))
+			assertCorrectSleepOperation(t, ctx, c)
+			return ctx
+		}).
+		Assess("managedFields only contains spec.replicas for kube-green", func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+			deployments := getDeploymentList(t, ctx, c)
+			require.NotEmpty(t, deployments, "should have deployments")
+
+			for _, deployment := range deployments {
+				managedFields := deployment.GetManagedFields()
+
+				var kubeGreenFields *metav1.ManagedFieldsEntry
+				for i := range managedFields {
+					if managedFields[i].Manager == "kube-green" {
+						kubeGreenFields = &managedFields[i]
+						break
+					}
+				}
+
+				if kubeGreenFields == nil {
+					// for zero-replicas deployments or deployments with no changes, kube-green should not have managed fields
+					require.Contains(t, []string{"zero-replicas", "zero-replicas-annotation"}, deployment.GetName())
+					continue
+				}
+
+				// The managed fields should contain spec.replicas but NOT spec.selector or spec.template
+				fieldsJSON := string(kubeGreenFields.FieldsV1.Raw)
+				fmt.Printf("fieldsJSON: %s\n", fieldsJSON)
+				require.Contains(t, fieldsJSON, "replicas", "should contain replicas field for deployment %s", deployment.GetName())
+				require.NotContains(t, fieldsJSON, "selector", "should NOT contain selector field for deployment %s", deployment.GetName())
+				require.NotContains(t, fieldsJSON, "template", "should NOT contain template field for deployment %s", deployment.GetName())
+				require.NotContains(t, fieldsJSON, "env", "should NOT contain env field for deployment %s", deployment.GetName())
+			}
+
+			return ctx
+		}).
+		Feature()
+
 	testenv.Test(t,
 		zeroDeployments,
 		notExistentResource,
@@ -740,6 +785,7 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 		withDeploymentAndCronJobs,
 		deleteSleepInfo,
 		withGenericResources,
+		verifyManagedFields,
 	)
 }
 
@@ -912,10 +958,6 @@ func TestDifferentSleepInfoConfiguration(t *testing.T) {
 }
 
 func TestInvalidResource(t *testing.T) {
-	const (
-		mockNow = "2021-03-23T20:01:20.555Z"
-	)
-	testLogger := zap.New(zap.UseDevMode(true))
 	testenv := testenvSetup(t)
 
 	invalid := features.Table{
@@ -928,19 +970,8 @@ func TestInvalidResource(t *testing.T) {
 					Weekdays:  "1",
 					SleepTime: "",
 				}
-				createSleepInfoCRD(t, ctx, c, sleepInfo)
-
-				req := reconcile.Request{
-					NamespacedName: types.NamespacedName{
-						Name:      sleepInfoName,
-						Namespace: c.Namespace(),
-					},
-				}
-				sleepInfoReconciler := getSleepInfoReconciler(t, c, testLogger, mockNow)
-
-				result, err := sleepInfoReconciler.Reconcile(ctx, req)
-				require.EqualError(t, err, "time should be of format HH:mm, actual: ")
-				require.Empty(t, result)
+				// CEL validation in the CRD, creation should fail at the API server level
+				expectSleepInfoCreationToFail(t, ctx, c, sleepInfo, "spec.sleepAt")
 
 				return ctx
 			},
@@ -955,19 +986,8 @@ func TestInvalidResource(t *testing.T) {
 					SleepTime:  "*:*",
 					WakeUpTime: "*",
 				}
-				createSleepInfoCRD(t, ctx, c, sleepInfo)
-
-				sleepInfoReconciler := getSleepInfoReconciler(t, c, testLogger, mockNow)
-
-				req := reconcile.Request{
-					NamespacedName: types.NamespacedName{
-						Name:      sleepInfoName,
-						Namespace: c.Namespace(),
-					},
-				}
-				result, err := sleepInfoReconciler.Reconcile(ctx, req)
-				require.EqualError(t, err, "time should be of format HH:mm, actual: *")
-				require.Empty(t, result)
+				// CEL validation in the CRD, creation should fail at the API server level
+				expectSleepInfoCreationToFail(t, ctx, c, sleepInfo, "spec.wakeUpAt")
 
 				return ctx
 			},
@@ -978,21 +998,11 @@ func TestInvalidResource(t *testing.T) {
 				sleepInfoName := envconf.RandomName("sleepinfo", 16)
 				sleepInfo := getDefaultSleepInfo(sleepInfoName, c.Namespace())
 				sleepInfo.Spec = kubegreenv1alpha1.SleepInfoSpec{
-					Weekdays: "",
+					Weekdays:  "",
+					SleepTime: "20:00",
 				}
-				createSleepInfoCRD(t, ctx, c, sleepInfo)
-
-				req := reconcile.Request{
-					NamespacedName: types.NamespacedName{
-						Name:      sleepInfoName,
-						Namespace: c.Namespace(),
-					},
-				}
-				sleepInfoReconciler := getSleepInfoReconciler(t, c, testLogger, mockNow)
-
-				result, err := sleepInfoReconciler.Reconcile(ctx, req)
-				require.EqualError(t, err, "empty weekdays from SleepInfo configuration")
-				require.Empty(t, result)
+				// With CEL validation in the CRD, creation should fail at the API server level
+				expectSleepInfoCreationToFail(t, ctx, c, sleepInfo, "spec.weekdays")
 
 				return ctx
 			},
