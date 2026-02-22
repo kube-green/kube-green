@@ -268,6 +268,7 @@ GOTESTSUM_VERSION ?= v1.13.0
 GOLANGCI_LINT_VERSION ?= v2.5.0
 OPERATOR_SDK_VERSION ?= v1.41.1
 GORELEASER_VERSION ?= v2.12.6
+YQ_VERSION ?= v4.52.2
 
 .PHONY: kustomize
 kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
@@ -298,6 +299,10 @@ $(ENVTEST): $(LOCALBIN)
 goreleaser: $(GORELEASER) ## Download goreleaser locally if necessary.
 $(GORELEASER): $(LOCALBIN)
 	$(call go-install-tool,$(GORELEASER),github.com/goreleaser/goreleaser/v2,$(GORELEASER_VERSION))
+
+yq: $(YQ) ## Download yq locally if necessary.
+$(YQ): $(LOCALBIN)
+	$(call go-install-tool,$(YQ),github.com/mikefarah/yq/v4,$(YQ_VERSION))
 
 # go-install-tool will 'go install' any package with custom target and name of binary, if it doesn't exist
 # $1 - target path with name of binary
@@ -380,12 +385,23 @@ ifneq ($(origin CATALOG_BASE_IMG), undefined)
 FROM_INDEX_OPT := --from-index $(CATALOG_BASE_IMG)
 endif
 
-# Build a catalog image by adding bundle images to an empty catalog using the operator package manager tool, 'opm'.
-# This recipe invokes 'opm' in 'semver' bundle add mode. For more information on add modes, see:
-# https://github.com/operator-framework/community-operators/blob/7f1438c/docs/packaging-operator.md#updating-your-existing-operator
+.PHONY: catalog-clean
+catalog-clean: ## Clean up catalog files and Dockerfile
+	rm -rf catalog
+
+.PHONY: catalog-prepare
+catalog-prepare: catalog-clean opm yq ## Prepare catalog directory.
+	mkdir -p catalog
+	cp config/catalog/catalog-template.yaml catalog/catalog-template.yaml
+	./hack/update-catalog-template.sh catalog/catalog-template.yaml $(VERSION)
+	$(OPM) alpha render-template basic -o yaml catalog/catalog-template.yaml > catalog/catalog.yaml
+	$(OPM) validate catalog
+	cat catalog/catalog-template.yaml
+
+# Build a catalog image
 .PHONY: catalog-build
-catalog-build: opm ## Build a catalog image.
-	$(OPM) index add --container-tool $(CONTAINER_TOOL) --mode semver --tag $(CATALOG_IMG) --bundles $(BUNDLE_IMGS) $(FROM_INDEX_OPT)
+catalog-build: catalog-prepare
+	$(CONTAINER_TOOL) build --no-cache --load -f catalog.Dockerfile -t $(CATALOG_IMG) .
 
 # Push the catalog image.
 .PHONY: catalog-push

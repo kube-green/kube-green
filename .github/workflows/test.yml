@@ -179,6 +179,7 @@ jobs:
     with:
       community-operator-fork: kube-green/community-operators-prod
       community-operator-repo: redhat-openshift-ecosystem/community-operators-prod
+      fbc-enabled: true
     secrets:
       PERSONAL_ACCESS_TOKEN: ${{ secrets.KUBE_GREEN_OPERATOR_FORK_PR }}
 
