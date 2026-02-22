@@ -1,14 +1,18 @@
 {{- if .Values.crds.enabled -}}
+{{- $annotations := dict }}
+{{- if .Values.certManager.enabled }}
+  {{- $_ := set $annotations "cert-manager.io/inject-ca-from" (printf "%s/kube-green-serving-cert" .Release.Namespace) }}
+{{- end }}
+{{- if .Values.crds.keep }}
+  {{- $_ := set $annotations "helm.sh/resource-policy" "keep" }}
+{{- end }}
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
+  {{- if $annotations }}
   annotations:
-    {{ if .Values.certManager.enabled -}}
-    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/kube-green-serving-cert
-    {{ end -}}
-    {{ if .Values.crds.keep -}}
-    helm.sh/resource-policy: keep
-    {{ end -}}
+    {{- toYaml $annotations | nindent 4 }}
+  {{- end }}
   name: sleepinfos.kube-green.com
 spec:
   group: kube-green.com
