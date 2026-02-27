@@ -123,6 +123,10 @@ fmt: ## Run go fmt against code.
 vet: ## Run go vet against code.
 	go vet ./...
 
+.PHONY: vulncheck
+vulncheck:
+	@$(GOVULNCHECK) ./...
+
 .PHONY: lint
 lint: golangci-lint ## Run linter.
 	$(GOLANGCI_LINT) run --config=.golangci.yaml
@@ -134,6 +138,9 @@ lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes
 .PHONY: lint-config
 lint-config: golangci-lint ## Verify golangci-lint linter configuration
 	$(GOLANGCI_LINT) config verify
+
+.PHONY: check
+check: lint vulncheck
 
 .PHONY: test
 test: manifests generate fmt vet gotestsum envtest ## Run tests.
@@ -259,6 +266,7 @@ GOTESTSUM ?= $(LOCALBIN)/gotestsum
 GOLANGCI_LINT = $(LOCALBIN)/golangci-lint
 OPERATOR_SDK ?= $(LOCALBIN)/operator-sdk
 GORELEASER ?= $(LOCALBIN)/goreleaser
+GOVULNCHECK ?= go run golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION)
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v5.7.1
@@ -267,9 +275,10 @@ CONTROLLER_TOOLS_VERSION ?= v0.19.0
 ENVTEST_VERSION ?= $(shell go list -m -f "{{ .Version }}" sigs.k8s.io/controller-runtime | awk -F'[v.]' '{printf "release-%d.%d", $$2, $$3}')
 GOTESTSUM_VERSION ?= v1.13.0
 GOLANGCI_LINT_VERSION ?= v2.5.0
-OPERATOR_SDK_VERSION ?= v1.41.1
+OPERATOR_SDK_VERSION ?= v1.42.0
 GORELEASER_VERSION ?= v2.12.6
 YQ_VERSION ?= v4.52.2
+GOVULNCHECK_VERSION ?= latest
 
 .PHONY: kustomize
 kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
