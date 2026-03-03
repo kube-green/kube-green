@@ -102,7 +102,7 @@ jobs:
       - name: Setup Go with bin cache
         uses: ./.github/actions/setup-go-with-cache
       - name: Run Trivy (repo mode)
-        uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8 # v0.33.1
+        uses: aquasecurity/trivy-action@97e0b3872f55f89b95b2f65b3dbab56962816478 # v0.34.2
         with:
           scan-type: 'fs'
           ignore-unfixed: true
