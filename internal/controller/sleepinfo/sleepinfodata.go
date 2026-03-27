@@ -18,6 +18,7 @@ type SleepInfoData struct {
 	CurrentOperationSchedule    string
 	NextOperationSchedule       string
 	OriginalGenericResourceInfo map[string]jsonpatch.RestorePatches
+	SleptResourceGenerations    map[string]jsonpatch.SleptResourceGenerations
 }
 
 func (s SleepInfoData) IsWakeUpOperation() bool {
@@ -67,6 +68,9 @@ func getSleepInfoData(secret *v1.Secret, sleepInfo *kubegreenv1alpha1.SleepInfo)
 
 	if sleepInfoData.OriginalGenericResourceInfo, err = jsonpatch.GetOriginalInfoToRestore(data[originalJSONPatchDataKey]); err != nil {
 		return SleepInfoData{}, fmt.Errorf("fails to set original resource info to restore in SleepInfo %s: %s", sleepInfo.Name, err)
+	}
+	if sleepInfoData.SleptResourceGenerations, err = jsonpatch.GetSleepGenerationsToRestore(data[sleptGenerationsDataKey]); err != nil {
+		return SleepInfoData{}, fmt.Errorf("fails to set slept resource generations in SleepInfo %s: %s", sleepInfo.Name, err)
 	}
 	// This will convert old secret format, where the original deployment and
 	// cronjob states were stored in a different key

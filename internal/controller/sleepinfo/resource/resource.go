@@ -20,6 +20,7 @@ type Resource interface {
 	Sleep(ctx context.Context) error
 	WakeUp(ctx context.Context) error
 	GetOriginalInfoToSave() ([]byte, error)
+	GetSleepGenerationsToSave() ([]byte, error)
 }
 
 type ResourceClient struct {

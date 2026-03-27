@@ -87,7 +87,13 @@ func (r SleepInfoReconciler) upsertSecret(
 			logger.Error(err, "failed to get original resource info to save")
 			return err
 		}
+		generationsData, err := resources.GetSleepGenerationsToSave()
+		if err != nil {
+			logger.Error(err, "failed to get slept resource generations to save")
+			return err
+		}
 		mergedData := data
+		mergedGenerationsData := generationsData
 		newCount := countRestorePatchesFromBytes(data)
 		prevCount := countRestorePatchesFromMap(sleepInfoData.OriginalGenericResourceInfo)
 		if newCount < prevCount {
@@ -117,10 +123,23 @@ func (r SleepInfoReconciler) upsertSecret(
 			if current == nil {
 				current = map[string]jsonpatch.RestorePatches{}
 			}
+			var currentGenerations map[string]jsonpatch.SleptResourceGenerations
+			if len(generationsData) > 0 {
+				if err := json.Unmarshal(generationsData, &currentGenerations); err != nil {
+					logger.Error(err, "failed to unmarshal slept generations, falling back to previous data")
+					currentGenerations = nil
+				}
+			}
+			if currentGenerations == nil {
+				currentGenerations = map[string]jsonpatch.SleptResourceGenerations{}
+			}
 			mergedCount := 0
 			for kind, patches := range sleepInfoData.OriginalGenericResourceInfo {
 				if _, ok := current[kind]; !ok {
 					current[kind] = map[string]string{}
+				}
+				if _, ok := currentGenerations[kind]; !ok {
+					currentGenerations[kind] = jsonpatch.SleptResourceGenerations{}
 				}
 				for name, patch := range patches {
 					if _, ok := current[kind][name]; !ok {
@@ -138,6 +157,11 @@ func (r SleepInfoReconciler) upsertSecret(
 							}
 						}
 						current[kind][name] = patch
+						if previousGenerations, ok := sleepInfoData.SleptResourceGenerations[kind]; ok {
+							if generation, exists := previousGenerations[name]; exists {
+								currentGenerations[kind][name] = generation
+							}
+						}
 						mergedCount++
 					}
 				}
@@ -150,6 +174,11 @@ func (r SleepInfoReconciler) upsertSecret(
 			} else {
 				logger.Error(err, "failed to serialize merged restore patches, using current data")
 			}
+			if serialized, err := json.Marshal(currentGenerations); err == nil {
+				mergedGenerationsData = serialized
+			} else {
+				logger.Error(err, "failed to serialize merged slept generations, using current data")
+			}
 		}
 		if missingCount, err := r.validateRestoreCoverage(ctx, sleepInfo, namespace, mergedData); err != nil {
 			logger.Error(err, "restore coverage check failed")
@@ -161,13 +190,16 @@ func (r SleepInfoReconciler) upsertSecret(
 		}
 		newSecret.Data = map[string][]byte{
 			originalJSONPatchDataKey: mergedData,
+			sleptGenerationsDataKey:  mergedGenerationsData,
 		}
 	} else if secret != nil && secret.Data != nil {
 		// Preserve restore info on non-sleep operations (e.g. wake/manual).
+		newSecret.Data = map[string][]byte{}
 		if data, ok := secret.Data[originalJSONPatchDataKey]; ok && len(data) > 0 {
-			newSecret.Data = map[string][]byte{
-				originalJSONPatchDataKey: data,
-			}
+			newSecret.Data[originalJSONPatchDataKey] = data
+		}
+		if data, ok := secret.Data[sleptGenerationsDataKey]; ok && len(data) > 0 {
+			newSecret.Data[sleptGenerationsDataKey] = data
 		}
 	}
 
@@ -184,14 +216,20 @@ func (r SleepInfoReconciler) upsertSecret(
 	}
 
 	if data, ok := newSecret.Data[originalJSONPatchDataKey]; ok && len(data) > 0 {
-		if err := r.upsertRestoreSecret(ctx, namespace, sleepInfo, data); err != nil {
+		if err := r.upsertRestoreSecret(ctx, namespace, sleepInfo, data, newSecret.Data[sleptGenerationsDataKey]); err != nil {
 			logger.Error(err, "failed to upsert emergency restore secret")
 		}
 	}
 	return nil
 }
 
-func (r *SleepInfoReconciler) upsertRestoreSecret(ctx context.Context, namespace string, sleepInfo *kubegreenv1alpha1.SleepInfo, data []byte) error {
+func (r *SleepInfoReconciler) upsertRestoreSecret(
+	ctx context.Context,
+	namespace string,
+	sleepInfo *kubegreenv1alpha1.SleepInfo,
+	data []byte,
+	generationsData []byte,
+) error {
 	secretName := getRestoreSecretName(sleepInfo.Name)
 	restoreSecret := &v1.Secret{}
 	err := r.Get(ctx, client.ObjectKey{
@@ -223,12 +261,14 @@ func (r *SleepInfoReconciler) upsertRestoreSecret(ctx context.Context, namespace
 				},
 			},
 		},
-		Data: map[string][]byte{
-			originalJSONPatchDataKey: data,
-		},
+		Data: map[string][]byte{},
 		StringData: map[string]string{
 			"saved-at": time.Now().Format(time.RFC3339),
 		},
+	}
+	newSecret.Data[originalJSONPatchDataKey] = data
+	if len(generationsData) > 0 {
+		newSecret.Data[sleptGenerationsDataKey] = generationsData
 	}
 
 	if err != nil && client.IgnoreNotFound(err) == nil {
@@ -241,6 +281,9 @@ func (r *SleepInfoReconciler) upsertRestoreSecret(ctx context.Context, namespace
 			if newCount < existingCount {
 				// Keep the most complete emergency restore data.
 				newSecret.Data[originalJSONPatchDataKey] = existing
+				if existingGenerations := restoreSecret.Data[sleptGenerationsDataKey]; len(existingGenerations) > 0 {
+					newSecret.Data[sleptGenerationsDataKey] = existingGenerations
+				}
 			}
 		}
 	}
@@ -248,16 +291,28 @@ func (r *SleepInfoReconciler) upsertRestoreSecret(ctx context.Context, namespace
 	return r.Update(ctx, newSecret)
 }
 
-func (r *SleepInfoReconciler) getEmergencyRestorePatches(ctx context.Context, sleepInfo *kubegreenv1alpha1.SleepInfo, namespace string) (map[string]jsonpatch.RestorePatches, error) {
+func (r *SleepInfoReconciler) getEmergencyRestorePatches(
+	ctx context.Context,
+	sleepInfo *kubegreenv1alpha1.SleepInfo,
+	namespace string,
+) (map[string]jsonpatch.RestorePatches, map[string]jsonpatch.SleptResourceGenerations, error) {
 	secretName := getRestoreSecretName(sleepInfo.Name)
 	secret := &v1.Secret{}
 	if err := r.Get(ctx, client.ObjectKey{Namespace: namespace, Name: secretName}, secret); err != nil {
-		return nil, client.IgnoreNotFound(err)
+		return nil, nil, client.IgnoreNotFound(err)
 	}
 	if secret == nil || secret.Data == nil {
-		return nil, nil
+		return nil, nil, nil
 	}
-	return jsonpatch.GetOriginalInfoToRestore(secret.Data[originalJSONPatchDataKey])
+	restorePatches, err := jsonpatch.GetOriginalInfoToRestore(secret.Data[originalJSONPatchDataKey])
+	if err != nil {
+		return nil, nil, err
+	}
+	sleptGenerations, err := jsonpatch.GetSleepGenerationsToRestore(secret.Data[sleptGenerationsDataKey])
+	if err != nil {
+		return restorePatches, nil, err
+	}
+	return restorePatches, sleptGenerations, nil
 }
 
 func (r *SleepInfoReconciler) validateRestoreCoverage(

@@ -85,7 +85,7 @@ func TestNewResources(t *testing.T) {
 		_, err := NewResources(context.Background(), resource.ResourceClient{
 			Client: getFakeClient().Build(),
 			Log:    testLogger,
-		}, namespace, nil)
+		}, namespace, nil, nil)
 		require.EqualError(t, err, fmt.Sprintf("%s: sleepInfo is not provided", ErrJSONPatch))
 	})
 
@@ -117,7 +117,7 @@ func TestNewResources(t *testing.T) {
 			Client:    fakeClient,
 			Log:       testLogger,
 			SleepInfo: sleepInfo,
-		}, namespace, nil)
+		}, namespace, nil, nil)
 		require.NoError(t, err)
 		require.Equal(t, true, resource.HasResource())
 	})
@@ -752,6 +752,56 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 		})
 	})
 
+	t.Run("resource manually kept at sleep state after sleep does not wake up", func(t *testing.T) {
+		sleepInfo := &v1alpha1.SleepInfo{
+			TypeMeta: v1.TypeMeta{
+				Kind: "SleepInfo",
+			},
+			ObjectMeta: v1.ObjectMeta{
+				Namespace: namespace,
+				Name:      "test-sleepinfo",
+			},
+			Spec: v1alpha1.SleepInfoSpec{
+				Patches: []v1alpha1.Patch{
+					deployPatchData,
+				},
+			},
+		}
+
+		manualSleepDeployment := mocks.Deployment(mocks.DeploymentOptions{
+			Name:      "deploy-with-replicas",
+			Namespace: namespace,
+			Replicas:  getPtr(int32(0)),
+		}).Resource()
+		manualSleepDeployment.SetGeneration(2)
+
+		fakeClient := testutil.PossiblyErroringFakeCtrlRuntimeClient{
+			Client: getFakeClient().
+				WithRuntimeObjects(manualSleepDeployment.DeepCopy()).
+				Build(),
+		}
+
+		restorePatches := map[string]RestorePatches{
+			"Deployment.apps": {
+				"deploy-with-replicas": "{\"spec\":{\"replicas\":3}}",
+			},
+		}
+		sleptGenerations := map[string]SleptResourceGenerations{
+			"Deployment.apps": {
+				"deploy-with-replicas": 1,
+			},
+		}
+
+		ctx := context.Background()
+		res := getNewResourceWithState(t, fakeClient, sleepInfo, namespace, restorePatches, sleptGenerations)
+		require.NoError(t, res.WakeUp(ctx))
+
+		resList, err := res.resMapping[deployPatchData.Target].getListByNamespace(ctx, namespace, deployPatchData.Target)
+		require.NoError(t, err)
+		require.Len(t, resList, 1)
+		require.Equal(t, int64(0), findResByName(resList, "deploy-with-replicas").Object["spec"].(map[string]interface{})["replicas"].(int64))
+	})
+
 	t.Run("add a new resource between sleep and wake up", func(t *testing.T) {
 		sleepInfo := &v1alpha1.SleepInfo{
 			TypeMeta: v1.TypeMeta{
@@ -929,7 +979,7 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 			Client:    getFakeClient().Build(),
 			Log:       testLogger,
 			SleepInfo: sleepInfo,
-		}, namespace, nil)
+		}, namespace, nil, nil)
 		require.NoError(t, err)
 		require.False(t, res.HasResource())
 	})
@@ -1057,10 +1107,21 @@ func requireEqualResources(t *testing.T, expectedList, actualList []unstructured
 }
 
 func getNewResource(t *testing.T, client client.Client, sleepInfo *v1alpha1.SleepInfo, namespace string) managedResources {
-	return getNewResourceWithPatchToRestore(t, client, sleepInfo, namespace, nil)
+	return getNewResourceWithState(t, client, sleepInfo, namespace, nil, nil)
 }
 
 func getNewResourceWithPatchToRestore(t *testing.T, client client.Client, sleepInfo *v1alpha1.SleepInfo, namespace string, patchToRestore map[string]RestorePatches) managedResources {
+	return getNewResourceWithState(t, client, sleepInfo, namespace, patchToRestore, nil)
+}
+
+func getNewResourceWithState(
+	t *testing.T,
+	client client.Client,
+	sleepInfo *v1alpha1.SleepInfo,
+	namespace string,
+	patchToRestore map[string]RestorePatches,
+	sleptGenerations map[string]SleptResourceGenerations,
+) managedResources {
 	nullogger := &bytes.Buffer{}
 	testLogger := zap.New(zap.WriteTo(nullogger))
 	t.Helper()
@@ -1070,7 +1131,7 @@ func getNewResourceWithPatchToRestore(t *testing.T, client client.Client, sleepI
 		Log:              testLogger,
 		SleepInfo:        sleepInfo,
 		FieldManagerName: testFieldManagerName,
-	}, namespace, patchToRestore)
+	}, namespace, patchToRestore, sleptGenerations)
 	require.NoError(t, err)
 
 	generic, ok := resource.(managedResources)

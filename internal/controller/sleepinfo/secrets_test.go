@@ -145,7 +145,7 @@ func TestUpsertSecrets(t *testing.T) {
 			Log:              testLogger,
 			SleepInfo:        sleepInfo,
 			FieldManagerName: testFieldManagerName,
-		}, namespace, nil)
+		}, namespace, nil, nil)
 		require.NoError(t, err)
 
 		err = resources.Sleep(context.Background())
@@ -170,6 +170,7 @@ func TestUpsertSecrets(t *testing.T) {
 				lastOperationKey:         []byte(sleepOperation),
 				lastScheduleKey:          []byte(now.Format(time.RFC3339)),
 				originalJSONPatchDataKey: []byte(`{"Deployment.apps":{"deployment1":"{\"spec\":{\"replicas\":1}}","deployment2":"{\"spec\":{\"replicas\":4}}"}}`),
+				sleptGenerationsDataKey:  []byte(`{"Deployment.apps":{"deployment1":0,"deployment2":0}}`),
 			},
 		}, secret)
 
@@ -198,8 +199,10 @@ func TestUpsertSecrets(t *testing.T) {
 					},
 				},
 				Data: map[string][]byte{
-					lastOperationKey: []byte(wakeUpOperation),
-					lastScheduleKey:  []byte(now.Format(time.RFC3339)),
+					lastOperationKey:         []byte(wakeUpOperation),
+					lastScheduleKey:          []byte(now.Format(time.RFC3339)),
+					originalJSONPatchDataKey: []byte(`{"Deployment.apps":{"deployment1":"{\"spec\":{\"replicas\":1}}","deployment2":"{\"spec\":{\"replicas\":4}}"}}`),
+					sleptGenerationsDataKey:  []byte(`{"Deployment.apps":{"deployment1":0,"deployment2":0}}`),
 				},
 			}, secret)
 		})
@@ -223,7 +226,7 @@ func TestUpsertSecrets(t *testing.T) {
 			Log:              testLogger,
 			SleepInfo:        sleepInfo,
 			FieldManagerName: testFieldManagerName,
-		}, namespace, nil)
+		}, namespace, nil, nil)
 		require.NoError(t, err)
 
 		err = resources.Sleep(context.Background())
@@ -248,6 +251,7 @@ func TestUpsertSecrets(t *testing.T) {
 				lastOperationKey:         []byte(sleepOperation),
 				lastScheduleKey:          []byte(now.Format(time.RFC3339)),
 				originalJSONPatchDataKey: []byte(`{"Deployment.apps":{"deployment1":"{\"spec\":{\"replicas\":1}}","deployment2":"{\"spec\":{\"replicas\":4}}"}}`),
+				sleptGenerationsDataKey:  []byte(`{"Deployment.apps":{"deployment1":0,"deployment2":0}}`),
 			},
 		}, secret)
 
@@ -275,7 +279,7 @@ func TestUpsertSecrets(t *testing.T) {
 				Log:              testLogger,
 				SleepInfo:        sleepInfo,
 				FieldManagerName: testFieldManagerName,
-			}, namespace, sleepInfoData.OriginalGenericResourceInfo)
+			}, namespace, sleepInfoData.OriginalGenericResourceInfo, nil)
 			require.NoError(t, err)
 
 			err = resources.Sleep(context.Background())
@@ -300,6 +304,7 @@ func TestUpsertSecrets(t *testing.T) {
 					lastOperationKey:         []byte(sleepOperation),
 					lastScheduleKey:          []byte(now.Format(time.RFC3339)),
 					originalJSONPatchDataKey: []byte(`{"Deployment.apps":{"deployment1":"{\"spec\":{\"replicas\":1}}","deployment2":"{\"spec\":{\"replicas\":4}}","new-deployment":"{\"spec\":{\"replicas\":1}}"}}`),
+					sleptGenerationsDataKey:  []byte(`{"Deployment.apps":{"deployment1":0,"deployment2":0,"new-deployment":0}}`),
 				},
 			}, secret)
 		})
@@ -320,7 +325,7 @@ func TestUpsertSecrets(t *testing.T) {
 			Client:    client,
 			Log:       testLogger,
 			SleepInfo: sleepInfo,
-		}, namespace, sleepInfoData.OriginalGenericResourceInfo)
+		}, namespace, sleepInfoData.OriginalGenericResourceInfo, nil)
 		require.NoError(t, err)
 
 		err = resources.Sleep(context.Background())
@@ -372,7 +377,7 @@ func TestUpsertSecrets(t *testing.T) {
 			Client:    client,
 			Log:       testLogger,
 			SleepInfo: sleepInfo,
-		}, namespace, sleepInfoData.OriginalGenericResourceInfo)
+		}, namespace, sleepInfoData.OriginalGenericResourceInfo, nil)
 		require.NoError(t, err)
 
 		err = resources.Sleep(context.Background())
@@ -422,7 +427,7 @@ func TestUpsertSecrets(t *testing.T) {
 			Log:              testLogger,
 			SleepInfo:        sleepInfo,
 			FieldManagerName: testFieldManagerName,
-		}, namespace, sleepInfoData.OriginalGenericResourceInfo)
+		}, namespace, sleepInfoData.OriginalGenericResourceInfo, nil)
 		require.NoError(t, err)
 
 		err = resources.Sleep(context.Background())
@@ -465,7 +470,7 @@ func TestUpsertSecrets(t *testing.T) {
 			Log:              testLogger,
 			SleepInfo:        sleepInfo,
 			FieldManagerName: testFieldManagerName,
-		}, namespace, sleepInfoData.OriginalGenericResourceInfo)
+		}, namespace, sleepInfoData.OriginalGenericResourceInfo, nil)
 		require.NoError(t, err)
 
 		err = resources.Sleep(context.Background())

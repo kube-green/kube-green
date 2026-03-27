@@ -32,6 +32,7 @@ const (
 	lastScheduleKey               = "scheduled-at"
 	lastOperationKey              = "operation-type"
 	originalJSONPatchDataKey      = "original-resource-info"
+	sleptGenerationsDataKey       = "sleep-resource-generations"
 	replicasBeforeSleepAnnotation = "sleepinfo.kube-green.com/replicas-before-sleep"
 
 	sleepOperation  = "SLEEP"
@@ -164,30 +165,62 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	// EXTENSIÓN: Si es operación WAKE_UP, buscar restore patches de SleepInfos relacionados
 	restorePatches := sleepInfoData.OriginalGenericResourceInfo
+	sleptGenerations := sleepInfoData.SleptResourceGenerations
 	if sleepInfoData.IsWakeUpOperation() {
-		relatedPatches, err := getRelatedRestorePatches(ctx, r.Client, log, sleepInfo, req.Namespace)
+		relatedPatches, relatedGenerations, err := getRelatedRestorePatches(ctx, r.Client, log, sleepInfo, req.Namespace)
 		if err != nil {
 			log.Error(err, "failed to get related restore patches, using current ones")
-		} else if relatedPatches != nil && len(relatedPatches) > 0 {
+		} else if (relatedPatches != nil && len(relatedPatches) > 0) || (relatedGenerations != nil && len(relatedGenerations) > 0) {
 			// Combinar restore patches: primero los relacionados, luego los del actual (el actual tiene prioridad)
-			log.Info("usando restore patches de SleepInfo relacionado", "count", len(relatedPatches))
+			log.Info(
+				"usando restore patches de SleepInfo relacionado",
+				"patchCount", len(relatedPatches),
+				"generationCount", len(relatedGenerations),
+			)
 			if restorePatches == nil {
 				restorePatches = make(map[string]jsonpatch.RestorePatches)
+			}
+			if sleptGenerations == nil {
+				sleptGenerations = make(map[string]jsonpatch.SleptResourceGenerations)
 			}
 			for key, patches := range relatedPatches {
 				if _, exists := restorePatches[key]; !exists {
 					restorePatches[key] = patches
 				}
 			}
+			for key, generations := range relatedGenerations {
+				if _, exists := sleptGenerations[key]; !exists {
+					sleptGenerations[key] = generations
+				}
+			}
 		}
 	}
-	if sleepInfoData.IsWakeUpOperation() && len(restorePatches) == 0 {
-		backupPatches, err := r.getEmergencyRestorePatches(ctx, sleepInfo, req.Namespace)
+	if sleepInfoData.IsWakeUpOperation() && (len(restorePatches) == 0 || len(sleptGenerations) == 0) {
+		backupPatches, backupGenerations, err := r.getEmergencyRestorePatches(ctx, sleepInfo, req.Namespace)
 		if err != nil {
 			log.Error(err, "failed to get emergency restore patches")
-		} else if backupPatches != nil && len(backupPatches) > 0 {
-			restorePatches = backupPatches
-			log.Info("using emergency restore patches", "count", len(backupPatches))
+		} else if (backupPatches != nil && len(backupPatches) > 0) || (backupGenerations != nil && len(backupGenerations) > 0) {
+			if restorePatches == nil {
+				restorePatches = make(map[string]jsonpatch.RestorePatches)
+			}
+			if sleptGenerations == nil {
+				sleptGenerations = make(map[string]jsonpatch.SleptResourceGenerations)
+			}
+			for key, patches := range backupPatches {
+				if _, exists := restorePatches[key]; !exists {
+					restorePatches[key] = patches
+				}
+			}
+			for key, generations := range backupGenerations {
+				if _, exists := sleptGenerations[key]; !exists {
+					sleptGenerations[key] = generations
+				}
+			}
+			log.Info(
+				"using emergency restore data",
+				"patchCount", len(backupPatches),
+				"generationCount", len(backupGenerations),
+			)
 		}
 	}
 
@@ -235,7 +268,7 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		SleepInfo:        sleepInfoWithPatches,
 		Log:              log,
 		FieldManagerName: r.ManagerName,
-	}, req.Namespace, restorePatches)
+	}, req.Namespace, restorePatches, sleptGenerations)
 	if err != nil {
 		log.Error(err, "fails to get resources")
 		return ctrl.Result{}, err

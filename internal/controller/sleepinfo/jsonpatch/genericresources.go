@@ -17,9 +17,10 @@ import (
 
 type genericResource struct {
 	resource.ResourceClient
-	patchData      v1alpha1.Patch
-	restorePatches RestorePatches
-	data           []unstructured.Unstructured
+	patchData        v1alpha1.Patch
+	restorePatches   RestorePatches
+	sleptGenerations SleptResourceGenerations
+	data             []unstructured.Unstructured
 	// FIXME:
 	// this cache parameter is used to simplify the implementation (avoiding to repeat
 	// some error done in other resource implementation managing data) without change
@@ -29,11 +30,12 @@ type genericResource struct {
 	isCacheInvalid bool
 }
 
-func newGenericResource(res resource.ResourceClient, patchData v1alpha1.Patch, restorePatches RestorePatches) *genericResource {
+func newGenericResource(res resource.ResourceClient, patchData v1alpha1.Patch, restorePatches RestorePatches, sleptGenerations SleptResourceGenerations) *genericResource {
 	return &genericResource{
-		ResourceClient: res,
-		patchData:      patchData,
-		restorePatches: restorePatches,
+		ResourceClient:   res,
+		patchData:        patchData,
+		restorePatches:   restorePatches,
+		sleptGenerations: sleptGenerations,
 	}
 }
 
