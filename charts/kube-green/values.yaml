@@ -1,123 +1,102 @@
-# Default values for kube-green.
-# This is a YAML-formatted file.
-# Declare variables to be passed into your templates.
 nameOverride: ""
 fullnameOverride: ""
 
 manager:
   image:
-    # -- The Docker image repository for the kube-green manager application.
     repository: yeramirez/kube-green
-    # -- Defines the image pull policy. Avoids pulling the image if it's already present.
     pullPolicy: IfNotPresent
-    # -- The specific image tag of the kube-green manager to use.
-    tag: "0.7.16-backend-46558d9"
-  # -- Extra arguments to pass to the manager container.
+    tag: "0.7.16-backend-2ac8620"
+
   extraArgs: []
-    # - --sleep-delta=60
-    # - --max-concurrent-reconciles=20
+
   securityContext:
-    # -- Prevents the pod from gaining additional privileges. Set to false for security.
     allowPrivilegeEscalation: false
     capabilities:
       drop:
-        # -- Drops all Linux capabilities for the pod, enhancing security.
         - ALL
-  # -- run the manager in the host network. Required when using a custom CNI on EKS.
+
   hostNetwork: false
+
   resources:
     limits:
-      # -- Maximum CPU allowed.
       cpu: 400m
-      # -- Maximum memory allowed.
-      memory: 400Mi
+      memory: 1Gi
     requests:
-      # -- Requested CPU to guarantee for the pod.
       cpu: 100m
-      # -- Requested memory to guarantee for the pod.
-      memory: 50Mi
+      memory: 200Mi
+
   metrics:
-    # -- If enabled, the manager will expose metrics.
     enabled: true
-    # -- The address to bind the metrics server.
     port: 8443
-    # -- If true, the metrics server will use a secure connection via HTTPS. Set it to false to use HTTP instead. The certificate will be created in a secret called "metrics-server-cert".
     secure: true
     serviceMonitor:
-      # -- Enable a Prometheus ServiceMonitor
       enabled: false
-      # -- Prometheus ServiceMonitor labels
       additionalLabels: {}
-        # release: prometheus
-      # -- Prometheus ServiceMonitor selector
       selector: {}
-        # prometheus: kube-prometheus
-      # -- Prometheus ServiceMonitor interval
       interval: 30s
-      # -- Prometheus ServiceMonitor namespace
       namespace: ""
-      # -- Prometheus [MetricRelabelConfigs] to apply to samples before ingestion
       metricRelabelings: []
-      # -- Prometheus [RelabelConfigs] to apply to samples before scraping
       relabelings: []
-  # -- REST API configuration
-  api:
-    # -- Enable the REST API server
-    enabled: false
-    # -- Port for the REST API server
-    port: 8080
-    # -- Enable CORS for the REST API
-    cors: false
-  # -- Authentication configuration
-  auth:
-    # -- Enable JWT authentication for the REST API
-    enabled: false
-    # -- Secret name containing JWT secret (key: secret)
-    jwtSecretName: "kube-green-jwt"
-    # -- Secret name containing user credentials (key: users)
-    usersSecretName: "kube-green-users"
 
-# -- List of secrets used to access private image repositories.
+  api:
+    enabled: true
+    port: 8080
+    cors: true
+
+  auth:
+    enabled: true
+    jwtSecretName: "kube-green-jwt"
+    usersSecretName: "kube-green-users"
+    # Optional: set to pin JWT secret; if empty, chart keeps existing secret or generates on first install
+    jwtSecret: ""
+    # Optional: set to override users (format: username:bcryptHash:role, one per line)
+    defaultUsers: ""
+
+frontend:
+  enabled: true
+  replicas: 2
+  image:
+    repository: yeramirez/kube-front
+    pullPolicy: IfNotPresent
+    tag: "0.7.1-frontend-d08110b-manual2"
+  resources:
+    limits:
+      cpu: 100m
+      memory: 128Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
+
 imagePullSecrets: []
 
 serviceAccount:
-  # -- Specifies whether a service account should be created for the application.
   create: true
-  # -- Annotations to add to the service account if created.
   annotations: {}
-  # -- The name of the service account to use. If not set and create is true, a name is generated using the fullname template.
   name: "kube-green-controller-manager"
 
-# -- Annotations to add to each pod.
-podAnnotations: {}
+podAnnotations:
+  vault.hashicorp.com/agent-inject: "false"
+  vault.hashicorp.com/agent-pre-populate: "false"
+  vault.hashicorp.com/agent-pre-populate-only: "false"
 
-# -- Labels to add to each pod.
 podLabels: {}
 
-# -- Security settings that apply to all containers in the pod.
 podSecurityContext: {}
 
-# -- Node labels for pod assignment.
 nodeSelector: {}
 
-# -- Tolerations for pod scheduling.
 tolerations: []
 
-# -- Affinity rules for pod assignment.
 affinity: {}
 
-# -- Priority class name for the pods.
 priorityClassName: ""
 
-# -- Topology spread constraints for pod placement.
 topologySpreadConstraints: []
 
 certManager:
-  # -- If cert-manager is enabled, the configurations will use it to manage the needed certificates.
   enabled: true
 
 jobsCert:
-  # -- If enabled, the certificates will be managed by a custom Job, without the integration with the cert-manager.
   enabled: false
   image:
     registry: registry.k8s.io
@@ -127,23 +106,12 @@ jobsCert:
 
 rbac:
   customClusterRole:
-    # -- If true, the custom ClusterRole is enabled.
     enabled: false
-    # -- The name of the custom ClusterRole to aggregate with the default role managed by the chart.
     name: kube-green-manager-role-custom-aggregate
-    # -- Rules to add to the custom ClusterRole.
     rules: []
-  # -- Extended RBAC for CRDs (Postgres, HDFS, OpenSearch, Kafka)
   extendedCRDs:
-    # -- Enable extended RBAC for CRDs (PgCluster, HDFSCluster, OsCluster, KafkaCluster, PgBouncer)
     enabled: false
 
 crds:
-  # This option decides if the CRDs should be installed as part of the Helm installation.
   enabled: true
-
-  # This option add the "helm.sh/resource-policy": keep annotation to the CRD.
-  # This will prevent Helm from uninstalling the CRD when the Helm release is uninstalled.
-  # WARNING: when the CRDs are removed, all custom resources (SleepInfo) will
-  # be removed too by the garbage collector.
   keep: true
