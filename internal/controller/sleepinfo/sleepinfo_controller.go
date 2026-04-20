@@ -274,7 +274,7 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, err
 	}
 
-	if err := r.handleSleepInfoStatus(ctx, now, sleepInfo, sleepInfoData.CurrentOperationType, resources); err != nil {
+	if err := r.handleSleepInfoStatus(ctx, now, sleepInfo, sleepInfoData.CurrentOperationType); err != nil {
 		log.Error(err, "unable to update sleepInfo status")
 		return ctrl.Result{}, err
 	}
@@ -326,6 +326,8 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	default:
 		return ctrl.Result{}, fmt.Errorf("operation %s not supported", sleepInfoData.CurrentOperationType)
 	}
+
+	r.syncPairedSleepInfoStatus(ctx, log, sleepInfo, sleepInfoData.CurrentOperationType, req.Namespace, now)
 
 	if err = r.upsertSecret(ctx, log, now, secretName, req.Namespace, sleepInfo, secret, sleepInfoData, resources); err != nil {
 		logSecret.Error(err, "fails to update secret")
@@ -441,13 +443,58 @@ func (r SleepInfoReconciler) handleSleepInfoStatus(
 	now time.Time,
 	currentSleepInfo *kubegreenv1alpha1.SleepInfo,
 	currentOperationType string,
-	resources resource.Resource,
 ) error {
 	sleepInfo := currentSleepInfo.DeepCopy()
 	sleepInfo.Status.LastScheduleTime = metav1.NewTime(now)
 	sleepInfo.Status.OperationType = currentOperationType
-	if !resources.HasResource() {
-		sleepInfo.Status.OperationType = ""
-	}
 	return r.Status().Update(ctx, sleepInfo)
+}
+
+// syncPairedSleepInfoStatus updates the status of the paired SleepInfo (same pair-id, opposite role)
+// so both resources always reflect the current state of services.
+func (r SleepInfoReconciler) syncPairedSleepInfoStatus(
+	ctx context.Context,
+	log logr.Logger,
+	currentSleepInfo *kubegreenv1alpha1.SleepInfo,
+	operationType string,
+	namespace string,
+	now time.Time,
+) {
+	annotations := currentSleepInfo.GetAnnotations()
+	if annotations == nil {
+		return
+	}
+	pairID := annotations[pairIDAnnotation]
+	if pairID == "" {
+		return
+	}
+	currentRole := annotations[pairRoleAnnotation]
+
+	sleepInfoList := &kubegreenv1alpha1.SleepInfoList{}
+	if err := r.List(ctx, sleepInfoList, client.InNamespace(namespace)); err != nil {
+		log.Error(err, "syncPairedStatus: failed to list SleepInfos")
+		return
+	}
+
+	for i := range sleepInfoList.Items {
+		si := &sleepInfoList.Items[i]
+		if si.Name == currentSleepInfo.Name {
+			continue
+		}
+		siAnnotations := si.GetAnnotations()
+		if siAnnotations == nil {
+			continue
+		}
+		if siAnnotations[pairIDAnnotation] == pairID && siAnnotations[pairRoleAnnotation] != currentRole {
+			paired := si.DeepCopy()
+			paired.Status.OperationType = operationType
+			paired.Status.LastScheduleTime = metav1.NewTime(now)
+			if err := r.Status().Update(ctx, paired); err != nil {
+				log.Error(err, "syncPairedStatus: failed to update paired SleepInfo status", "paired", si.Name)
+			} else {
+				log.Info("syncPairedStatus: updated paired SleepInfo status", "paired", si.Name, "operation", operationType)
+			}
+			return
+		}
+	}
 }
