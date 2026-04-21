@@ -279,6 +279,7 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, err
 	}
 	log.V(8).Info("update status info")
+	r.syncPairedSleepInfoStatus(ctx, log, sleepInfo, sleepInfoData.CurrentOperationType, req.Namespace, now)
 
 	logSecret := log.WithValues("secret", secretName)
 	if !resources.HasResource() {
@@ -326,8 +327,6 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	default:
 		return ctrl.Result{}, fmt.Errorf("operation %s not supported", sleepInfoData.CurrentOperationType)
 	}
-
-	r.syncPairedSleepInfoStatus(ctx, log, sleepInfo, sleepInfoData.CurrentOperationType, req.Namespace, now)
 
 	if err = r.upsertSecret(ctx, log, now, secretName, req.Namespace, sleepInfo, secret, sleepInfoData, resources); err != nil {
 		logSecret.Error(err, "fails to update secret")
