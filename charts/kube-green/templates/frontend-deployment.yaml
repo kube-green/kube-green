@@ -1,0 +1,51 @@
+{{- if .Values.frontend.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "kube-green.fullname" . }}-frontend
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kube-green.labels" . | nindent 4 }}
+    component: frontend
+spec:
+  replicas: {{ .Values.frontend.replicas }}
+  selector:
+    matchLabels:
+      {{- include "kube-green.selectorLabels" . | nindent 6 }}
+      component: frontend
+  template:
+    metadata:
+      labels:
+        {{- include "kube-green.selectorLabels" . | nindent 8 }}
+        component: frontend
+    spec:
+      containers:
+      - name: frontend
+        image: {{ include "image" .Values.frontend.image }}
+        imagePullPolicy: {{ .Values.frontend.image.pullPolicy }}
+        ports:
+        - containerPort: 80
+          name: http
+          protocol: TCP
+        env:
+        - name: VITE_AUTH_ENABLED
+          value: {{ ternary "true" "false" .Values.manager.auth.enabled | quote }}
+        - name: API_SERVICE_NAME
+          value: {{ printf "%s-api.%s.svc.cluster.local" (include "kube-green.fullname" .) .Release.Namespace | quote }}
+        - name: API_SERVICE_PORT
+          value: {{ printf "%v" .Values.manager.api.port | quote }}
+        resources:
+{{ toYaml .Values.frontend.resources | nindent 10 }}
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 10
+          periodSeconds: 5
+{{- end }}

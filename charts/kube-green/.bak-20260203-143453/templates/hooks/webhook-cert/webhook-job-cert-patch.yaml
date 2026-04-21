@@ -1,0 +1,62 @@
+{{- if and (not .Values.certManager.enabled) .Values.jobsCert.enabled }}
+{{- $name := printf "%s-webhook-certpatch" (include "kube-green.fullname" .) }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ $name | quote }}
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+    helm.sh/hook-weight: "1"
+  labels:
+    app: {{ $name | quote }}
+    {{- include "kube-green.labels" . | nindent 4 }}
+spec:
+  template:
+    metadata:
+      name: {{ $name | quote }}
+      labels:
+        app: {{ $name | quote }}
+        {{- include "kube-green.labels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "kube-green.webhook.serviceAccount.name" . }}
+      containers:
+        - name: kube-webhook-certpatch
+          image: {{ include "image" .Values.jobsCert.image }}
+          imagePullPolicy: {{ .Values.jobsCert.image.pullPolicy }}
+          args:
+          - patch
+          - --namespace={{ .Release.Namespace }}
+          - --patch-mutating=false
+          - --patch-validating=true
+          - --secret-name={{ include "kube-green.webhook.secret.name" . }}
+          - --webhook-name=kube-green-validating-webhook-configuration
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            privileged: false
+            seccompProfile:
+              type: RuntimeDefault
+            capabilities:
+              drop:
+              - ALL
+          volumeMounts:
+          - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+            name: serviceaccount-token
+            readOnly: true
+      restartPolicy: OnFailure
+      volumes:
+      - name: serviceaccount-token
+        projected:
+          defaultMode: 0444
+          sources:
+          - serviceAccountToken:
+              expirationSeconds: 3600
+              path: token
+          - configMap:
+              items:
+              - key: ca.crt
+                path: ca.crt
+              name: kube-root-ca.crt
+{{- end -}}

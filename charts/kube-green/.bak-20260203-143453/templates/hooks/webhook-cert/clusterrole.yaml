@@ -1,0 +1,22 @@
+{{- if and (not .Values.certManager.enabled) .Values.jobsCert.enabled }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include  "kube-green.webhook.name" . }}
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade,post-install,post-upgrade
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+  labels:
+    app: {{ include  "kube-green.webhook.name" . }}
+    {{- include "kube-green.labels" . | nindent 4 }}
+rules:
+  - apiGroups:
+      - admissionregistration.k8s.io
+    resources:
+      - validatingwebhookconfigurations
+    verbs:
+      - get
+      - update
+    resourceNames:
+      - kube-green-validating-webhook-configuration
+{{- end }}

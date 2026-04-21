@@ -1,0 +1,19 @@
+{{- if and (not .Values.certManager.enabled) .Values.jobsCert.enabled }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include  "kube-green.webhook.name" . }}
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade,post-install,post-upgrade
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+  labels:
+    app: {{ include  "kube-green.webhook.name" . }}
+    {{- include "kube-green.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include  "kube-green.webhook.name" . }}
+subjects:
+- kind: ServiceAccount
+  name: {{ include "kube-green.webhook.serviceAccount.name" . }}
+{{ end -}}

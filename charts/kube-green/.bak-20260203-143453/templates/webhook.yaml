@@ -1,0 +1,29 @@
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  {{ if .Values.certManager.enabled -}}
+  annotations:
+    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/kube-green-serving-cert
+  {{ end -}}
+  name: kube-green-validating-webhook-configuration
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: kube-green-webhook-service
+      namespace: {{ .Release.Namespace }}
+      path: /validate-kube-green-com-v1alpha1-sleepinfo
+  failurePolicy: Fail
+  name: vsleepinfo.kb.io
+  rules:
+  - apiGroups:
+    - kube-green.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - sleepinfos
+  sideEffects: None

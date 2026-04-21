@@ -1,0 +1,22 @@
+{{- if .Values.manager.api.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "kube-green.fullname" . }}-api
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kube-green.labels" . | nindent 4 }}
+    component: api
+spec:
+  type: ClusterIP
+  ports:
+  - port: {{ .Values.manager.api.port }}
+    targetPort: api-server
+    protocol: TCP
+    name: http
+  selector:
+    app: kube-green
+    control-plane: controller-manager
+    {{- include "kube-green.selectorLabels" . | nindent 4 }}
+{{- end }}

@@ -1,0 +1,39 @@
+{{- if .Values.certManager.enabled }}
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: kube-green-serving-cert
+  namespace: {{ .Release.Namespace }}
+spec:
+  dnsNames:
+  - {{ printf "%s.%s.svc" (include "kube-green.webhook.service.name" .) .Release.Namespace }}
+  - {{ printf "%s.%s.svc.cluster.local" (include "kube-green.webhook.service.name" .) .Release.Namespace }}
+  issuerRef:
+    kind: Issuer
+    name: kube-green-selfsigned-issuer
+  secretName: {{ include "kube-green.webhook.secret.name" . }}
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: kube-green-selfsigned-issuer
+  namespace: {{ .Release.Namespace }}
+spec:
+  selfSigned: {}
+---
+{{ if and $.Values.manager.metrics.enabled $.Values.manager.metrics.secure }}
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: kube-green-metrics-certs
+  namespace: {{ .Release.Namespace }}
+spec:
+  dnsNames:
+  - {{ printf "%s.%s.svc" (include "kube-green.metrics.service.name" .) .Release.Namespace }}
+  - {{ printf "%s.%s.svc.cluster.local" (include "kube-green.metrics.service.name" .) .Release.Namespace }}
+  issuerRef:
+    kind: Issuer
+    name: kube-green-selfsigned-issuer
+  secretName: {{ include "kube-green.metrics.secret.name" . }}
+{{- end -}}
+{{ end -}}

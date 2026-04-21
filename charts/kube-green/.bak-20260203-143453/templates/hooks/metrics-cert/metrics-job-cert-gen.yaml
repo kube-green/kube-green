@@ -1,0 +1,63 @@
+{{- if and (not .Values.certManager.enabled) .Values.jobsCert.enabled .Values.manager.metrics.enabled .Values.manager.metrics.secure }}
+{{- $name := printf "%s-metrics-certgen" (include "kube-green.fullname" .) }}
+{{- $metricsServiceName := include "kube-green.metrics.service.name" . -}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ $name | quote }}
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+    helm.sh/hook-weight: "1"
+  labels:
+    app: {{ $name | quote }}
+    {{- include "kube-green.labels" . | nindent 4 }}
+spec:
+  template:
+    metadata:
+      name: {{ $name | quote }}
+      labels:
+        app: {{ $name | quote }}
+        {{- include "kube-green.labels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "kube-green.metrics.serviceAccount.name" . }}
+      containers:
+        - name: kube-metrics-certgen
+          image: {{ include "image" .Values.jobsCert.image }}
+          imagePullPolicy: {{ .Values.jobsCert.image.pullPolicy }}
+          args:
+          - create
+          - --host={{ $metricsServiceName }},{{ $metricsServiceName }}.{{ .Release.Namespace }}.svc
+          - --namespace={{ .Release.Namespace }}
+          - --secret-name={{ include "kube-green.metrics.secret.name" . }}
+          - --cert-name=tls.crt
+          - --key-name=tls.key
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            privileged: false
+            seccompProfile:
+              type: RuntimeDefault
+            capabilities:
+              drop:
+              - ALL
+          volumeMounts:
+          - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+            name: serviceaccount-token
+            readOnly: true
+      restartPolicy: OnFailure
+      volumes:
+      - name: serviceaccount-token
+        projected:
+          defaultMode: 0444
+          sources:
+          - serviceAccountToken:
+              expirationSeconds: 3600
+              path: token
+          - configMap:
+              items:
+              - key: ca.crt
+                path: ca.crt
+              name: kube-root-ca.crt
+{{- end -}}
