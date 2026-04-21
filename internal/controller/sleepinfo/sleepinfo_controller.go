@@ -485,10 +485,15 @@ func (r SleepInfoReconciler) syncPairedSleepInfoStatus(
 			continue
 		}
 		if siAnnotations[pairIDAnnotation] == pairID && siAnnotations[pairRoleAnnotation] != currentRole {
-			paired := si.DeepCopy()
-			paired.Status.OperationType = operationType
-			paired.Status.LastScheduleTime = metav1.NewTime(now)
-			if err := r.Status().Update(ctx, paired); err != nil {
+			// Fetch fresh to avoid 409 Conflict from stale resourceVersion in cache
+			fresh := &kubegreenv1alpha1.SleepInfo{}
+			if err := r.Get(ctx, client.ObjectKeyFromObject(si), fresh); err != nil {
+				log.Error(err, "syncPairedStatus: failed to get paired SleepInfo", "paired", si.Name)
+				return
+			}
+			fresh.Status.OperationType = operationType
+			fresh.Status.LastScheduleTime = metav1.NewTime(now)
+			if err := r.Status().Update(ctx, fresh); err != nil {
 				log.Error(err, "syncPairedStatus: failed to update paired SleepInfo status", "paired", si.Name)
 			} else {
 				log.Info("syncPairedStatus: updated paired SleepInfo status", "paired", si.Name, "operation", operationType)
