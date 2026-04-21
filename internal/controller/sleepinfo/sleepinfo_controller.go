@@ -157,6 +157,7 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	if !isToExecute {
 		scheduleLog.Info("skip execution")
+		r.syncPairedSleepInfoStatus(ctx, log, sleepInfo, sleepInfo.Status.OperationType, req.Namespace, now)
 		return ctrl.Result{
 			RequeueAfter: requeueAfter,
 		}, nil
