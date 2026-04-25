@@ -496,22 +496,20 @@ func (r SleepInfoReconciler) reconcilePairedStatus(
 			continue
 		}
 		log.Info("reconcilePairedStatus: found pair", "pair", si.Name, "pairOp", si.Status.OperationType, "pairTime", si.Status.LastScheduleTime)
-		// Found the pair — only propagate if current has a more recent lastScheduleTime
 		if si.Status.OperationType == currentOp {
-			log.Info("reconcilePairedStatus: already consistent")
-			return
+			log.Info("reconcilePairedStatus: already consistent", "pair", si.Name)
+			continue
 		}
 		pairedTime := si.Status.LastScheduleTime.Time
 		currentTime := currentSleepInfo.Status.LastScheduleTime.Time
 		if !currentTime.After(pairedTime) {
-			log.Info("reconcilePairedStatus: pair is more recent, skipping", "currentTime", currentTime, "pairedTime", pairedTime)
-			return
+			log.Info("reconcilePairedStatus: pair is more recent, skipping", "pair", si.Name, "currentTime", currentTime, "pairedTime", pairedTime)
+			continue
 		}
-		// Current is more recent: update paired to match
 		fresh := &kubegreenv1alpha1.SleepInfo{}
 		if err := r.Get(ctx, client.ObjectKeyFromObject(si), fresh); err != nil {
 			log.Error(err, "reconcilePairedStatus: failed to get paired SleepInfo", "paired", si.Name)
-			return
+			continue
 		}
 		fresh.Status.OperationType = currentOp
 		fresh.Status.LastScheduleTime = currentSleepInfo.Status.LastScheduleTime
@@ -520,9 +518,7 @@ func (r SleepInfoReconciler) reconcilePairedStatus(
 		} else {
 			log.Info("reconcilePairedStatus: synced paired SleepInfo status", "paired", si.Name, "operation", fresh.Status.OperationType)
 		}
-		return
 	}
-	log.Info("reconcilePairedStatus: pair not found in list", "pairID", pairID, "currentRole", currentRole)
 }
 
 // syncPairedSleepInfoStatus updates the status of the paired SleepInfo (same pair-id, opposite role)
