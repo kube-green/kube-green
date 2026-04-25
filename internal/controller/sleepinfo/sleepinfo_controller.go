@@ -461,13 +461,17 @@ func (r SleepInfoReconciler) reconcilePairedStatus(
 ) {
 	annotations := currentSleepInfo.GetAnnotations()
 	if annotations == nil {
+		log.V(6).Info("reconcilePairedStatus: no annotations", "name", currentSleepInfo.Name)
 		return
 	}
 	pairID := annotations[pairIDAnnotation]
 	if pairID == "" {
 		return
 	}
-	if currentSleepInfo.Status.OperationType == "" {
+	currentOp := currentSleepInfo.Status.OperationType
+	log.Info("reconcilePairedStatus: checking pair", "name", currentSleepInfo.Name, "pairID", pairID, "op", currentOp, "time", currentSleepInfo.Status.LastScheduleTime)
+	if currentOp == "" {
+		log.Info("reconcilePairedStatus: no operation in status, skipping")
 		return
 	}
 
@@ -477,6 +481,7 @@ func (r SleepInfoReconciler) reconcilePairedStatus(
 		log.Error(err, "reconcilePairedStatus: failed to list SleepInfos")
 		return
 	}
+	log.Info("reconcilePairedStatus: listed SleepInfos", "count", len(sleepInfoList.Items))
 
 	for i := range sleepInfoList.Items {
 		si := &sleepInfoList.Items[i]
@@ -490,14 +495,17 @@ func (r SleepInfoReconciler) reconcilePairedStatus(
 		if siAnnotations[pairIDAnnotation] != pairID || siAnnotations[pairRoleAnnotation] == currentRole {
 			continue
 		}
+		log.Info("reconcilePairedStatus: found pair", "pair", si.Name, "pairOp", si.Status.OperationType, "pairTime", si.Status.LastScheduleTime)
 		// Found the pair — only propagate if current has a more recent lastScheduleTime
-		if si.Status.OperationType == currentSleepInfo.Status.OperationType {
-			return // already consistent
+		if si.Status.OperationType == currentOp {
+			log.Info("reconcilePairedStatus: already consistent")
+			return
 		}
 		pairedTime := si.Status.LastScheduleTime.Time
 		currentTime := currentSleepInfo.Status.LastScheduleTime.Time
 		if !currentTime.After(pairedTime) {
-			return // paired is more recent, it will propagate to us
+			log.Info("reconcilePairedStatus: pair is more recent, skipping", "currentTime", currentTime, "pairedTime", pairedTime)
+			return
 		}
 		// Current is more recent: update paired to match
 		fresh := &kubegreenv1alpha1.SleepInfo{}
@@ -505,7 +513,7 @@ func (r SleepInfoReconciler) reconcilePairedStatus(
 			log.Error(err, "reconcilePairedStatus: failed to get paired SleepInfo", "paired", si.Name)
 			return
 		}
-		fresh.Status.OperationType = currentSleepInfo.Status.OperationType
+		fresh.Status.OperationType = currentOp
 		fresh.Status.LastScheduleTime = currentSleepInfo.Status.LastScheduleTime
 		if err := r.Status().Update(ctx, fresh); err != nil {
 			log.Error(err, "reconcilePairedStatus: failed to update paired SleepInfo status", "paired", si.Name)
@@ -514,6 +522,7 @@ func (r SleepInfoReconciler) reconcilePairedStatus(
 		}
 		return
 	}
+	log.Info("reconcilePairedStatus: pair not found in list", "pairID", pairID, "currentRole", currentRole)
 }
 
 // syncPairedSleepInfoStatus updates the status of the paired SleepInfo (same pair-id, opposite role)
