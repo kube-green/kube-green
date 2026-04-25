@@ -460,15 +460,15 @@ func (r SleepInfoReconciler) reconcilePairedStatus(
 	namespace string,
 ) {
 	annotations := currentSleepInfo.GetAnnotations()
-	if annotations == nil {
-		log.V(6).Info("reconcilePairedStatus: no annotations", "name", currentSleepInfo.Name)
-		return
+	pairID := ""
+	if annotations != nil {
+		pairID = annotations[pairIDAnnotation]
 	}
-	pairID := annotations[pairIDAnnotation]
+	currentOp := currentSleepInfo.Status.OperationType
+	log.Info("reconcilePairedStatus: entry", "name", currentSleepInfo.Name, "pairID", pairID, "op", currentOp, "hasAnnotations", annotations != nil)
 	if pairID == "" {
 		return
 	}
-	currentOp := currentSleepInfo.Status.OperationType
 	log.Info("reconcilePairedStatus: checking pair", "name", currentSleepInfo.Name, "pairID", pairID, "op", currentOp, "time", currentSleepInfo.Status.LastScheduleTime)
 	if currentOp == "" {
 		log.Info("reconcilePairedStatus: no operation in status, skipping")
