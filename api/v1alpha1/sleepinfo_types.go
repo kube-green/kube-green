@@ -109,6 +109,15 @@ type PatchTarget struct {
 	// Kind of the Kubernetes resources.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Kind string `json:"kind"`
+	// IncludeControlled applies the patch also to resources that have a
+	// controller ownerReference. By default those resources are skipped, because
+	// the sleep is expected to be managed on the controller itself (for example
+	// a ReplicaSet through its Deployment). Set it to true when the controller
+	// cannot express the sleep, for example a StatefulSet owned by an operator
+	// whose custom resource has no way to scale to zero.
+	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	IncludeControlled bool `json:"includeControlled,omitempty"`
 }
 
 func (p PatchTarget) String() string {

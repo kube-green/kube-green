@@ -416,6 +416,142 @@ func TestUpdateResourcesJSONPatch(t *testing.T) {
 		})
 	})
 
+	t.Run("full lifecycle - replicaset controlled by deployment with includeControlled", func(t *testing.T) {
+		controlledReplicaSetPatchData := v1alpha1.Patch{
+			Target: v1alpha1.PatchTarget{
+				Group:             "apps",
+				Kind:              "ReplicaSet",
+				IncludeControlled: true,
+			},
+			Patch: replicaSetPatchData.Patch,
+		}
+		sleepInfo := &v1alpha1.SleepInfo{
+			TypeMeta: v1.TypeMeta{
+				Kind: "SleepInfo",
+			},
+			ObjectMeta: v1.ObjectMeta{
+				Namespace: namespace,
+				Name:      "test-sleepinfo",
+			},
+			Spec: v1alpha1.SleepInfoSpec{
+				Patches: []v1alpha1.Patch{
+					controlledReplicaSetPatchData,
+				},
+			},
+		}
+
+		replicaSetWithOwner := mocks.ReplicaSet(mocks.ReplicaSetSetOptions{
+			Name:      "controlled-replica-set",
+			Namespace: namespace,
+			Replicas:  getPtr(int32(1)),
+			OwnerReferences: []v1.OwnerReference{
+				{
+					APIVersion: "apps/v1",
+					Kind:       "Deployment",
+					Name:       "deployment-1",
+					Controller: getPtr(true),
+				},
+			},
+		}).Resource()
+
+		fakeClient := testutil.PossiblyErroringFakeCtrlRuntimeClient{
+			Client: getFakeClient().
+				WithRuntimeObjects(replicaSetWithOwner).
+				Build(),
+		}
+
+		ctx := context.Background()
+		res := getNewResource(t, fakeClient, sleepInfo, namespace)
+		replicaSetRes := res.resMapping[controlledReplicaSetPatchData.Target]
+
+		t.Run("sleep patches the controlled resource", func(t *testing.T) {
+			require.NoError(t, res.Sleep(ctx))
+
+			resList, err := replicaSetRes.getListByNamespace(ctx, namespace, controlledReplicaSetPatchData.Target)
+			require.NoError(t, err)
+			require.Len(t, resList, 1)
+			require.Equal(t, int64(0), resList[0].Object["spec"].(map[string]interface{})["replicas"].(int64))
+
+			t.Run("original info is saved for restore", func(t *testing.T) {
+				originalInfo, err := res.GetOriginalInfoToSave()
+				require.NoError(t, err)
+				require.JSONEq(t, `{
+					"ReplicaSet.apps": {"controlled-replica-set":"{\"spec\":{\"replicas\":1}}"}
+				}`, string(originalInfo))
+			})
+		})
+
+		t.Run("wake up restores the controlled resource", func(t *testing.T) {
+			originalInfo, err := res.GetOriginalInfoToSave()
+			require.NoError(t, err)
+			restorePatches, err := GetOriginalInfoToRestore(originalInfo)
+			require.NoError(t, err)
+
+			wakeRes := getNewResourceWithPatchToRestore(t, fakeClient, sleepInfo, namespace, restorePatches)
+			require.NoError(t, wakeRes.WakeUp(ctx))
+
+			resList, err := replicaSetRes.getListByNamespace(ctx, namespace, controlledReplicaSetPatchData.Target)
+			require.NoError(t, err)
+			require.Len(t, resList, 1)
+			require.Equal(t, int64(1), resList[0].Object["spec"].(map[string]interface{})["replicas"].(int64))
+		})
+	})
+
+	t.Run("restore info merges targets that share group and kind", func(t *testing.T) {
+		controlledReplicaSetPatchData := v1alpha1.Patch{
+			Target: v1alpha1.PatchTarget{
+				Group:             "apps",
+				Kind:              "ReplicaSet",
+				IncludeControlled: true,
+			},
+			Patch: replicaSetPatchData.Patch,
+		}
+		sleepInfo := &v1alpha1.SleepInfo{
+			TypeMeta:   v1.TypeMeta{Kind: "SleepInfo"},
+			ObjectMeta: v1.ObjectMeta{Namespace: namespace, Name: "test-sleepinfo"},
+			Spec: v1alpha1.SleepInfoSpec{
+				Patches: []v1alpha1.Patch{
+					replicaSetPatchData,
+					controlledReplicaSetPatchData,
+				},
+			},
+		}
+
+		standalone := mocks.ReplicaSet(mocks.ReplicaSetSetOptions{
+			Name:      "standalone-replica-set",
+			Namespace: namespace,
+			Replicas:  getPtr(int32(2)),
+		}).Resource()
+		controlled := mocks.ReplicaSet(mocks.ReplicaSetSetOptions{
+			Name:      "controlled-replica-set",
+			Namespace: namespace,
+			Replicas:  getPtr(int32(1)),
+			OwnerReferences: []v1.OwnerReference{{
+				APIVersion: "apps/v1",
+				Kind:       "Deployment",
+				Name:       "deployment-1",
+				Controller: getPtr(true),
+			}},
+		}).Resource()
+
+		fakeClient := testutil.PossiblyErroringFakeCtrlRuntimeClient{
+			Client: getFakeClient().WithRuntimeObjects(standalone, controlled).Build(),
+		}
+
+		ctx := context.Background()
+		res := getNewResource(t, fakeClient, sleepInfo, namespace)
+		require.NoError(t, res.Sleep(ctx))
+
+		originalInfo, err := res.GetOriginalInfoToSave()
+		require.NoError(t, err)
+		require.JSONEq(t, `{
+			"ReplicaSet.apps": {
+				"standalone-replica-set":"{\"spec\":{\"replicas\":2}}",
+				"controlled-replica-set":"{\"spec\":{\"replicas\":1}}"
+			}
+		}`, string(originalInfo))
+	})
+
 	t.Run("full lifecycle - keda ScaledObject", func(t *testing.T) {
 		scaledObjectPatchData := v1alpha1.Patch{
 			Target: v1alpha1.PatchTarget{

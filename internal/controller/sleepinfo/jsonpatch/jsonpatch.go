@@ -99,7 +99,9 @@ func (g managedResources) Sleep(ctx context.Context) error {
 			// Some examples are:
 			// - Pod managed by ReplicaSet managed by Deployment
 			// - Pod managed by Job managed by CronJob
-			if metav1.GetControllerOfNoCopy(&resource) != nil {
+			// The target can opt in with includeControlled, for controllers that
+			// cannot express the sleep themselves (e.g. an operator-owned StatefulSet).
+			if metav1.GetControllerOfNoCopy(&resource) != nil && !resourceWrapper.patchData.Target.IncludeControlled {
 				g.logger.Info("resource is managed by another controller, skipped",
 					"resourceName", resource.GetName(),
 					"resourceKind", resource.GetKind(),
@@ -242,7 +244,17 @@ func (g managedResources) GetOriginalInfoToSave() ([]byte, error) {
 		if len(res.restorePatches) == 0 {
 			continue
 		}
-		dataToSave[key.String()] = res.restorePatches
+		// Two targets can share a group and kind and differ only in
+		// includeControlled; their restore patches are keyed by resource name,
+		// so merge them instead of letting map iteration order pick a winner.
+		merged, ok := dataToSave[key.String()]
+		if !ok {
+			merged = RestorePatches{}
+		}
+		for name, patch := range res.restorePatches {
+			merged[name] = patch
+		}
+		dataToSave[key.String()] = merged
 	}
 
 	return json.Marshal(dataToSave)
