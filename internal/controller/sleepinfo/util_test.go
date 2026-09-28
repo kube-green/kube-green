@@ -176,7 +176,7 @@ func upsertDeployments(t *testing.T, ctx context.Context, c *envconf.Config, upd
 
 		if findDeployByName(d.Items, deploy.GetName()) != nil {
 			deploy.SetManagedFields(nil)
-			require.NoError(t, k8sClient.Patch(ctx, &deploy, client.Apply, &client.PatchOptions{
+			require.NoError(t, k8sClient.Patch(ctx, &deploy, client.Apply, &client.PatchOptions{ //nolint:staticcheck
 				FieldManager: "kube-green-test",
 				Force:        getPtr(true),
 			}))

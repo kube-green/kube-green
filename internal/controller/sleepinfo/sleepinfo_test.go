@@ -758,7 +758,7 @@ func TestSleepInfoControllerReconciliation(t *testing.T) {
 				}
 
 				// The managed fields should contain spec.replicas but NOT spec.selector or spec.template
-				fieldsJSON := string(kubeGreenFields.FieldsV1.Raw)
+				fieldsJSON := kubeGreenFields.FieldsV1.GetRawString()
 				fmt.Printf("fieldsJSON: %s\n", fieldsJSON)
 				require.Contains(t, fieldsJSON, "replicas", "should contain replicas field for deployment %s", deployment.GetName())
 				require.NotContains(t, fieldsJSON, "selector", "should NOT contain selector field for deployment %s", deployment.GetName())

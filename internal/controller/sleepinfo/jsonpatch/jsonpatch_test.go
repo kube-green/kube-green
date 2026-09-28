@@ -3,6 +3,7 @@ package jsonpatch
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"testing"
 
@@ -11,16 +12,20 @@ import (
 	"github.com/kube-green/kube-green/internal/controller/sleepinfo/resource"
 	"github.com/kube-green/kube-green/internal/testutil"
 
+	jsonpatchlib "github.com/evanphx/json-patch/v5"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/runtime/serializer"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	k8stesting "k8s.io/client-go/testing"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -1014,9 +1019,122 @@ func getFakeClient() *fake.ClientBuilder {
 	utilruntime.Must(corev1.AddToScheme(scheme))
 	utilruntime.Must(batchv1.AddToScheme(scheme))
 
-	return fake.
-		NewClientBuilder().
-		WithRESTMapper(restMapper).WithScheme(scheme)
+	decoder := serializer.NewCodecFactory(scheme).UniversalDeserializer()
+	tracker := &sparseMergeTracker{
+		ObjectTracker: k8stesting.NewObjectTracker(scheme, decoder),
+		scheme:        scheme,
+	}
+	return fake.NewClientBuilder().WithRESTMapper(restMapper).WithScheme(scheme).WithObjectTracker(tracker)
+}
+
+// sparseMergeTracker is a test-only ObjectTracker that intercepts Apply calls and
+// performs a JSON merge-patch (RFC 7396) after stripping zero-value fields from the
+// apply configuration. This is needed because controller-runtime v0.24.1's
+// versionedTracker.Apply converts sparse unstructured apply configs to typed structs,
+// which causes zero-value fields (e.g. containers:null, schedule:"") to appear in the
+// merge patch and overwrite existing values.
+type sparseMergeTracker struct {
+	k8stesting.ObjectTracker
+	scheme *runtime.Scheme
+}
+
+func (t *sparseMergeTracker) Apply(gvr schema.GroupVersionResource, applyConfiguration runtime.Object, ns string, opts ...v1.PatchOptions) error {
+	accessor, err := meta.Accessor(applyConfiguration)
+	if err != nil {
+		return err
+	}
+
+	patchBytes, err := json.Marshal(applyConfiguration)
+	if err != nil {
+		return err
+	}
+	var patchMap map[string]interface{}
+	if err := json.Unmarshal(patchBytes, &patchMap); err != nil {
+		return err
+	}
+	cleanedPatchBytes, err := json.Marshal(pruneZeroValues(patchMap))
+	if err != nil {
+		return err
+	}
+
+	existing, err := t.Get(gvr, ns, accessor.GetName(), v1.GetOptions{})
+	if apierrors.IsNotFound(err) {
+		obj, err := t.unmarshalToStoredType(applyConfiguration.GetObjectKind().GroupVersionKind(), cleanedPatchBytes)
+		if err != nil {
+			return err
+		}
+		return t.Create(gvr, obj, ns, v1.CreateOptions{})
+	}
+	if err != nil {
+		return err
+	}
+
+	existingBytes, err := json.Marshal(existing)
+	if err != nil {
+		return err
+	}
+
+	// JSON merge-patch (RFC 7396): only the keys present in the patch are
+	// written; absent keys leave the existing value intact. We use this
+	// instead of strategic-merge-patch because strategicpatch.StrategicMergePatch
+	// returns an error when the prototype is *unstructured.Unstructured (which is
+	// the case for CRDs like ScaledObject that are not registered as typed structs).
+	mergedBytes, err := jsonpatchlib.MergePatch(existingBytes, cleanedPatchBytes)
+	if err != nil {
+		return err
+	}
+
+	obj, err := t.unmarshalToStoredType(applyConfiguration.GetObjectKind().GroupVersionKind(), mergedBytes)
+	if err != nil {
+		return err
+	}
+	return t.Update(gvr, obj, ns, v1.UpdateOptions{})
+}
+
+// unmarshalToStoredType converts JSON bytes into the type the tracker stores
+// for this GVK. For GVKs recognized by the scheme, that is the typed struct
+// (e.g. *appsv1.Deployment). For unknown GVKs it falls back to Unstructured.
+func (t *sparseMergeTracker) unmarshalToStoredType(gvk schema.GroupVersionKind, data []byte) (runtime.Object, error) {
+	if t.scheme.Recognizes(gvk) {
+		typed, err := t.scheme.New(gvk)
+		if err != nil {
+			return nil, err
+		}
+		if _, isUnstructured := typed.(runtime.Unstructured); !isUnstructured {
+			if err := json.Unmarshal(data, typed); err != nil {
+				return nil, err
+			}
+			return typed, nil
+		}
+	}
+	var u unstructured.Unstructured
+	if err := json.Unmarshal(data, &u); err != nil {
+		return nil, err
+	}
+	return &u, nil
+}
+
+// pruneZeroValues removes nil, empty-string, and empty-map values from a JSON map
+// so they are not included in the merge patch (which would otherwise clear existing fields).
+func pruneZeroValues(m map[string]interface{}) map[string]interface{} {
+	result := make(map[string]interface{}, len(m))
+	for k, v := range m {
+		switch val := v.(type) {
+		case nil:
+			// skip
+		case string:
+			if val != "" {
+				result[k] = val
+			}
+		case map[string]interface{}:
+			if cleaned := pruneZeroValues(val); len(cleaned) > 0 {
+				result[k] = cleaned
+			}
+		default:
+			result[k] = v
+		}
+	}
+	return result
 }
 
 func getScaledObjectGvk() schema.GroupVersionKind {

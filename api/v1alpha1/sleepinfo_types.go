@@ -12,6 +12,7 @@ import (
 
 	"github.com/robfig/cron/v3"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -266,5 +267,9 @@ type SleepInfoList struct {
 }
 
 func init() {
-	SchemeBuilder.Register(&SleepInfo{}, &SleepInfoList{})
+	SchemeBuilder.Register(func(s *runtime.Scheme) error {
+		s.AddKnownTypes(GroupVersion, &SleepInfo{}, &SleepInfoList{})
+		metav1.AddToGroupVersion(s, GroupVersion)
+		return nil
+	})
 }

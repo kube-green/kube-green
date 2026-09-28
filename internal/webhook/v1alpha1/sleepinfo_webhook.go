@@ -6,15 +6,12 @@ package v1alpha1
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/kube-green/kube-green/api/v1alpha1"
 
-	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
@@ -26,8 +23,7 @@ type customValidator struct {
 }
 
 func SetupWebhookWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewWebhookManagedBy(mgr).
-		For(&v1alpha1.SleepInfo{}).
+	return ctrl.NewWebhookManagedBy(mgr, &v1alpha1.SleepInfo{}).
 		WithValidator(&customValidator{
 			Client: mgr.GetClient(),
 		}).
@@ -35,36 +31,22 @@ func SetupWebhookWithManager(mgr ctrl.Manager) error {
 }
 
 // +kubebuilder:webhook:path=/validate-kube-green-com-v1alpha1-sleepinfo,mutating=false,failurePolicy=fail,sideEffects=None,groups=kube-green.com,resources=sleepinfos,verbs=create;update,versions=v1alpha1,name=vsleepinfo.kb.io,admissionReviewVersions=v1
-var _ webhook.CustomValidator = &customValidator{}
+var _ admission.Validator[*v1alpha1.SleepInfo] = &customValidator{}
 
-// ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (v *customValidator) ValidateCreate(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
-	s, ok := obj.(*v1alpha1.SleepInfo)
-	if !ok {
-		return nil, fmt.Errorf("fails to decode SleepInfo")
-	}
+// ValidateCreate implements admission.Validator so a webhook will be registered for the type.
+func (v *customValidator) ValidateCreate(ctx context.Context, s *v1alpha1.SleepInfo) (admission.Warnings, error) {
 	sleepinfolog.Info("validate create", "name", s.Name, "namespace", s.Namespace)
-
 	return s.Validate(v.Client)
 }
 
-// ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (v *customValidator) ValidateUpdate(ctx context.Context, _, new runtime.Object) (admission.Warnings, error) {
-	s, ok := new.(*v1alpha1.SleepInfo)
-	if !ok {
-		return nil, fmt.Errorf("fails to decode SleepInfo")
-	}
-	sleepinfolog.Info("validate update", "name", s.Name, "namespace", s.Namespace)
-
-	return s.Validate(v.Client)
+// ValidateUpdate implements admission.Validator so a webhook will be registered for the type.
+func (v *customValidator) ValidateUpdate(ctx context.Context, _, newObj *v1alpha1.SleepInfo) (admission.Warnings, error) {
+	sleepinfolog.Info("validate update", "name", newObj.Name, "namespace", newObj.Namespace)
+	return newObj.Validate(v.Client)
 }
 
-// ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (v *customValidator) ValidateDelete(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
-	s, ok := obj.(*v1alpha1.SleepInfo)
-	if !ok {
-		return nil, fmt.Errorf("fails to decode SleepInfo")
-	}
+// ValidateDelete implements admission.Validator so a webhook will be registered for the type.
+func (v *customValidator) ValidateDelete(_ context.Context, s *v1alpha1.SleepInfo) (admission.Warnings, error) {
 	sleepinfolog.Info("validate delete", "name", s.Name)
 	return nil, nil
 }

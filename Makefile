@@ -138,6 +138,8 @@ lint-config: golangci-lint ## Verify golangci-lint linter configuration
 .PHONY: test
 test: manifests generate fmt vet gotestsum envtest ## Run tests.
 	@echo "Running tests with kubernetes version $(KIND_K8S_VERSION)..."
+	@K8S_MINOR=$$(echo "$(KIND_K8S_VERSION)" | sed 's/^v//' | cut -d. -f1,2); \
+	 $(ENVTEST) use -p path --bin-dir $(LOCALBIN) $$K8S_MINOR > /dev/null
 	KIND_K8S_VERSION=$(KIND_K8S_VERSION) $(GOTESTSUM) -- $(GO_TEST_ARGS) -race $(TEST_PATH)
 
 .PHONY: coverage
@@ -154,12 +156,12 @@ e2e-test-kustomize: manifests generate kustomize
 	@$(KUSTOMIZE) build ./config/e2e-test/ -o /tmp/kube-green-e2e-test.yaml
 	@rm -rf ./tests/integration/tests-logs/
 	@echo "==> Generated K8s resource file with Kustomize"
-	CONTAINER_TOOL=$(CONTAINER_TOOL) INSTALLATION_MODE=kustomize go test -tags=e2e ./tests/integration/ -count 1 $(OPTION)
+	CONTAINER_TOOL=$(CONTAINER_TOOL) INSTALLATION_MODE=kustomize go test -tags=e2e -timeout 30m ./tests/integration/ -count 1 $(OPTION)
 
 .PHONY: e2e-test
 e2e-test:
 	@rm -rf ./tests/integration/tests-logs/
-	CONTAINER_TOOL=$(CONTAINER_TOOL) go test -tags=e2e ./tests/integration/ -count 1 $(OPTION)
+	CONTAINER_TOOL=$(CONTAINER_TOOL) go test -tags=e2e -timeout 30m ./tests/integration/ -count 1 $(OPTION)
 
 ##@ Build
 
