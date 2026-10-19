@@ -31,7 +31,7 @@ This example shows how to use this Helm Chart with ArgoCD.
 
 ### Configuration
 
-The following Application configuration can be used to deploy the helm chart using ArgoCD with a GitOps structure. Important parts of this are the `ServerSideApply` and `ignoreDifferences` configurations to have a clean Application state.
+The following Application configuration can be used to deploy the helm chart using ArgoCD with a GitOps structure. The `ServerSideApply` sync option is required to have a clean Application state.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -65,14 +65,6 @@ spec:
       - CreateNamespace=true
        # Required for the CRD annotation
       - ServerSideApply=true
-
-  ignoreDifferences:
-  # Required because the control plane automatically fills in the rules
-  - group: rbac.authorization.k8s.io
-    kind: ClusterRole
-    name: kube-green-manager-role
-    jsonPointers:
-    - /rules
 ```
 
 ## Deploy Kube-Green Helm Chart with Terraform

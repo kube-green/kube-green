@@ -299,7 +299,6 @@ aggregationRule:
   clusterRoleSelectors:
   - matchLabels:
       kube-green.dev/aggregate-to-manager: "true"
-rules: [] # The control plane automatically fills in the rules
 ---
 # Source: kube-green/templates/cluster_role.yaml
 apiVersion: rbac.authorization.k8s.io/v1

@@ -6,4 +6,3 @@ aggregationRule:
   clusterRoleSelectors:
   - matchLabels:
       kube-green.dev/aggregate-to-manager: "true"
-rules: [] # The control plane automatically fills in the rules
