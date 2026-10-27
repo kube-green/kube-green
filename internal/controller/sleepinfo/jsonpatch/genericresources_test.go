@@ -3,6 +3,7 @@ package jsonpatch
 import (
 	"bytes"
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/kube-green/kube-green/api/v1alpha1"
@@ -11,7 +12,11 @@ import (
 	"github.com/kube-green/kube-green/internal/testutil"
 
 	"github.com/stretchr/testify/require"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
@@ -272,5 +277,105 @@ func TestListResources(t *testing.T) {
 func cleanResourceVersion(list []unstructured.Unstructured) {
 	for _, item := range list {
 		unstructured.RemoveNestedField(item.Object, "metadata", "resourceVersion")
+	}
+}
+
+// TestListResourcesPagination checks complete snapshots, empty continuation pages,
+// and the distinction between an absent target and a failed paginated request.
+func TestListResourcesPagination(t *testing.T) {
+	first := mocks.Deployment(mocks.DeploymentOptions{Name: "first", Namespace: "test"}).Unstructured()
+	second := mocks.Deployment(mocks.DeploymentOptions{Name: "second", Namespace: "test"}).Unstructured()
+	listError := errors.New("later page unavailable")
+	notFound := apierrors.NewNotFound(schema.GroupResource{Group: "apps", Resource: "deployments"}, "")
+	type page struct {
+		items []unstructured.Unstructured
+		next  string
+		err   error
+	}
+	for _, tc := range []struct {
+		name  string
+		pages []page
+		want  []unstructured.Unstructured
+		err   error
+	}{
+		{
+			name: "multiple pages",
+			pages: []page{
+				{items: []unstructured.Unstructured{first}, next: "next-page"},
+				{items: []unstructured.Unstructured{second}},
+			},
+			want: []unstructured.Unstructured{first, second},
+		},
+		{
+			name: "empty page with continuation",
+			pages: []page{
+				{next: "next-page"},
+				{items: []unstructured.Unstructured{second}},
+			},
+			want: []unstructured.Unstructured{second},
+		},
+		{
+			name:  "authoritative empty list",
+			pages: []page{{}},
+		},
+		{
+			name: "later page failure discards partial results",
+			pages: []page{
+				{items: []unstructured.Unstructured{first}, next: "next-page"},
+				{err: listError},
+			},
+			err: listError,
+		},
+		{
+			name: "later page NotFound discards partial results and fails",
+			pages: []page{
+				{items: []unstructured.Unstructured{first}, next: "next-page"},
+				{err: notFound},
+			},
+			err: notFound,
+		},
+		{
+			name:  "first page NotFound confirms absent target",
+			pages: []page{{err: notFound}},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			calls := 0
+			fakeClient := getFakeClient().WithInterceptorFuncs(interceptor.Funcs{
+				List: func(_ context.Context, _ client.WithWatch, list client.ObjectList, opts ...client.ListOption) error {
+					options := (&client.ListOptions{}).ApplyOptions(opts)
+					require.Equal(t, "test", options.Namespace)
+					require.Equal(t, int64(500), options.Limit)
+					require.Equal(t, "metadata.name!=excluded", options.FieldSelector.String())
+					require.Equal(t, "tier==standard", options.LabelSelector.String())
+					expectedContinue := ""
+					if calls > 0 {
+						expectedContinue = tc.pages[calls-1].next
+					}
+					require.Equal(t, expectedContinue, options.Continue)
+					require.Less(t, calls, len(tc.pages))
+					page := tc.pages[calls]
+					calls++
+					if page.err != nil {
+						return page.err
+					}
+					result := list.(*unstructured.UnstructuredList)
+					result.Items = page.items
+					result.SetContinue(page.next)
+					return nil
+				},
+			}).Build()
+			sleepInfo := &v1alpha1.SleepInfo{Spec: v1alpha1.SleepInfoSpec{
+				IncludeRef: []v1alpha1.FilterRef{{MatchLabels: map[string]string{"tier": "standard"}}},
+				ExcludeRef: []v1alpha1.FilterRef{{APIVersion: "apps/v1", Kind: "Deployment", Name: "excluded"}},
+			}}
+			generic := newGenericResource(resource.ResourceClient{
+				Client: fakeClient, Log: zap.New(zap.WriteTo(&bytes.Buffer{})), SleepInfo: sleepInfo,
+			}, deployPatchData, RestorePatches{})
+			got, err := generic.getListByNamespace(t.Context(), "test", deployPatchData.Target)
+			require.ErrorIs(t, err, tc.err)
+			require.Equal(t, tc.want, got)
+			require.Equal(t, len(tc.pages), calls)
+		})
 	}
 }

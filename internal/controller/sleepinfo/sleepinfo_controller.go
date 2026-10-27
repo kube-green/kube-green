@@ -16,6 +16,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/prometheus/client_golang/prometheus"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -28,6 +29,7 @@ import (
 const (
 	lastScheduleKey               = "scheduled-at"
 	lastOperationKey              = "operation-type"
+	pendingSleepKey               = "pending-sleep"
 	originalJSONPatchDataKey      = "original-resource-info"
 	replicasBeforeSleepAnnotation = "sleepinfo.kube-green.com/replicas-before-sleep"
 
@@ -103,6 +105,9 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, err
 	}
 	now := r.Now()
+	if err := sleepInfoData.resumePendingSleep(now, time.Duration(r.SleepDelta)*time.Second, sleepInfo.Spec.WakeUpTime != ""); err != nil {
+		return ctrl.Result{}, err
+	}
 
 	isToExecute, nextSchedule, requeueAfter, err := r.getNextSchedule(log, sleepInfoData, now)
 	if err != nil {
@@ -130,19 +135,15 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, err
 	}
 
-	if err := r.handleSleepInfoStatus(ctx, now, sleepInfo, sleepInfoData.CurrentOperationType, resources); err != nil {
-		log.Error(err, "unable to update sleepInfo status")
-		return ctrl.Result{}, err
-	}
-	log.V(8).Info("update status info")
-
 	logSecret := log.WithValues("secret", secretName)
 	if !resources.HasResource() {
-		if err = r.upsertSecret(ctx, log, now, secretName, req.Namespace, sleepInfo, secret, sleepInfoData, resources); err != nil {
+		sleepInfoData.PendingSleep = false
+		if _, err = r.upsertSecret(ctx, log, now, secretName, req.Namespace, sleepInfo, secret, sleepInfoData, resources); err != nil {
 			logSecret.Error(err, "fails to update secret")
-			return ctrl.Result{
-				Requeue: true,
-			}, nil
+			return ctrl.Result{}, err
+		}
+		if err := r.handleSleepInfoStatus(ctx, now, sleepInfo, sleepInfoData.CurrentOperationType, resources); err != nil {
+			return ctrl.Result{}, err
 		}
 
 		if sleepInfoData.IsSleepOperation() {
@@ -166,12 +167,13 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	switch {
 	case sleepInfoData.IsSleepOperation():
-		if err := resources.Sleep(ctx); err != nil {
+		if err := r.sleepResources(ctx, log, now, sleepInfo, secret, sleepInfoData, resources); err != nil {
 			log.Error(err, "fails to handle sleep")
 			return ctrl.Result{
 				Requeue: true,
 			}, err
 		}
+		return ctrl.Result{RequeueAfter: requeueAfter}, nil
 	case sleepInfoData.IsWakeUpOperation():
 		if err := resources.WakeUp(ctx); err != nil {
 			log.Error(err, "fails to handle wake up")
@@ -183,16 +185,48 @@ func (r *SleepInfoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, fmt.Errorf("operation %s not supported", sleepInfoData.CurrentOperationType)
 	}
 
-	if err = r.upsertSecret(ctx, log, now, secretName, req.Namespace, sleepInfo, secret, sleepInfoData, resources); err != nil {
+	if err := r.handleSleepInfoStatus(ctx, now, sleepInfo, sleepInfoData.CurrentOperationType, resources); err != nil {
+		return ctrl.Result{}, err
+	}
+	sleepInfoData.PendingSleep = false
+	if _, err = r.upsertSecret(ctx, log, now, secretName, req.Namespace, sleepInfo, secret, sleepInfoData, resources); err != nil {
 		logSecret.Error(err, "fails to update secret")
-		return ctrl.Result{
-			Requeue: true,
-		}, nil
+		return ctrl.Result{}, err
 	}
 
 	return ctrl.Result{
 		RequeueAfter: requeueAfter,
 	}, nil
+}
+
+// sleepResources persists a recoverable sleep operation before changing any workload.
+func (r *SleepInfoReconciler) sleepResources(
+	ctx context.Context, log logr.Logger, now time.Time,
+	sleepInfo *kubegreenv1alpha1.SleepInfo, secret *corev1.Secret,
+	data SleepInfoData, resources resource.Resource,
+) error {
+	if err := resources.PrepareSleep(ctx, data.PendingSleep); err != nil {
+		return err
+	}
+	if data.PendingSleep {
+		now = data.LastSchedule
+	}
+	data.PendingSleep = true
+	secret, err := r.upsertSecret(ctx, log, now, getSecretName(sleepInfo.Name), sleepInfo.Namespace,
+		sleepInfo, secret, data, resources)
+	if err != nil {
+		return fmt.Errorf("persist restore data: %w", err)
+	}
+	if err := r.handleSleepInfoStatus(ctx, now, sleepInfo, data.CurrentOperationType, resources); err != nil {
+		return err
+	}
+	if err := resources.Sleep(ctx); err != nil {
+		return err
+	}
+	data.PendingSleep = false
+	_, err = r.upsertSecret(ctx, log, now, getSecretName(sleepInfo.Name), sleepInfo.Namespace,
+		sleepInfo, secret, data, resources)
+	return err
 }
 
 // SetupWithManager sets up the controller with the Manager.

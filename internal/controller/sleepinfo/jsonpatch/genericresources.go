@@ -20,6 +20,7 @@ type genericResource struct {
 	patchData      v1alpha1.Patch
 	restorePatches RestorePatches
 	data           []unstructured.Unstructured
+	sleepPatches   []*unstructured.Unstructured
 	// FIXME:
 	// this cache parameter is used to simplify the implementation (avoiding to repeat
 	// some error done in other resource implementation managing data) without change
@@ -37,6 +38,9 @@ func newGenericResource(res resource.ResourceClient, patchData v1alpha1.Patch, r
 	}
 }
 
+// getListByNamespace collects every page before returning a resource snapshot.
+// Failed requests discard partial results. A target missing before pagination or
+// a complete empty list is a successful result, allowing obsolete state to be cleared.
 func (c genericResource) getListByNamespace(ctx context.Context, namespace string, target v1alpha1.PatchTarget) ([]unstructured.Unstructured, error) {
 	// TODO: manage optional version. So it will be possible to manage also multiple
 	// version of the same resource
@@ -49,21 +53,33 @@ func (c genericResource) getListByNamespace(ctx context.Context, namespace strin
 	}
 	c.ResourceClient.Log.V(8).Info("prepare resources list", "target", target, "gvk", restMapping.GroupVersionKind.String())
 
-	resourceList := unstructured.UnstructuredList{}
-	resourceList.SetGroupVersionKind(restMapping.GroupVersionKind)
-
 	listOptions, err := c.getListOptions(namespace, target)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := c.Client.List(ctx, &resourceList, listOptions); err != nil {
-		return resourceList.Items, client.IgnoreNotFound(err)
+	var resources []unstructured.Unstructured
+	for {
+		resourceList := unstructured.UnstructuredList{}
+		resourceList.SetGroupVersionKind(restMapping.GroupVersionKind)
+		if err := c.Client.List(ctx, &resourceList, listOptions); err != nil {
+			// Confirm absence with a fresh list rather than an incomplete snapshot.
+			if listOptions.Continue != "" {
+				return nil, err
+			}
+			return nil, client.IgnoreNotFound(err)
+		}
+		resources = append(resources, resourceList.Items...)
+		listOptions.Continue = resourceList.GetContinue()
+		// A filtered page can be empty even when more matching resources remain.
+		if listOptions.Continue == "" {
+			break
+		}
 	}
 
-	c.Log.V(8).Info("resources list", "gvk", restMapping.GroupVersionKind.String(), "length", len(resourceList.Items))
+	c.Log.V(8).Info("resources list", "gvk", restMapping.GroupVersionKind.String(), "length", len(resources))
 
-	return resourceList.Items, nil
+	return resources, nil
 }
 
 func (g genericResource) getListOptions(namespace string, target v1alpha1.PatchTarget) (*client.ListOptions, error) {

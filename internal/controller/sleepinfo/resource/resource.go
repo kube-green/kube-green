@@ -17,6 +17,7 @@ var ErrInvalidClient = errors.New("invalid client")
 
 type Resource interface {
 	HasResource() bool
+	PrepareSleep(ctx context.Context, preserveRestorePatches bool) error
 	Sleep(ctx context.Context) error
 	WakeUp(ctx context.Context) error
 	GetOriginalInfoToSave() ([]byte, error)

@@ -118,6 +118,17 @@ spec:
 
 To see other examples, go to [our docs](https://kube-green.dev/docs/configuration/#examples).
 
+### Restore data and retries
+
+Before putting workloads to sleep, kube-green saves their restore patches in the
+`sleepinfo-<name>` Secret. If that write fails, workloads remain unchanged and the
+controller reports an error. Ensure namespace quotas and permissions allow this Secret.
+
+An interrupted sleep retains its restore data and is retried after a controller
+restart or a delay beyond the sleep scheduling window. If the wake time has already
+passed, kube-green restores workloads that were put to sleep instead of continuing
+the interrupted scale-down. Keep the restore Secret until the workloads have woken.
+
 ## Contributing
 
 Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct, and the process for submitting pull requests to us.

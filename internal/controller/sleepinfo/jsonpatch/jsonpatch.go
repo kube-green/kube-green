@@ -28,6 +28,10 @@ type managedResources struct {
 
 type RestorePatches map[string]string
 
+// NewResources loads complete resource snapshots for the configured patch targets.
+// Listing errors for targets with saved restore patches stop reconciliation so
+// recovery state is retained. Successfully listed empty targets are omitted,
+// allowing deleted or newly excluded workloads to leave recovery state.
 func NewResources(ctx context.Context, res resource.ResourceClient, namespace string, restorePatches map[string]RestorePatches) (resource.Resource, error) {
 	if res.SleepInfo == nil {
 		return nil, fmt.Errorf("%w: sleepInfo is not provided", ErrJSONPatch)
@@ -54,6 +58,11 @@ func NewResources(ctx context.Context, res resource.ResourceClient, namespace st
 		generic.data, err = generic.getListByNamespace(ctx, namespace, patchData.Target)
 		if err != nil {
 			res.Log.WithValues("target", patchData.Target.String()).Error(err, "fails to get list of resources")
+			// Dropping a target with saved state would discard its restore patches
+			// when the Secret is next updated, leaving sleeping workloads stranded.
+			if len(restorePatch) > 0 {
+				return nil, fmt.Errorf("%w: %s: %w", ErrListResources, patchData.Target.String(), err)
+			}
 			continue
 		}
 		if len(generic.data) == 0 {
@@ -75,8 +84,10 @@ func (g managedResources) HasResource() bool {
 	return false
 }
 
-func (g managedResources) Sleep(ctx context.Context) error {
+// PrepareSleep computes restore data and the exact patches to apply without modifying workloads.
+func (g managedResources) PrepareSleep(ctx context.Context, preserveRestorePatches bool) error {
 	for _, resourceWrapper := range g.resMapping {
+		resourceWrapper.sleepPatches = make([]*unstructured.Unstructured, 0)
 		if resourceWrapper.patchData.Patch == "" {
 			return fmt.Errorf(`%w: invalid empty patch`, ErrJSONPatch)
 		}
@@ -135,7 +146,9 @@ func (g managedResources) Sleep(ctx context.Context) error {
 				continue
 			}
 
-			resourceWrapper.restorePatches[resource.GetName()] = restorePatchString
+			if _, saved := resourceWrapper.restorePatches[resource.GetName()]; !saved || !preserveRestorePatches {
+				resourceWrapper.restorePatches[resource.GetName()] = restorePatchString
+			}
 
 			// Create forward merge patch containing only the changed fields
 			forwardPatch, err := jsonpatch.CreateMergePatch(original, modified)
@@ -150,13 +163,36 @@ func (g managedResources) Sleep(ctx context.Context) error {
 				return fmt.Errorf("%w: %s", ErrJSONPatch, err)
 			}
 
-			if err := resourceWrapper.SSAPatch(ctx, sparseObj); err != nil {
-				return fmt.Errorf("%w: %s", ErrJSONPatch, err)
-			}
-			resourceWrapper.isCacheInvalid = true
+			resourceWrapper.sleepPatches = append(resourceWrapper.sleepPatches, sparseObj)
 		}
 	}
 
+	return nil
+}
+
+// Sleep applies prepared patches. Call PrepareSleep first to persist restore data before applying them.
+func (g managedResources) Sleep(ctx context.Context) error {
+	for _, res := range g.resMapping {
+		if res.sleepPatches == nil {
+			if err := g.PrepareSleep(ctx, false); err != nil {
+				return err
+			}
+			break
+		}
+	}
+	defer func() {
+		for _, res := range g.resMapping {
+			res.sleepPatches = nil
+		}
+	}()
+	for _, res := range g.resMapping {
+		for _, patch := range res.sleepPatches {
+			if err := res.SSAPatch(ctx, patch); err != nil {
+				return fmt.Errorf("%w: %s", ErrJSONPatch, err)
+			}
+			res.isCacheInvalid = true
+		}
+	}
 	return nil
 }
 
